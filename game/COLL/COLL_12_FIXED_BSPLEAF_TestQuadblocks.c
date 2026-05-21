@@ -1,6 +1,6 @@
 #include <common.h>
 
-void DECOMP_COLL_FIXED_BSPLEAF_TestQuadblocks(struct BSP *node, struct ScratchpadStruct *sps)
+void COLL_FIXED_BSPLEAF_TestQuadblocks(struct BSP *node, struct ScratchpadStruct *sps)
 {
 	u32 numQuads;
 	struct QuadBlock *ptrQuad;
@@ -22,6 +22,13 @@ void DECOMP_COLL_FIXED_BSPLEAF_TestQuadblocks(struct BSP *node, struct Scratchpa
 
 	if ((sps->Union.QuadBlockColl.searchFlags & 1) != 0)
 	{
+#ifdef CTR_NATIVE
+		// NOTE(aalhendi): CTR_NATIVE bridge: CAM_FindClosestQuadblock clears
+		// this flag. Instance hitbox search stays disabled here until the
+		// fixed COLL instance path is wired for native.
+		return;
+#else
 		COLL_FIXED_BSPLEAF_TestInstance(node, sps);
+#endif
 	}
 }

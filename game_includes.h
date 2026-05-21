@@ -46,7 +46,6 @@
 #include "game/CAMERA/CAM_15_FollowDriver_Spin360.c"
 #include "game/CAMERA/CAM_16_SetDesiredPosRot.c"
 
-#define CAM_FindClosestQuadblock   DECOMP_CAM_FindClosestQuadblock
 #define CAM_FollowDriver_AngleAxis DECOMP_CAM_FollowDriver_AngleAxis
 #define CAM_FollowDriver_Normal    DECOMP_CAM_FollowDriver_Normal
 #define CAM_FollowDriver_Spin360   DECOMP_CAM_FollowDriver_Spin360
@@ -72,7 +71,6 @@
 #undef CAM_FollowDriver_Spin360
 #undef CAM_FollowDriver_Normal
 #undef CAM_FollowDriver_AngleAxis
-#undef CAM_FindClosestQuadblock
 
 #include "game/CDSYS/CDSYS_00_Init.c"
 #include "game/CDSYS/CDSYS_01_GetFilePosInt.c"
@@ -97,6 +95,8 @@
 #include "game/COLL/COLL_00_LevModelMeta.c"
 #include "game/COLL/COLL_01_SearchBSP_CallbackQUADBLK.c"
 #include "game/COLL/COLL_06_SearchBSP_CallbackPARAM.c"
+#include "game/COLL/COLL_11_FIXED_QUADBLK_TestTriangles.c"
+#include "game/COLL/COLL_12_FIXED_BSPLEAF_TestQuadblocks.c"
 
 #include "game/CTR/CTR_00_Box_DrawWirePrims.c"
 #include "game/CTR/CTR_01_Box_DrawWireBox.c"
