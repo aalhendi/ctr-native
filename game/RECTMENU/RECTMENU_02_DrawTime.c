@@ -1,14 +1,14 @@
 #include <common.h>
 
-u8 *DECOMP_RECTMENU_DrawTime(int milliseconds)
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80044ff8-0x80045134
+u8 *RECTMENU_DrawTime(int milliseconds)
 {
 	// 32 is added to milliseconds every frame,
 	// 960 per second, the rest is basic math
 
 #ifdef REBUILD_PC
-	// Overwrite unused mempack,
-	// the original game actually did this
-	char *str = &sdata->mempack[4];
+	// NOTE(aalhendi): Retail writes DAT_80099264; native names the same slot.
+	char *str = &sdata->ghostStrTrackTime[0];
 #else
 	char *str = 0x1f800000;
 #endif
@@ -34,4 +34,9 @@ u8 *DECOMP_RECTMENU_DrawTime(int milliseconds)
 	);
 
 	return str;
+}
+
+u8 *DECOMP_RECTMENU_DrawTime(int milliseconds)
+{
+	return RECTMENU_DrawTime(milliseconds);
 }

@@ -1,7 +1,8 @@
 #include <common.h>
 
 // countdown clock, used for Battle Mode and Crystal Challenge
-void DECOMP_UI_DrawLimitClock(s16 posX, s16 posY, s16 fontType)
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8004f894-0x8004f9d8
+void UI_DrawLimitClock(s16 posX, s16 posY, s16 fontType)
 {
 	struct GameTracker *gGT;
 	char *str;
@@ -37,9 +38,7 @@ void DECOMP_UI_DrawLimitClock(s16 posX, s16 posY, s16 fontType)
 				d->actionsFlagSet |= 0x2000000;
 			};
 
-#ifndef REBUILD_PC
 			MainGameEnd_Initialize();
-#endif
 		}
 	}
 
@@ -67,4 +66,9 @@ void DECOMP_UI_DrawLimitClock(s16 posX, s16 posY, s16 fontType)
 	// put the time string on the screen
 	DECOMP_DecalFont_DrawLine(str, (int)posX, (int)posY, (int)fontType, flags);
 	return;
+}
+
+void DECOMP_UI_DrawLimitClock(s16 posX, s16 posY, s16 fontType)
+{
+	UI_DrawLimitClock(posX, posY, fontType);
 }

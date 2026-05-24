@@ -4,11 +4,13 @@
 struct
 {
 	char s_timeString_empty[12];
-} rdata = {0};
+	// NOTE(aalhendi): Retail RDATA is pre-shaped; this function patches digits only.
+} rdata = {"  :  :  "};
 #endif
 
 // used for both finished lap time and current race time
-void DECOMP_UI_DrawRaceClock(u16 paramX, u16 paramY, u32 flags, struct Driver *driver)
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8004edac-0x8004f894
+void UI_DrawRaceClock(u16 paramX, u16 paramY, u32 flags, struct Driver *driver)
 {
 	// flag parameter bits
 	// despite being a u32 only 6 bits are ever used
@@ -79,12 +81,10 @@ void DECOMP_UI_DrawRaceClock(u16 paramX, u16 paramY, u32 flags, struct Driver *d
 	// milliseconds elapsed in race
 	msElapsed = driver->timeElapsedInRace;
 
-	// OG game was "== 7"
-	// but now expand for Online
-	if (gGT->numLaps >= 7)
+	if (gGT->numLaps == 7)
 	{
 		// less than 99:59:99
-		if ((char)(msElapsed / 0x8ca00) < 10)
+		if (msElapsed / 0x8ca00 < 10)
 		{
 			minutesTens = (char)(msElapsed / 0x8ca00) % 10;
 
@@ -96,7 +96,7 @@ void DECOMP_UI_DrawRaceClock(u16 paramX, u16 paramY, u32 flags, struct Driver *d
 	else
 	{
 		// less than 9:59:99
-		if ((char)(msElapsed / 0xe100) < 10)
+		if (msElapsed / 0xe100 < 10)
 		{
 		setRestOfTime:
 			minutesOnes = (char)(msElapsed / 0xe100) % 10;
@@ -176,9 +176,7 @@ void DECOMP_UI_DrawRaceClock(u16 paramX, u16 paramY, u32 flags, struct Driver *d
 		strFlags_but_its_also_posY = (u16)((gGT->timer & 2) == 0) << 2;
 	}
 
-	// OG game was "== 7"
-	// but now expand for Online
-	if (gGT->numLaps >= 7)
+	if (gGT->numLaps == 7)
 	{
 		// String for amount of time in total race
 		totalTimeString = &rdata.s_timeString_empty[0];
@@ -369,8 +367,8 @@ void DECOMP_UI_DrawRaceClock(u16 paramX, u16 paramY, u32 flags, struct Driver *d
 		// 28 is bit index for unlocking gold relics
 		// 16 is bit index for unlocking blue relics
 
-		// if you have gold, draw platinum
-		if (CHECK_ADV_BIT(rewardsSet, (gGT->levelID + 0x28)) != 0)
+		// if you have gold or platinum, draw platinum
+		if ((CHECK_ADV_BIT(rewardsSet, (gGT->levelID + 0x3a)) != 0) || (CHECK_ADV_BIT(rewardsSet, (gGT->levelID + 0x28)) != 0))
 		{
 		DrawPlatinum:
 			str = 200;
@@ -448,4 +446,9 @@ LAB_8004f378:
 	sdata->raceClockStr[6] = sdata->relicTime_1ms + '0';
 	DECOMP_DecalFont_DrawLine(sdata->raceClockStr, (int)(s16)uVar11, (int)strFlags_but_its_also_posY, FONT_BIG,
 	                          (int)(s16)(stringColor_but_its_also_relicColor & (0xffff ^ JUSTIFY_RIGHT)));
+}
+
+void DECOMP_UI_DrawRaceClock(u16 paramX, u16 paramY, u32 flags, struct Driver *driver)
+{
+	UI_DrawRaceClock(paramX, paramY, flags, driver);
 }
