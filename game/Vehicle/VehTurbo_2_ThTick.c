@@ -1,6 +1,5 @@
 #include <common.h>
 
-void OtherFX_RecycleNew(void *, int, int);
 void ThTick_FastRET(struct Thread *);
 
 // VehTurbo_ThTick
@@ -216,7 +215,7 @@ void DECOMP_VehTurbo_ThTick(struct Thread *turboThread)
 		}
 
 		// driver audio
-		OtherFX_RecycleNew(&driver->driverAudioPtrs[3], 0xe, (iVar7 << 0x10 | fireAudioDistort | 0x80));
+		OtherFX_RecycleNew((u32 *)&driver->driverAudioPtrs[3], 0xe, (iVar7 << 0x10 | fireAudioDistort | 0x80));
 
 		// manipulate turbo audio distort to change sound each frame
 		if (turbo->fireAudioDistort < 0xc0)
@@ -289,7 +288,7 @@ void DECOMP_VehTurbo_ThTick(struct Thread *turboThread)
 			}
 
 			// driver audio
-			OtherFX_RecycleNew(&driver->driverAudioPtrs[3], 0xffffffff, uVar8);
+			OtherFX_RecycleNew((u32 *)&driver->driverAudioPtrs[3], 0xffffffff, uVar8);
 		}
 
 		// 0x800 = this thread needs to be deleted

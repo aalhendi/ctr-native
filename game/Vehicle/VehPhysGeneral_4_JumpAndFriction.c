@@ -204,7 +204,7 @@ CHECK_FOR_ANY_JUMP:
 			int jumpForce = d->const_JumpForce * 9;
 			d->jump_InitialVelY = (s16)VehPhysGeneral_Jump_Div4TowardZero(jumpForce);
 
-			DECOMP_OtherFX_Play_Echo(9, 1, (d->actionsFlagSet >> 16) & 1);
+			OtherFX_Play_Echo(9, 1, (d->actionsFlagSet >> 16) & 1);
 
 			d->jump_unknown = 0x180;
 			goto PROCESS_JUMP;
@@ -243,13 +243,13 @@ CHECK_FOR_ANY_JUMP:
 		d->numberOfJumps++;
 		d->jump_InitialVelY = d->const_JumpForce;
 
-		DECOMP_OtherFX_Play_Echo(8, 1, (d->actionsFlagSet >> 16) & 1);
+		OtherFX_Play_Echo(8, 1, (d->actionsFlagSet >> 16) & 1);
 	}
 	else
 	{
 		if ((d->jump_ForcedMS == 0) || (d->jump_InitialVelY == d->const_JumpForce))
 		{
-			DECOMP_OtherFX_Play(0x7e, 1);
+			OtherFX_Play(0x7e, 1);
 		}
 
 		d->jump_ForcedMS = 0xa0;

@@ -15,15 +15,15 @@ void DECOMP_VehStuckProc_Warp_Init(struct Thread *th, struct Driver *d)
 	d->KartStates.Warp.quadHeight = d->quadBlockHeight;
 
 	// Warp sound?
-	DECOMP_OtherFX_Play(0x97, 1);
+	OtherFX_Play(0x97, 1);
 
 	char i;
 
-	DECOMP_OtherFX_Stop1((int)d->driverAudioPtrs[1]);
+	OtherFX_Stop1((int)d->driverAudioPtrs[1]);
 	d->driverAudioPtrs[1] = NULL;
-	DECOMP_OtherFX_Stop1((int)d->driverAudioPtrs[2]);
+	OtherFX_Stop1((int)d->driverAudioPtrs[2]);
 	d->driverAudioPtrs[2] = NULL;
-	DECOMP_OtherFX_Stop1((int)d->driverAudioPtrs[0]);
+	OtherFX_Stop1((int)d->driverAudioPtrs[0]);
 	d->driverAudioPtrs[0] = NULL;
 
 	u8 playerID = d->driverID;

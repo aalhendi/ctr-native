@@ -57,7 +57,7 @@ Skip:
 
 	// 0xD = Turbo Boost Sound
 	// 0x80 = balance L/R
-	DECOMP_OtherFX_Play_LowLevel(0xd, 1, volume | distortion | extraFlags);
+	OtherFX_Play_LowLevel(0xd, 1, volume | distortion | extraFlags);
 
 	// turbo audio cooldown 0.24s
 	driver->VehFire_AudioCooldown = 0xf0;

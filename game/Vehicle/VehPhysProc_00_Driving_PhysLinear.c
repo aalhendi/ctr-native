@@ -128,7 +128,7 @@ void VehPhysProc_Driving_PhysLinear(struct Thread *thread, struct Driver *driver
 			driver->invisibleTimer = 0;
 			driver->instSelf->flags = driver->instFlagsBackup;
 			driver->instSelf->alphaScale = 0;
-			DECOMP_OtherFX_Play(0x62, 1);
+			OtherFX_Play(0x62, 1);
 		}
 	}
 
@@ -312,7 +312,7 @@ void VehPhysProc_Driving_PhysLinear(struct Thread *thread, struct Driver *driver
 			}
 
 			// sound of getting weapon
-			DECOMP_OtherFX_Play(itemSound, isNumWumpas10);
+			OtherFX_Play(itemSound, isNumWumpas10);
 		}
 
 		// if Item roll is not done

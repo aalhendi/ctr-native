@@ -1320,7 +1320,7 @@ void SpuSetVoiceADSRAttr(int, int, int, int, int, int, int, int, int);
 int SpuSetReverbVoice(int, int);
 void Voiceline_Update();
 void Level_AmbientSound();
-void OtherFX_RecycleNew(void *, int, int); // 2nd param might be `char`
+void OtherFX_RecycleNew(u32 *soundID_Count, u32 newSoundID, u32 modifyFlags);
 void LOAD_Hub_ReadFile(int bigfilePtr, int levID, int packID);
 void PickupBots_Init();
 void SetDrawMove(DR_MOVE *, RECT *, int x, int y);

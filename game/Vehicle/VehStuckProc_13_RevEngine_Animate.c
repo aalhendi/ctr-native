@@ -68,7 +68,7 @@ void DECOMP_VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 				d->KartStates.RevEngine.unk[0] = 0;
 				d->KartStates.RevEngine.unk[1] |= 3;
 
-				DECOMP_OtherFX_Play_Echo(0xf, 1, d->actionsFlagSet & 0x10000);
+				OtherFX_Play_Echo(0xf, 1, d->actionsFlagSet & 0x10000);
 			}
 		}
 		goto LAB_80067dec;

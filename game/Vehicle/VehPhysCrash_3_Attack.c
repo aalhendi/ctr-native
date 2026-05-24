@@ -40,7 +40,7 @@ int VehPhysCrash_Attack(struct Driver *driver1, struct Driver *driver2, int canP
 
 				if (boolPlayBubblePop != 0)
 				{
-					DECOMP_OtherFX_Play(0x4f, 1);
+					OtherFX_Play(0x4f, 1);
 				}
 
 				Voiceline_RequestPlay(1, data.characterIDs[driver1->driverID], 0x10);

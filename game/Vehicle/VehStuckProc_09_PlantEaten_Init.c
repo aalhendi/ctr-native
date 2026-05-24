@@ -46,11 +46,11 @@ void VehStuckProc_PlantEaten_Init(struct Thread *t, struct Driver *d)
 	// make invisible
 	inst->flags |= HIDE_MODEL;
 
-	DECOMP_OtherFX_Stop1((int)d->driverAudioPtrs[1]);
+	OtherFX_Stop1((int)d->driverAudioPtrs[1]);
 	d->driverAudioPtrs[1] = NULL;
-	DECOMP_OtherFX_Stop1((int)d->driverAudioPtrs[2]);
+	OtherFX_Stop1((int)d->driverAudioPtrs[2]);
 	d->driverAudioPtrs[2] = NULL;
-	DECOMP_OtherFX_Stop1((int)d->driverAudioPtrs[0]);
+	OtherFX_Stop1((int)d->driverAudioPtrs[0]);
 	d->driverAudioPtrs[0] = NULL;
 
 	for (i = 0; i < 13; i++)

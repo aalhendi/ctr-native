@@ -491,7 +491,7 @@ void DECOMP_VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 		if (d->numWumpas >= 10)
 			shieldObj->flags = 4;
 
-		DECOMP_OtherFX_Play(0x57, 1);
+		OtherFX_Play(0x57, 1);
 		break;
 
 	// Mask
@@ -505,7 +505,7 @@ void DECOMP_VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 		d->numTimesClockWeaponUsed++;
 		d->clockSend = 0x1e;
 
-		DECOMP_OtherFX_Play(0x44, 1);
+		OtherFX_Play(0x44, 1);
 
 		// if human and not AI (AIs can not use Clock)
 		// if((d->actionsFlagSet & 0x100000) == 0)
@@ -650,7 +650,7 @@ void DECOMP_VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 
 			d->instSelf->flags = (d->instSelf->flags & 0xfff8ffff) | 0x60000;
 
-			DECOMP_OtherFX_Play(0x61, 1);
+			OtherFX_Play(0x61, 1);
 		}
 
 		int time = 0x1e00;

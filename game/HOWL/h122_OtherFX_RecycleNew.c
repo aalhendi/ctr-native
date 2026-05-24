@@ -33,3 +33,8 @@ void DECOMP_OtherFX_RecycleNew(u32 *soundID_Count, u32 newSoundID, u32 modifyFla
 		}
 	}
 }
+
+void OtherFX_RecycleNew(u32 *soundID_Count, u32 newSoundID, u32 modifyFlags)
+{
+	DECOMP_OtherFX_RecycleNew(soundID_Count, newSoundID, modifyFlags);
+}

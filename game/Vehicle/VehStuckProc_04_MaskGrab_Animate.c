@@ -39,7 +39,7 @@ void DECOMP_VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 			d->KartStates.MaskGrab.boolWhistle = true;
 
 			// "falling" sound, like a whistle
-			DECOMP_OtherFX_Play(0x55, 1);
+			OtherFX_Play(0x55, 1);
 		}
 
 

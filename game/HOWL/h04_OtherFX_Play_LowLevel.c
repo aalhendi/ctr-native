@@ -84,3 +84,8 @@ int DECOMP_OtherFX_Play_LowLevel(u32 soundID, char boolAntiSpam, u32 flags)
 	DECOMP_Smart_ExitCriticalSection();
 	return channel->soundID;
 }
+
+int OtherFX_Play_LowLevel(u32 soundID, u8 boolAntiSpam, u32 flags)
+{
+	return DECOMP_OtherFX_Play_LowLevel(soundID, boolAntiSpam, flags);
+}

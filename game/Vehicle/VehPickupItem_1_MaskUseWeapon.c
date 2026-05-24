@@ -49,7 +49,7 @@ struct MaskHeadWeapon *DECOMP_VehPickupItem_MaskUseWeapon(struct Driver *driver,
 			// 0x53: aku model
 
 			soundID = currThread->modelIndex + 0x1A;
-			DECOMP_OtherFX_Play_Echo(soundID, 1, driver->actionsFlagSet & 0x10000);
+			OtherFX_Play_Echo(soundID, 1, driver->actionsFlagSet & 0x10000);
 		}
 
 		// un-kill thread
@@ -73,7 +73,7 @@ struct MaskHeadWeapon *DECOMP_VehPickupItem_MaskUseWeapon(struct Driver *driver,
 	    // If this is human and not AI
 	    ((driver->actionsFlagSet & 0x100000) == 0) &&
 
-	    (DECOMP_OtherFX_Play_Echo(soundID, 1, driver->actionsFlagSet & 0x10000),
+	    (OtherFX_Play_Echo(soundID, 1, driver->actionsFlagSet & 0x10000),
 
 	     1 < (u32)(driver->kartState - 4)))
 	{

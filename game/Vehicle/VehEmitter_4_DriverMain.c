@@ -214,7 +214,7 @@ static void VehEmitter_TerrainEffects(struct Thread *thread, struct Driver *d, s
 		else
 			flags |= 0x8080;
 
-		DECOMP_OtherFX_RecycleNew((u32 *)&d->driverAudioPtrs[2], wallSound, flags);
+		OtherFX_RecycleNew((u32 *)&d->driverAudioPtrs[2], wallSound, flags);
 	}
 }
 
@@ -234,7 +234,7 @@ static void VehEmitter_TerrainAudioAndFeedback(struct Thread *thread, struct Dri
 	if ((d->actionsFlagSet & 0x10000) != 0)
 		distort |= 0x1000000;
 
-	DECOMP_OtherFX_RecycleNew((u32 *)&d->driverAudioPtrs[1], soundID, ((u32)vol << 16) | (u32)distort | 0x80);
+	OtherFX_RecycleNew((u32 *)&d->driverAudioPtrs[1], soundID, ((u32)vol << 16) | (u32)distort | 0x80);
 
 	if ((d->actionsFlagSet & 0x100000) == 0)
 	{
@@ -262,7 +262,7 @@ static void VehEmitter_SkidmarkAudio(struct Thread *thread, struct Driver *d, st
 	{
 		if (d->driverAudioPtrs[0] != NULL)
 		{
-			DECOMP_OtherFX_Stop1((int)d->driverAudioPtrs[0]);
+			OtherFX_Stop1((int)d->driverAudioPtrs[0]);
 			d->driverAudioPtrs[0] = NULL;
 		}
 		return;
@@ -297,7 +297,7 @@ static void VehEmitter_SkidmarkAudio(struct Thread *thread, struct Driver *d, st
 		if ((d->actionsFlagSet & 0x10000) != 0)
 			flags |= 0x1000000;
 
-		DECOMP_OtherFX_RecycleNew((u32 *)&d->driverAudioPtrs[0], terrain->unk_0x30, flags);
+		OtherFX_RecycleNew((u32 *)&d->driverAudioPtrs[0], terrain->unk_0x30, flags);
 	}
 
 	VehEmitter_Skidmarks(thread, d, terrainFlags);

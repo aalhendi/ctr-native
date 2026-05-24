@@ -40,7 +40,7 @@ void DECOMP_VehPhysProc_PowerSlide_Update(struct Thread *t, struct Driver *d)
 			// If bar is full
 			if (meterLeft == 0)
 			{
-				DECOMP_OtherFX_Play_Echo(0xf, 1, d->actionsFlagSet & 0x10000);
+				OtherFX_Play_Echo(0xf, 1, d->actionsFlagSet & 0x10000);
 
 
 				// Add to your number of boost attempts, this makes it

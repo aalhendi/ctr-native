@@ -151,7 +151,7 @@ static void VehPhysForce_TranslateMatrix_UpdateSquashStretch(struct Instance *in
 	{
 		if (d->instSelf->thread->modelIndex == 0x18)
 		{
-			DECOMP_OtherFX_Play_Echo(0x5b, 1, (d->actionsFlagSet >> 16) & 1);
+			OtherFX_Play_Echo(0x5b, 1, (d->actionsFlagSet >> 16) & 1);
 		}
 
 		inst->scale[1] = d->jumpSquishStretch + 0xccc;
