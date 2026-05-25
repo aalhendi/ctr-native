@@ -1,11 +1,9 @@
 #include <common.h>
 
-// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800afb70-0x800afdbc.
+// NOTE(aalhendi): ASM-verified against NTSC-U 926 overlay 231 0x800afb70-0x800afdbc.
 void RB_MaskWeapon_FadeAway(struct Thread *t)
 {
-	u16 uVar1;
 	s16 totalTime;
-	int ratio;
 	MATRIX *m;
 	struct Instance *inst;
 	struct Instance *driverInst;
