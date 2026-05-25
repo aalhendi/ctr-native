@@ -648,15 +648,12 @@ static int DrawTiresReflection_StagePlayer(struct DrawTiresReflectionScratch *sc
 	DrawTiresReflection_SetupProjectionState(pb);
 	DrawTiresReflection_ProjectWheelQuads(scratch, primMem, primCount);
 
-	// Source-backs the reflected setup/gates, wheel-local construction, GTE
-	// setup, wheel-axis construction, projection, and sprite selection through
-	// primitive emission and tail. The function remains unstamped until the
-	// body-wide scratchpad/register ABI audit is complete.
 	return 1;
 }
 
 void DrawTires_Reflection(struct Thread *thread, struct PrimMem *primMem, char numPlyr)
 {
+	// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8006f004-0x8006f9a8.
 	struct DrawTiresReflectionScratch scratch = {0};
 	int primCount;
 

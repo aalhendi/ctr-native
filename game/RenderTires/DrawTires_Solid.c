@@ -68,6 +68,18 @@ _Static_assert(offsetof(POLY_FT4, r0) == 0x4);
 _Static_assert(offsetof(POLY_FT4, x0) == 0x8);
 _Static_assert(offsetof(POLY_FT4, u0) == 0xc);
 _Static_assert(offsetof(POLY_FT4, x3) == 0x20);
+_Static_assert(sizeof(struct Instance) == 0x74);
+_Static_assert(offsetof(struct Instance, scale) == 0x1c);
+_Static_assert(offsetof(struct Instance, matrix) == 0x30);
+_Static_assert(offsetof(struct Instance, vertSplit) == 0x56);
+_Static_assert(sizeof(struct InstDrawPerPlayer) == 0x88);
+_Static_assert(offsetof(struct InstDrawPerPlayer, pushBuffer) == 0x0);
+_Static_assert(offsetof(struct InstDrawPerPlayer, m3x3) == 0x24);
+_Static_assert(offsetof(struct InstDrawPerPlayer, instFlags) == 0x44);
+_Static_assert(offsetof(struct InstDrawPerPlayer, lodIndex) == 0x64);
+_Static_assert(offsetof(struct InstDrawPerPlayer, depthOffset) == 0x68);
+_Static_assert(offsetof(struct InstDrawPerPlayer, unkE4) == 0x70);
+_Static_assert(offsetof(struct InstDrawPerPlayer, unkE8) == 0x74);
 
 static const u32 sDrawTiresSolidJumpTable[8] = {
     0x8006ed7c, 0x8006ed98, 0x8006edb4, 0x8006edcc, 0x8006ede4, 0x8006ee00, 0x8006ee1c, 0x8006ee3c,
@@ -764,9 +776,6 @@ static int DrawTiresSolid_StagePlayer(struct DrawTiresSolidScratch *scratch, str
 	scratch->otRangeStart = scratch->depthOffsetStartBytes + idpp->unkE4;
 	scratch->otRangeEnd = scratch->depthOffsetEndBytes + idpp->unkE4;
 
-	// Source-backs the solid tire body through primitive emission and OT linking.
-	// The function remains unstamped until the body-wide scratchpad/register
-	// audit is complete.
 	DrawTiresSolid_BuildWheelLocalPairs(scratch, driver, inst, idpp);
 	DrawTiresSolid_SetupGteState(scratch, inst, idpp, pb);
 	DrawTiresSolid_BuildWheelAxes(scratch);
@@ -778,6 +787,7 @@ static int DrawTiresSolid_StagePlayer(struct DrawTiresSolidScratch *scratch, str
 
 void DrawTires_Solid(struct Thread *thread, struct PrimMem *primMem, char numPlyr)
 {
+	// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8006e588-0x8006ef30.
 	struct DrawTiresSolidScratch scratch = {0};
 	int primCount;
 
@@ -801,9 +811,6 @@ void DrawTires_Solid(struct Thread *thread, struct PrimMem *primMem, char numPly
 
 		for (int playerIndex = 0; playerIndex < (int)(u8)numPlyr; playerIndex++)
 		{
-			// Source-backs the early thread/player and IDPP gates at
-			// 0x8006e5fc-0x8006e688. Full primitive emission is source-backed,
-			// but the body-wide register/scratchpad ABI audit remains pending.
 			if (DrawTiresSolid_StagePlayer(&scratch, driver, inst, playerIndex, primMem, &primCount) == 0)
 				continue;
 		}

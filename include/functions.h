@@ -1106,7 +1106,7 @@ void DrawSky_Full(void *skybox, struct PushBuffer *pb, struct PrimMem *primMem);
 // uncategorized
 
 void AnimateQuad(int timer, int numSCVert, void *ptrSCVert, int *visSCVertList);
-// AnimateQuadVertex()
+void AnimateQuadVertex(int timer, struct SCVert *scVert, u32 *visBits);
 // TRIG_AngleSinCos_r19r17r18()
 void DrawConfetti(struct PushBuffer *pb, struct PrimMem *primMem, void *confetti, int frameTimer, int gameMode1);
 // TRIG_AngleSinCos_r15r16r17()
@@ -1142,7 +1142,7 @@ void AnimateWater1P(int timer, int numWaterVertices, struct WaterVert *waterVert
 void AnimateWater2P(int timer, int numWaterVertices, struct WaterVert *waterVert, void *waterEnvMap, int *param_5, int *param_6);
 void AnimateWater3P(int timer, int numWaterVertices, struct WaterVert *waterVert, void *waterEnvMap, int *param_5, int *param_6, int *param_7);
 void AnimateWater4P(int timer, int numWaterVertices, struct WaterVert *waterVert, void *waterEnvMap, int *param_5, int *param_6, int *param_7, int *param_8);
-// AnimateWaterVertex()
+void AnimateWaterVertex(struct WaterVert *waterVert, u16 colorOffset, int firstOffset, int secondOffset, u32 *visBits);
 void RedBeaker_RenderRain(struct PushBuffer *pb, struct PrimMem *primMem, struct JitPool *rain, char numPlyr, int gameMode1);
 void RenderStars(struct PushBuffer *pb, struct PrimMem *primMem, void *stars, char numPlyr);
 void DrawTires_Solid(struct Thread *thread, struct PrimMem *primMem, char numPlyr);

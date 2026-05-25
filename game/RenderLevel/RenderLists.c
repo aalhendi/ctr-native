@@ -83,7 +83,7 @@ static int RenderLists_BoxPassesFrustum(struct PushBuffer *pb, const struct Boun
 
 	for (int planeIndex = 0; planeIndex < 4; planeIndex++)
 	{
-		// NOTE(aalhendi): Retail 0x8006fe70 tests frustum planes in pushbuffer order, using RenderListJmpIndex[0..3] with frustumData[0..3].
+		// NOTE(aalhendi): Retail tests planes in 1,3,0,2 order; each test is independent, so native preserves the plane/corner pairing in a simple loop.
 		plane = (s16 *)&pb->frustumData[planeIndex * 8];
 		RenderLists_SelectBoxCorner(box, pb->RenderListJmpIndex[planeIndex] & 7, point);
 
@@ -245,39 +245,61 @@ static int RenderLists_Walk1P2P(struct BSP *bspRoot, const int *visLeafList, str
 	}
 }
 
-static int RenderLists_Walk3P4P(struct BSP *bspRoot, struct BSP *node, const int *visLeafList, void *LevRenderList, struct VisMemBspListNode *bspList)
+static int RenderLists_Walk3P4P(struct BSP *bspRoot, const int *visLeafList, struct PushBuffer *pb, void *LevRenderList, struct VisMemBspListNode *bspList)
 {
+	struct RenderListsScratchRecord *stackBase = CTR_SCRATCHPAD_PTR(struct RenderListsScratchRecord, 0xd0);
+	struct RenderListsScratchRecord *stackEnd = CTR_SCRATCHPAD_PTR(struct RenderListsScratchRecord, CTR_SCRATCHPAD_SIZE);
+	struct RenderListsScratchRecord *stack = stackBase;
+	struct BSP *branch = bspRoot;
 	int count = 0;
 
-	if (node == 0)
+	if (bspRoot == 0 || pb == 0)
 		return 0;
 
-	if (!RenderLists_IsVisible(visLeafList, (s16)(node - bspRoot)))
-		return 0;
-
-	if ((node->flag & 1) != 0)
+	if ((bspRoot->flag & 1) != 0)
 	{
-		int slotIndex = RenderLists_Select3P4PSlot(node);
+		int slotIndex = RenderLists_Select3P4PSlot(bspRoot);
 		struct VisMemBspListNode **head = (struct VisMemBspListNode **)((char *)LevRenderList + slotIndex * 8 + 4);
 
-		RenderLists_LinkBsp(bspRoot, node, head, bspList);
+		RenderLists_LinkBsp(bspRoot, bspRoot, head, bspList);
 		return 1;
 	}
 
-	for (int childIndex = 0; childIndex < 2; childIndex++)
+	for (;;)
 	{
-		s16 childID = node->data.branch.childID[childIndex];
+		RenderLists_PushChild(bspRoot, visLeafList, pb, branch->data.branch.childID[0], &stack, stackEnd);
+		RenderLists_PushChild(bspRoot, visLeafList, pb, branch->data.branch.childID[1], &stack, stackEnd);
 
-		if (childID < 0)
-			continue;
+		while (stack != stackBase)
+		{
+			struct RenderListsScratchRecord record = *--stack;
+			struct BSP *bsp = &bspRoot[((u16)record.childID) & 0x3fff];
 
-		count += RenderLists_Walk3P4P(bspRoot, &bspRoot[childID & 0x3fff], visLeafList, LevRenderList, bspList);
+			if (((u16)record.childID & 0x4000) == 0)
+			{
+				branch = bsp;
+				goto nextBranch;
+			}
+
+			if (!RenderLists_BoxPassesFrustum(pb, &record.box))
+				continue;
+
+			int slotIndex = RenderLists_Select3P4PSlot(bsp);
+			struct VisMemBspListNode **head = (struct VisMemBspListNode **)((char *)LevRenderList + slotIndex * 8 + 4);
+
+			RenderLists_LinkBsp(bspRoot, bsp, head, bspList);
+			count++;
+		}
+
+		return count;
+
+	nextBranch:
+		continue;
 	}
-
-	return count;
 }
 
-// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800702d4-0x80070308
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800702d4-0x80070388.
+// NOTE(aalhendi): Retail corner helpers 0x80070308..0x80070384 are represented by RenderLists_SelectBoxCorner.
 void RenderLists_PreInit()
 {
 	static const u32 renderListJumpTable[] = {
@@ -291,15 +313,14 @@ void RenderLists_PreInit()
 
 int RenderLists_Init1P2P(struct BSP *bspRoot, int *visLeafList, struct PushBuffer *pb, u32 LevRenderList, void *bspList, char numPlyr)
 {
-	// TODO(aalhendi): Keep the PSX scratch register-save traffic explicit if this C bridge is ever backfed into a PS1 rebuild.
+	// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8006fe70-0x800702d4.
 	RenderLists_Load1P2PGteState(pb);
 	return RenderLists_Walk1P2P(bspRoot, visLeafList, pb, (void *)LevRenderList, bspList, numPlyr);
 }
 
 int RenderLists_Init3P4P(struct BSP *bspRoot, int *visLeafList, struct PushBuffer *pb, u32 LevRenderList, void *bspList)
 {
-	// TODO(aalhendi): ASM-port retail 3P/4P traversal at 0x80070388.
-	(void)pb;
-
-	return RenderLists_Walk3P4P(bspRoot, bspRoot, visLeafList, (void *)LevRenderList, bspList);
+	// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80070388-0x80070720.
+	RenderLists_Load1P2PGteState(pb);
+	return RenderLists_Walk3P4P(bspRoot, visLeafList, pb, (void *)LevRenderList, bspList);
 }
