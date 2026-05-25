@@ -14,7 +14,7 @@
 #include <AL/alext.h>
 #include <AL/efx.h>
 
-// TODO: implement XA, implement ADSR
+// TODO: implement ADSR
 
 static const char* getALCErrorString(int err)
 {
@@ -104,6 +104,9 @@ LPALGENAUXILIARYEFFECTSLOTS alGenAuxiliaryEffectSlots = NULL;
 LPALDELETEAUXILIARYEFFECTSLOTS alDeleteAuxiliaryEffectSlots = NULL;
 LPALAUXILIARYEFFECTSLOTI alAuxiliaryEffectSloti = NULL;
 
+// NOTE(aalhendi): ctr-native local divergence. Upstream PsyCross does not know
+// CTR's extracted XNF/XA layout, so native decodes XA assets through OpenAL here
+// while retail still uses the PS1 CD-XA path.
 static const int XA_NUM_TYPES = 3;
 static const int XA_HEADER_SIZE = 0x44;
 static const int XA_NUM_XAS_TOTAL_OFFSET = 0x0c;
@@ -623,6 +626,8 @@ int PsyX_SPUAL_IsXAPlaying(void)
 
 int PsyX_SPUAL_PlayXATrack(int categoryID, int xaID, int volumeLeft, int volumeRight)
 {
+	// NOTE(aalhendi): Native host bridge for CTR XA. This intentionally maps
+	// retail category/id requests onto extracted assets instead of CD sectors.
 	XaTrackInfo info;
 	char path[128];
 	std::vector<unsigned char> data;

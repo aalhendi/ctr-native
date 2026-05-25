@@ -23,8 +23,9 @@ static TexFormat GetTPageFormat(int tpage)
 {
 	const int mode = (tpage >> 7) & 0x3;
 
-	// NOTE(aalhendi): PS1 mode 3 is reserved; PsyCross 32-bit mode is only for
-	// explicit native override textures.
+	// NOTE(aalhendi): ctr-native local divergence from upstream PsyCross. PS1
+	// mode 3 is reserved; TF_32_BIT_RGBA is only for explicit native override
+	// textures, not raw retail TPAGE mode bits.
 	return mode == 3 ? TF_16_BIT : (TexFormat)mode;
 }
 
@@ -32,7 +33,8 @@ static short GetTPageBase(int tpage)
 {
 	const u_short page = (u_short)tpage;
 
-	// NOTE(aalhendi): The shader wants xPage + yPage * 16, not raw draw-mode bits.
+	// NOTE(aalhendi): ctr-native local divergence for CTR retail emitters. The
+	// shader wants xPage + yPage * 16, not raw draw-mode bits.
 	return (short)((page & 0xf) | ((page & 0x10) ? 0x10 : 0));
 }
 
@@ -1470,9 +1472,11 @@ static int ProcessDrawEnv(P_TAG* polyTag)
 				// DR_TPAGE
 				activeDrawEnv.tpage = (code & 0x1FF);
 				activeDrawEnv.dtd = (code >> 9) & 1;
-				// NOTE(aalhendi): CTR uses DR_TPAGE packets for blend changes inside the OT; PsyCross target selection must stay owned by DRAWENV.
-				// activeDrawEnv.dfe = (code >> 10) & 1;
-				break;
+					// NOTE(aalhendi): ctr-native local divergence. CTR uses
+					// DR_TPAGE packets for blend changes inside the OT; PsyCross
+					// target selection must stay owned by DRAWENV.
+					// activeDrawEnv.dfe = (code >> 10) & 1;
+					break;
 			}
 		case 0x2:
 		{
@@ -1516,10 +1520,12 @@ static int ProcessDrawEnv(P_TAG* polyTag)
 			break;
 		}
 		case 0:
-			// NOTE(aalhendi): A zero word can be terminal draw-env padding, or the tag word for the next primitive packed into the same OT entry.
-			// return processedLongs;
-			if (i + 1 != polyTag->len)
-				return processedLongs;
+				// NOTE(aalhendi): ctr-native local divergence for CTR OTs. A zero
+				// word can be terminal draw-env padding, or the tag word for the
+				// next primitive packed into the same OT entry.
+				// return processedLongs;
+				if (i + 1 != polyTag->len)
+					return processedLongs;
 			break;
 		}
 		++processedLongs;
@@ -1569,10 +1575,11 @@ int ParsePrimitive(P_TAG* polyTag)
 	{
 		const int primSubType = polyTag->code & 0x0F;
 		const u_int* codePtr = (u_int*)&polyTag->pad0;
-		// NOTE(aalhendi): CTR RenderWeather can emit a retail length-2 zero
-		// packet when weather is enabled but the level has no fill-mode payload.
-		// The PSX consumes it by tag length; PsyCross must advance past it too.
-		if (polyTag->len == 2 && codePtr[0] == 0 && codePtr[1] == 0)
+			// NOTE(aalhendi): ctr-native local divergence. CTR RenderWeather can
+			// emit a retail length-2 zero packet when weather is enabled but the
+			// level has no fill-mode payload. The PSX consumes it by tag length;
+			// PsyCross must advance past it too.
+			if (polyTag->len == 2 && codePtr[0] == 0 && codePtr[1] == 0)
 		{
 			primLength = 2;
 		}
@@ -1596,9 +1603,10 @@ int ParsePrimitive(P_TAG* polyTag)
 		}
 		else if (primSubType == 0x2)
 		{
-			// NOTE(aalhendi): CTR emits retail FILL packets in OTs; PsyCross did
-			// not consume them, which caused zero-length primitive spam.
-			TILE* fill = (TILE*)polyTag;
+				// NOTE(aalhendi): ctr-native local divergence. CTR emits retail
+				// FILL packets in OTs; PsyCross did not consume them, which caused
+				// zero-length primitive spam.
+				TILE* fill = (TILE*)polyTag;
 			RECT16 rect;
 
 			rect.x = fill->x0;

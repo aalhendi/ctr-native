@@ -175,6 +175,8 @@ extern void			GR_ReadVRAM(unsigned short* dst, int x, int y, int dst_w, int dst_
 
 extern void			GR_StoreFrameBuffer(int x, int y, int w, int h);
 extern void			GR_UpdateVRAM();
+// NOTE(aalhendi): ctr-native local divergence for startup splash presentation.
+// Retail displays from VRAM directly; native needs an explicit VRAM-to-window bridge.
 extern void			GR_PresentVRAMDisplay();
 extern void			GR_ReadFramebufferDataToVRAM();
 

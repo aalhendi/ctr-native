@@ -1715,6 +1715,10 @@ static void GR_FillDisplayChunkVerts(GrVertex* verts, int dstX, int dstY, int w,
 
 void GR_PresentVRAMDisplay()
 {
+	// NOTE(aalhendi): ctr-native local divergence. Retail presents this boot
+	// splash path by displaying VRAM directly after DR_MOVE packets; the native
+	// OpenGL backend otherwise swaps the current framebuffer and never shows
+	// those VRAM-only copies.
 #if USE_OPENGL
 	const int displayX = activeDispEnv.disp.x;
 	const int displayY = activeDispEnv.disp.y;
