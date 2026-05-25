@@ -247,60 +247,70 @@ struct Cheat
 
 char inputButtons[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800ac9fc-0x800aca34.
 void DECOMP_MM_Cheat_MaxWumpa(void)
 {
 	sdata->gGT->gameMode2 |= CHEAT_WUMPA;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800aca34-0x800aca6c.
 void DECOMP_MM_Cheat_UnlockRoo(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x80;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800aca6c-0x800acaa4.
 void DECOMP_MM_Cheat_UnlockPapu(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x100;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acaa4-0x800acadc.
 void DECOMP_MM_Cheat_UnlockJoe(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x200;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acadc-0x800acb14.
 void DECOMP_MM_Cheat_UnlockPinstripe(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x400;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acb14-0x800acb4c.
 void DECOMP_MM_Cheat_UnlockFakeCrash(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x800;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acb4c-0x800acb84.
 void DECOMP_MM_Cheat_UnlockPenta(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x40;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acb84-0x800acbbc.
 void DECOMP_MM_Cheat_UnlockTropy(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x20;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acbbc-0x800acbf4.
 void DECOMP_MM_Cheat_UnlockScrapbook(void)
 {
 	sdata->gameProgress.unlocks[1] |= 0x10;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acbf4-0x800acc2c.
 void DECOMP_MM_Cheat_UnlockTracks(void)
 {
 	sdata->gameProgress.unlocks[0] |= 0x1e;
@@ -321,6 +331,7 @@ void DECOMP_MM_Cheat_MaxTurbos(void)
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acc9c-0x800accd4.
 void DECOMP_MM_Cheat_MaxInvisibility(void)
 {
 	sdata->gGT->gameMode2 |= CHEAT_INVISIBLE;
@@ -334,24 +345,28 @@ void DECOMP_MM_Cheat_MaxEngine(void)
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acd10-0x800acd4c.
 void DECOMP_MM_Cheat_MaxBombs(void)
 {
 	sdata->gGT->gameMode2 |= CHEAT_BOMBS;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acd4c-0x800acd88.
 void DECOMP_MM_Cheat_AdvDifficulty(void)
 {
 	sdata->gGT->gameMode2 |= CHEAT_ADV;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acd88-0x800acdc4.
 void DECOMP_MM_Cheat_SuperHard(void)
 {
 	sdata->gGT->gameMode2 |= CHEAT_SUPERHARD;
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800acdc4-0x800ace00.
 void DECOMP_MM_Cheat_IcyTracks(void)
 {
 	sdata->gGT->gameMode2 |= CHEAT_ICY;
@@ -365,6 +380,7 @@ void DECOMP_MM_Cheat_SuperTurboPads(void)
 	DECOMP_OtherFX_Play(0x67, 1);
 }
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800ace3c-0x800ace78.
 void DECOMP_MM_Cheat_OneLap(void)
 {
 	sdata->gGT->gameMode2 |= CHEAT_ONELAP;
