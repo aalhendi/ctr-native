@@ -1,8 +1,8 @@
 #include <common.h>
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800675c0-0x800677d0.
 void VehStuckProc_PlantEaten_Animate(struct Thread *t, struct Driver *d)
 {
-	s16 sVar1;
 	s32 dist;
 	struct Instance *inst;
 	SVECTOR plantVector;
