@@ -572,7 +572,7 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d);
 void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d);
 
 void VehPhysProc_PowerSlide_PhysAngular(struct Thread *t, struct Driver *d);
-void VehPhysProc_PowerSlide_Finalize(struct Thread *t, struct Driver *d);
+void VehPhysProc_PowerSlide_Finalize(struct Driver *d);
 void VehPhysProc_PowerSlide_Update(struct Thread *t, struct Driver *d);
 void VehPhysProc_PowerSlide_PhysLinear(struct Thread *t, struct Driver *d);
 void VehPhysProc_PowerSlide_InitSetUpdate(struct Thread *t, struct Driver *d);

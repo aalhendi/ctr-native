@@ -1,5 +1,6 @@
 #include <common.h>
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80063d44-0x80063dc8.
 void VehPhysProc_SpinFirst_PhysLinear(struct Thread *t, struct Driver *d)
 {
 	int elapsedTimeMS = sdata->gGT->elapsedTimeMS;

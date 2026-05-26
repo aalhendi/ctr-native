@@ -1,8 +1,6 @@
 #include <common.h>
 
-// all other Spinning functions should execute for one frame,
-// and then VehPhysProc_SpinFirst_Update should happen after that,
-// otherwise driver wont spin out if hitting armadillo while driver is motionless
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80063eac-0x80063ec0.
 void VehPhysProc_SpinFirst_InitSetUpdate(struct Thread *t, struct Driver *d)
 {
 	d->funcPtrs[0] = 0;

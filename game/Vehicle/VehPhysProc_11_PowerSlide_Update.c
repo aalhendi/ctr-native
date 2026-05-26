@@ -158,7 +158,7 @@ void VehPhysProc_PowerSlide_Update(struct Thread *t, struct Driver *d)
 		        d->buttonUsedToStartDrift) == 0))))
 		{
 			// Stop drifting, just drive
-			VehPhysProc_PowerSlide_Finalize(t, d);
+			VehPhysProc_PowerSlide_Finalize(d);
 			VehPhysProc_Driving_Init(t, d);
 		}
 	}
