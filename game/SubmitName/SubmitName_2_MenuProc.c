@@ -1,5 +1,6 @@
 #include <common.h>
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8004b144-0x8004b230.
 void SubmitName_MenuProc(struct RectMenu *menu)
 {
 	struct GameTracker *gGT = sdata->gGT;
@@ -16,7 +17,6 @@ void SubmitName_MenuProc(struct RectMenu *menu)
 	// if name entered for Time Trial
 	if (sdata->data10_bbb[0xd] == 1)
 	{
-#if defined(CTR_NATIVE)
 		// if hit CANCEL
 		if (selection < 0)
 		{
@@ -32,23 +32,6 @@ void SubmitName_MenuProc(struct RectMenu *menu)
 			SelectProfile_ToggleMode(0x31);
 			sdata->ptrDesiredMenu = &data.menuGhostSelection;
 		}
-#elif !defined(REBUILD_PS1)
-		// if hit CANCEL
-		if (selection < 0)
-		{
-			// end of race menu with "Save Ghost" option
-			extern struct RectMenu menu224;
-			sdata->ptrDesiredMenu = &menu224;
-		}
-
-		// if hit SAVE
-		else
-		{
-			// GhostMode
-			SelectProfile_ToggleMode(0x31);
-			sdata->ptrDesiredMenu = &data.menuGhostSelection;
-		}
-#endif
 	}
 
 	// if name entered for Adventure
@@ -64,24 +47,11 @@ void SubmitName_MenuProc(struct RectMenu *menu)
 		else
 		{
 			// make backup of name entered
-			// todo: probably replace this with a memcpy/macro, bc this is kinda janky
-			*(int *)&sdata->advProgress.name[0x0] = *(int *)&gGT->prevNameEntered[0x0];
-			*(int *)&sdata->advProgress.name[0x4] = *(int *)&gGT->prevNameEntered[0x4];
-			*(int *)&sdata->advProgress.name[0x8] = *(int *)&gGT->prevNameEntered[0x8];
-			*(int *)&sdata->advProgress.name[0xc] = *(int *)&gGT->prevNameEntered[0xc];
-
-#ifndef REBUILD_PS1
+			memmove(sdata->advProgress.name, gGT->prevNameEntered, sizeof(gGT->prevNameEntered));
 
 			// AdventureMode
 			SelectProfile_ToggleMode(1);
 			sdata->ptrDesiredMenu = &data.menuFourAdvProfiles;
-
-#else
-
-			MainRaceTrack_RequestLoad(N_SANITY_BEACH);
-			sdata->ptrActiveMenu = 0;
-
-#endif
 		}
 	}
 }
