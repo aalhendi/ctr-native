@@ -1629,9 +1629,9 @@ static int DrawLevelOvr1P_EmitRenderedClippedPolygonBridgeAtOt(struct PushBuffer
 {
 	(void)primMem;
 
-	// TODO(aalhendi): Replace the native consumer below with retail 0x800aa790
-	// and its jump-table/GTE emit path. This side now writes retail-sized raw
-	// records matching 0x800a4dcc/0x800a4e70.
+	// TODO(aalhendi): Replace this writer-side bridge with the exact retail
+	// 0x800a4dcc/0x800a4e70 record writers. The 0x800aa790 consumer is modeled
+	// separately by DrawLevelOvr1P_ConsumeClipRecords.
 	return DrawLevelOvr1P_WriteRenderedClippedRecordAtOt(pb, block, projected, indices, count, faceIndex, texture, otIndexOverride);
 }
 
