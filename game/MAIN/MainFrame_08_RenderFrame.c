@@ -876,7 +876,7 @@ void RenderAllTires(struct GameTracker *gGT)
 #if !defined(REBUILD_PS1) || defined(CTR_NATIVE)
 void RenderAllShadows(struct GameTracker *gGT)
 {
-	if ((gGT->renderFlags & 0x200) == 0)
+	if ((gGT->renderFlags & 0x400) == 0)
 		return;
 	VehGroundShadow_Main();
 }
