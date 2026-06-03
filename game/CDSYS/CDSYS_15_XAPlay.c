@@ -27,6 +27,13 @@ int CDSYS_XAPlay(int categoryID, int xaID)
 		sdata->XA_VolumeBitshift = nativeVol << 7;
 		sdata->XA_boolFinished = 0;
 		sdata->XA_CurrOffset = 0;
+		sdata->XA_MaxSampleIndex = 0;
+		sdata->XA_MaxSampleNumSaved = 0;
+		sdata->XA_MaxSampleValArr[0] = 0;
+		sdata->XA_MaxSampleValArr[1] = 0;
+		sdata->XA_MaxSampleValArr[2] = 0;
+		sdata->XA_MaxSampleVal = 0;
+		sdata->XA_MaxSampleValInArr = 0;
 		return 1;
 #endif
 		return 1;

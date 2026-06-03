@@ -2762,6 +2762,47 @@ int NativeAudio_IsXAPlaying(void)
 	return PsyX_SPUAL_IsXAPlaying();
 }
 
+int NativeAudio_GetXAMaxSample(void)
+{
+	int max = 0;
+	int frame;
+
+	if (s_audio.output.device != 0)
+		SDL_LockAudioDevice(s_audio.output.device);
+
+	if (s_audio.xa.active && s_audio.xa.pcm != NULL)
+	{
+		u64 frameIndex = s_audio.xa.positionFp >> NATIVE_AUDIO_FP_SHIFT;
+
+		for (frame = 0; frame < 0x80; frame++)
+		{
+			int left;
+			int right;
+
+			if (frameIndex + (u64)frame >= (u64)s_audio.xa.frameCount)
+				break;
+
+			left = s_audio.xa.pcm[((size_t)frameIndex + (size_t)frame) * 2];
+			right = s_audio.xa.pcm[((size_t)frameIndex + (size_t)frame) * 2 + 1];
+
+			if (left < 0)
+				left = -left;
+			if (right < 0)
+				right = -right;
+
+			if (max < left)
+				max = left;
+			if (max < right)
+				max = right;
+		}
+	}
+
+	if (s_audio.output.device != 0)
+		SDL_UnlockAudioDevice(s_audio.output.device);
+
+	return max;
+}
+
 void NativeAudio_StopXA(void)
 {
 	PsyX_SPUAL_StopXA();

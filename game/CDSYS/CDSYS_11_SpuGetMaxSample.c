@@ -1,11 +1,26 @@
 #include <common.h>
 
+#if defined(CTR_NATIVE)
+#include <platform/native_audio.h>
+#endif
+
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8001ca98-0x8001cbe0.
 void CDSYS_SpuGetMaxSample(void)
 {
 	s16 sample;
 	s16 max;
 	max = 0;
+
+#if defined(CTR_NATIVE)
+	if (sdata->boolUseDisc == 0)
+	{
+		// NOTE(aalhendi): Retail reads decoded CD-XA samples from SPU IRQ
+		// buffers. Native XA is decoded by the SDL mixer, so feed the same
+		// amplitude globals from the native PCM cursor.
+		max = NativeAudio_GetXAMaxSample();
+		goto saveMaxSample;
+	}
+#endif
 
 	if (sdata->boolUseDisc == 0)
 		return;
@@ -30,6 +45,7 @@ void CDSYS_SpuGetMaxSample(void)
 			max = sample;
 	}
 
+saveMaxSample:
 	// save max for this block
 	sdata->XA_MaxSampleVal = max;
 	sdata->XA_MaxSampleValArr[sdata->XA_MaxSampleIndex] = max;

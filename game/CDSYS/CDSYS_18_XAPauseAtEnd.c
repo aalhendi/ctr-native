@@ -10,6 +10,11 @@ void CDSYS_XAPauseAtEnd()
 	if (sdata->boolUseDisc == 0)
 	{
 #if defined(CTR_NATIVE)
+		int xaPlaying = NativeAudio_IsXAPlaying();
+
+		if (xaPlaying != 0)
+			CDSYS_SpuGetMaxSample();
+
 		if (sdata->XA_State == 4)
 		{
 			sdata->XA_VolumeBitshift -= sdata->XA_VolumeDeduct;
@@ -19,6 +24,8 @@ void CDSYS_XAPauseAtEnd()
 				NativeAudio_StopXA();
 				sdata->XA_boolFinished = 0;
 				sdata->XA_State = 0;
+				sdata->XA_MaxSampleVal = 0;
+				sdata->XA_MaxSampleValInArr = 0;
 				sdata->XA_PauseFrame = sdata->gGT->frameTimer_MainFrame_ResetDB;
 			}
 			else
@@ -27,13 +34,15 @@ void CDSYS_XAPauseAtEnd()
 				sdata->XA_CurrOffset++;
 			}
 		}
-		else if (NativeAudio_IsXAPlaying() != 0)
+		else if (xaPlaying != 0)
 		{
 			sdata->XA_CurrOffset++;
 		}
 		else
 		{
 			sdata->XA_State = 0;
+			sdata->XA_MaxSampleVal = 0;
+			sdata->XA_MaxSampleValInArr = 0;
 		}
 #endif
 		return;
