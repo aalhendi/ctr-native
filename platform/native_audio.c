@@ -1,3 +1,4 @@
+#include <macros.h>
 #include <platform/native_audio.h>
 #include <platform/native_assets.h>
 
@@ -307,30 +308,30 @@ struct NativeAudioSnapshot
 	u8 spuSampleMem[NATIVE_AUDIO_SPU_MEMSIZE];
 };
 
-static struct NativeAudioState s_audio;
+global_variable struct NativeAudioState s_audio;
 
-static b32 NativeAudio_OutputOpen(void)
+internal b32 NativeAudio_OutputOpen(void)
 {
 	return s_audio.output.stream != NULL;
 }
 
-static void NativeAudio_LockOutput(void)
+internal void NativeAudio_LockOutput(void)
 {
 	if (s_audio.output.stream != NULL)
 		SDL_LockAudioStream(s_audio.output.stream);
 }
 
-static void NativeAudio_UnlockOutput(void)
+internal void NativeAudio_UnlockOutput(void)
 {
 	if (s_audio.output.stream != NULL)
 		SDL_UnlockAudioStream(s_audio.output.stream);
 }
 
-static const int s_posTable[5] = {0, 60, 115, 98, 122};
-static const int s_negTable[5] = {0, 0, -52, -55, -60};
+global_variable const int s_posTable[5] = {0, 60, 115, 98, 122};
+global_variable const int s_negTable[5] = {0, 0, -52, -55, -60};
 // NOTE(aalhendi): PS1 SPU Gaussian interpolation coefficient table.
 // Source reference: https://psx-spx.consoledev.net/soundprocessingunitspu/
-static const s16 s_gaussTable[512] = {
+global_variable const s16 s_gaussTable[512] = {
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    0,     0,     0,     0,     0,     0,
     0,     1,     1,     1,     1,     2,     2,     2,     3,     3,     3,     4,     4,     5,     5,     6,     7,     7,     8,     9,     9,     10,
     11,    12,    13,    14,    15,    16,    17,    18,    19,    21,    22,    24,    25,    27,    28,    30,    32,    33,    35,    37,    39,    41,
@@ -359,7 +360,7 @@ static const s16 s_gaussTable[512] = {
 
 // NOTE(aalhendi): PS1 CD-XA 37800Hz->44100Hz zig-zag interpolation table.
 // Source reference: PSX-SPX, "CDROM XA Audio ADPCM Compression".
-static const s16 s_xaZigZagTable[NATIVE_AUDIO_XA_ZIGZAG_TAPS][NATIVE_AUDIO_XA_ZIGZAG_PHASES] = {
+global_variable const s16 s_xaZigZagTable[NATIVE_AUDIO_XA_ZIGZAG_TAPS][NATIVE_AUDIO_XA_ZIGZAG_PHASES] = {
     {0, 0, 0, 0, -0x0001, 0x0002, -0x0005},
     {0, 0, 0, -0x0001, 0x0003, -0x0008, 0x0011},
     {0, 0, -0x0001, 0x0003, -0x0008, 0x0010, -0x0023},
@@ -393,7 +394,7 @@ static const s16 s_xaZigZagTable[NATIVE_AUDIO_XA_ZIGZAG_TAPS][NATIVE_AUDIO_XA_ZI
 
 // NOTE(aalhendi): PS1 SPU reverb 44.1kHz<->22.05kHz FIR resampler.
 // Source reference: https://psx-spx.consoledev.net/soundprocessingunitspu/
-static const s16 s_reverbFirCoeffs[NATIVE_AUDIO_REVERB_FIR_TAPS] = {
+global_variable const s16 s_reverbFirCoeffs[NATIVE_AUDIO_REVERB_FIR_TAPS] = {
     -0x0001, 0x0000, 0x0002, 0x0000,  -0x000A, 0x0000, 0x0023, 0x0000, -0x0067, 0x0000,  0x010A, 0x0000, -0x0268,
     0x0000,  0x0534, 0x0000, -0x0B90, 0x0000,  0x2806, 0x4000, 0x2806, 0x0000,  -0x0B90, 0x0000, 0x0534, 0x0000,
     -0x0268, 0x0000, 0x010A, 0x0000,  -0x0067, 0x0000, 0x0023, 0x0000, -0x000A, 0x0000,  0x0002, 0x0000, -0x0001,
@@ -403,7 +404,7 @@ static const s16 s_reverbFirCoeffs[NATIVE_AUDIO_REVERB_FIR_TAPS] = {
 
 // NOTE(aalhendi): PS1 SPU reverb preset registers in libspu mode order.
 // Source reference: https://psx-spx.consoledev.net/soundprocessingunitspu/
-static const struct NativeAudioReverbPreset s_reverbPresets[] = {
+global_variable const struct NativeAudioReverbPreset s_reverbPresets[] = {
     {SPU_REV_MODE_OFF, 0x10, {NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000),
                               NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000), NATIVE_AUDIO_REV(0x0000),
                               NATIVE_AUDIO_REV(0x0001), NATIVE_AUDIO_REV(0x0001), NATIVE_AUDIO_REV(0x0001), NATIVE_AUDIO_REV(0x0001), NATIVE_AUDIO_REV(0x0001),
@@ -487,7 +488,7 @@ static const struct NativeAudioReverbPreset s_reverbPresets[] = {
 
 #undef NATIVE_AUDIO_REV
 
-static int NativeAudio_Clamp16(int value)
+internal int NativeAudio_Clamp16(int value)
 {
 	if (value > 32767)
 		return 32767;
@@ -496,7 +497,7 @@ static int NativeAudio_Clamp16(int value)
 	return value;
 }
 
-static int NativeAudio_VolumeScale(s16 volume)
+internal int NativeAudio_VolumeScale(s16 volume)
 {
 	if (volume < 0)
 		return 0;
@@ -505,21 +506,21 @@ static int NativeAudio_VolumeScale(s16 volume)
 	return volume;
 }
 
-static int NativeAudio_ApplyVolume(int sample, s16 volume, s16 masterVolume)
+internal int NativeAudio_ApplyVolume(int sample, s16 volume, s16 masterVolume)
 {
 	int scaledVolume = NativeAudio_VolumeScale(volume);
 	int scaledMasterVolume = NativeAudio_VolumeScale(masterVolume);
 	return (int)(((s64)sample * scaledVolume * scaledMasterVolume) / (NATIVE_AUDIO_DIRECT_VOL_MAX * NATIVE_AUDIO_DIRECT_VOL_MAX));
 }
 
-static int NativeAudio_ApplyMasterVolume(int sample, s16 masterVolume)
+internal int NativeAudio_ApplyMasterVolume(int sample, s16 masterVolume)
 {
 	int scaledMasterVolume = NativeAudio_VolumeScale(masterVolume);
 
 	return (int)(((s64)sample * scaledMasterVolume) / NATIVE_AUDIO_DIRECT_VOL_MAX);
 }
 
-static const struct NativeAudioReverbPreset *NativeAudio_FindReverbPreset(int mode)
+internal const struct NativeAudioReverbPreset *NativeAudio_FindReverbPreset(int mode)
 {
 	int i;
 
@@ -532,7 +533,7 @@ static const struct NativeAudioReverbPreset *NativeAudio_FindReverbPreset(int mo
 	return &s_reverbPresets[0];
 }
 
-static int NativeAudio_ReverbModeFromRaw(int mode)
+internal int NativeAudio_ReverbModeFromRaw(int mode)
 {
 	mode &= 0xff;
 	if ((mode < SPU_REV_MODE_OFF) || (mode >= SPU_REV_MODE_MAX))
@@ -540,12 +541,12 @@ static int NativeAudio_ReverbModeFromRaw(int mode)
 	return mode;
 }
 
-static int NativeAudio_ReverbOffsetSamples(s16 reg)
+internal int NativeAudio_ReverbOffsetSamples(s16 reg)
 {
 	return (int)((u16)reg) * 4;
 }
 
-static int NativeAudio_ReverbWrapIndex(int index, int sizeSamples)
+internal int NativeAudio_ReverbWrapIndex(int index, int sizeSamples)
 {
 	if (sizeSamples <= 0)
 		return 0;
@@ -556,7 +557,7 @@ static int NativeAudio_ReverbWrapIndex(int index, int sizeSamples)
 	return index;
 }
 
-static int NativeAudio_ReverbRead(const struct NativeAudioReverbPreset *preset, int reg, int deltaSamples)
+internal int NativeAudio_ReverbRead(const struct NativeAudioReverbPreset *preset, int reg, int deltaSamples)
 {
 	int index;
 
@@ -568,7 +569,7 @@ static int NativeAudio_ReverbRead(const struct NativeAudioReverbPreset *preset, 
 	return s_audio.reverb.buffer[index];
 }
 
-static int NativeAudio_ReverbReadAtOffset(int offsetSamples)
+internal int NativeAudio_ReverbReadAtOffset(int offsetSamples)
 {
 	int index;
 
@@ -579,7 +580,7 @@ static int NativeAudio_ReverbReadAtOffset(int offsetSamples)
 	return s_audio.reverb.buffer[index];
 }
 
-static void NativeAudio_ReverbWrite(const struct NativeAudioReverbPreset *preset, int reg, int value)
+internal void NativeAudio_ReverbWrite(const struct NativeAudioReverbPreset *preset, int reg, int value)
 {
 	int index;
 
@@ -591,12 +592,12 @@ static void NativeAudio_ReverbWrite(const struct NativeAudioReverbPreset *preset
 	s_audio.reverb.buffer[index] = (s16)NativeAudio_Clamp16(value);
 }
 
-static int NativeAudio_ReverbMul(int sample, s16 volume)
+internal int NativeAudio_ReverbMul(int sample, s16 volume)
 {
 	return (int)(((s64)sample * (int)volume) / 0x8000);
 }
 
-static int NativeAudio_ReverbFirApply(const s16 *history, s32 cursor)
+internal int NativeAudio_ReverbFirApply(const s16 *history, s32 cursor)
 {
 	s64 sum = 0;
 	int i;
@@ -611,26 +612,26 @@ static int NativeAudio_ReverbFirApply(const s16 *history, s32 cursor)
 	return NativeAudio_Clamp16((int)(sum / 0x8000));
 }
 
-static int NativeAudio_ReverbFirApplyUpsampled(const s16 *history, s32 cursor)
+internal int NativeAudio_ReverbFirApplyUpsampled(const s16 *history, s32 cursor)
 {
 	return NativeAudio_Clamp16(NativeAudio_ReverbFirApply(history, cursor) * 2);
 }
 
-static void NativeAudio_ReverbPushInputSampleNoLock(int left, int right)
+internal void NativeAudio_ReverbPushInputSampleNoLock(int left, int right)
 {
 	s_audio.reverb.inputHistoryLeft[s_audio.reverb.inputHistoryCursor] = (s16)NativeAudio_Clamp16(left);
 	s_audio.reverb.inputHistoryRight[s_audio.reverb.inputHistoryCursor] = (s16)NativeAudio_Clamp16(right);
 	s_audio.reverb.inputHistoryCursor = (s_audio.reverb.inputHistoryCursor + 1) % NATIVE_AUDIO_REVERB_FIR_TAPS;
 }
 
-static void NativeAudio_ReverbPushOutputSampleNoLock(int left, int right)
+internal void NativeAudio_ReverbPushOutputSampleNoLock(int left, int right)
 {
 	s_audio.reverb.outputHistoryLeft[s_audio.reverb.outputHistoryCursor] = (s16)NativeAudio_Clamp16(left);
 	s_audio.reverb.outputHistoryRight[s_audio.reverb.outputHistoryCursor] = (s16)NativeAudio_Clamp16(right);
 	s_audio.reverb.outputHistoryCursor = (s_audio.reverb.outputHistoryCursor + 1) % NATIVE_AUDIO_REVERB_FIR_TAPS;
 }
 
-static void NativeAudio_ReverbClearBufferNoLock(void)
+internal void NativeAudio_ReverbClearBufferNoLock(void)
 {
 	memset(s_audio.reverb.buffer, 0, sizeof(s_audio.reverb.buffer));
 	memset(s_audio.reverb.inputHistoryLeft, 0, sizeof(s_audio.reverb.inputHistoryLeft));
@@ -645,7 +646,7 @@ static void NativeAudio_ReverbClearBufferNoLock(void)
 	s_audio.reverb.lastOutRight = 0;
 }
 
-static void NativeAudio_ReverbConfigureModeNoLock(int rawMode)
+internal void NativeAudio_ReverbConfigureModeNoLock(int rawMode)
 {
 	const struct NativeAudioReverbPreset *preset;
 	int mode = NativeAudio_ReverbModeFromRaw(rawMode);
@@ -664,7 +665,7 @@ static void NativeAudio_ReverbConfigureModeNoLock(int rawMode)
 		NativeAudio_ReverbClearBufferNoLock();
 }
 
-static int NativeAudio_ReverbRunReflectionStage(const struct NativeAudioReverbPreset *preset, int input, int feedbackReg, int writeReg)
+internal int NativeAudio_ReverbRunReflectionStage(const struct NativeAudioReverbPreset *preset, int input, int feedbackReg, int writeReg)
 {
 	int previous = NativeAudio_ReverbRead(preset, writeReg, -1);
 	int feedback = NativeAudio_ReverbMul(NativeAudio_ReverbRead(preset, feedbackReg, 0), preset->reg[NATIVE_AUDIO_REV_VWALL]);
@@ -673,7 +674,7 @@ static int NativeAudio_ReverbRunReflectionStage(const struct NativeAudioReverbPr
 	return value;
 }
 
-static int NativeAudio_ReverbRunCombStage(const struct NativeAudioReverbPreset *preset, int baseReg)
+internal int NativeAudio_ReverbRunCombStage(const struct NativeAudioReverbPreset *preset, int baseReg)
 {
 	int value = 0;
 
@@ -684,7 +685,7 @@ static int NativeAudio_ReverbRunCombStage(const struct NativeAudioReverbPreset *
 	return value;
 }
 
-static int NativeAudio_ReverbRunApfStage(const struct NativeAudioReverbPreset *preset, int input, int apfReg, int deltaReg, int volumeReg)
+internal int NativeAudio_ReverbRunApfStage(const struct NativeAudioReverbPreset *preset, int input, int apfReg, int deltaReg, int volumeReg)
 {
 	int delta = NativeAudio_ReverbOffsetSamples(preset->reg[apfReg]) - NativeAudio_ReverbOffsetSamples(preset->reg[deltaReg]);
 	int delayed = NativeAudio_ReverbReadAtOffset(delta);
@@ -696,7 +697,7 @@ static int NativeAudio_ReverbRunApfStage(const struct NativeAudioReverbPreset *p
 	return NativeAudio_ReverbMul(stored, preset->reg[volumeReg]) + delayed;
 }
 
-static void NativeAudio_ReverbProcessNoLock(int sendLeft, int sendRight, int *wetLeft, int *wetRight)
+internal void NativeAudio_ReverbProcessNoLock(int sendLeft, int sendRight, int *wetLeft, int *wetRight)
 {
 	const struct NativeAudioReverbPreset *preset;
 	int processThisFrame;
@@ -759,7 +760,7 @@ output_fir:
 	*wetRight = s_audio.reverb.lastOutRight;
 }
 
-static s16 NativeAudio_GetVoicePcmSample(const struct NativeAudioVoice *voice, int sampleIndex)
+internal s16 NativeAudio_GetVoicePcmSample(const struct NativeAudioVoice *voice, int sampleIndex)
 {
 	if (voice->looped && voice->loopEnabled && (voice->loopEnd > voice->loopStart))
 	{
@@ -777,7 +778,7 @@ static s16 NativeAudio_GetVoicePcmSample(const struct NativeAudioVoice *voice, i
 	return voice->pcm[sampleIndex];
 }
 
-static int NativeAudio_InterpolateVoiceSample(const struct NativeAudioVoice *voice)
+internal int NativeAudio_InterpolateVoiceSample(const struct NativeAudioVoice *voice)
 {
 	int sampleIndex = (int)(voice->positionFp >> NATIVE_AUDIO_FP_SHIFT);
 	int gaussIndex = (int)((voice->positionFp >> NATIVE_AUDIO_GAUSS_INDEX_SHIFT) & 0xff);
@@ -795,7 +796,7 @@ static int NativeAudio_InterpolateVoiceSample(const struct NativeAudioVoice *voi
 	return NativeAudio_Clamp16(sample);
 }
 
-static u64 NativeAudio_GetXAOutputFrameCount(int frameCount, int sampleRate)
+internal u64 NativeAudio_GetXAOutputFrameCount(int frameCount, int sampleRate)
 {
 	if ((frameCount <= 0) || (sampleRate <= 0))
 		return 0;
@@ -808,7 +809,7 @@ static u64 NativeAudio_GetXAOutputFrameCount(int frameCount, int sampleRate)
 	return (((u64)frameCount * NATIVE_AUDIO_SAMPLE_RATE) + ((u64)sampleRate - 1)) / (u64)sampleRate;
 }
 
-static void NativeAudio_UpdateXAPositionFromOutputFrameNoLock(void)
+internal void NativeAudio_UpdateXAPositionFromOutputFrameNoLock(void)
 {
 	if (s_audio.xa.sampleRate <= 0)
 	{
@@ -819,7 +820,7 @@ static void NativeAudio_UpdateXAPositionFromOutputFrameNoLock(void)
 	s_audio.xa.positionFp = ((s_audio.xa.outputFrame * (u64)s_audio.xa.sampleRate) << NATIVE_AUDIO_FP_SHIFT) / NATIVE_AUDIO_SAMPLE_RATE;
 }
 
-static void NativeAudio_AdvanceXAOutputFrameNoLock(void)
+internal void NativeAudio_AdvanceXAOutputFrameNoLock(void)
 {
 	u64 outputFrameCount;
 
@@ -833,7 +834,7 @@ static void NativeAudio_AdvanceXAOutputFrameNoLock(void)
 	NativeAudio_UpdateXAPositionFromOutputFrameNoLock();
 }
 
-static int NativeAudio_GetXAPcmSampleAtFrameNoLock(int channel, u64 frameIndex)
+internal int NativeAudio_GetXAPcmSampleAtFrameNoLock(int channel, u64 frameIndex)
 {
 	if ((s_audio.xa.pcm == NULL) || (frameIndex >= (u64)s_audio.xa.frameCount))
 		return 0;
@@ -841,7 +842,7 @@ static int NativeAudio_GetXAPcmSampleAtFrameNoLock(int channel, u64 frameIndex)
 	return s_audio.xa.pcm[(size_t)frameIndex * NATIVE_AUDIO_CHANNELS + (size_t)channel];
 }
 
-static int NativeAudio_GetXAPseudo37800SampleNoLock(int channel, s64 pseudoFrameIndex)
+internal int NativeAudio_GetXAPseudo37800SampleNoLock(int channel, s64 pseudoFrameIndex)
 {
 	u64 frameIndex;
 
@@ -856,7 +857,7 @@ static int NativeAudio_GetXAPseudo37800SampleNoLock(int channel, s64 pseudoFrame
 	return NativeAudio_GetXAPcmSampleAtFrameNoLock(channel, frameIndex);
 }
 
-static int NativeAudio_ZigZagInterpolateXASampleNoLock(int channel)
+internal int NativeAudio_ZigZagInterpolateXASampleNoLock(int channel)
 {
 	u64 group = s_audio.xa.outputFrame / NATIVE_AUDIO_XA_ZIGZAG_PHASES;
 	int phase = (int)(s_audio.xa.outputFrame % NATIVE_AUDIO_XA_ZIGZAG_PHASES);
@@ -873,7 +874,7 @@ static int NativeAudio_ZigZagInterpolateXASampleNoLock(int channel)
 	return NativeAudio_Clamp16(sum);
 }
 
-static int NativeAudio_InterpolateXALinearSampleNoLock(int channel)
+internal int NativeAudio_InterpolateXALinearSampleNoLock(int channel)
 {
 	u64 frameIndex = s_audio.xa.positionFp >> NATIVE_AUDIO_FP_SHIFT;
 	u32 frac = (u32)(s_audio.xa.positionFp & (NATIVE_AUDIO_FP_ONE - 1));
@@ -886,7 +887,7 @@ static int NativeAudio_InterpolateXALinearSampleNoLock(int channel)
 	return a + (int)(((s64)(b - a) * frac) >> NATIVE_AUDIO_FP_SHIFT);
 }
 
-static int NativeAudio_GetXAMixSampleNoLock(int channel)
+internal int NativeAudio_GetXAMixSampleNoLock(int channel)
 {
 	if ((s_audio.xa.sampleRate == XA_SAMPLE_RATE_37800) || (s_audio.xa.sampleRate == XA_SAMPLE_RATE_18900))
 		return NativeAudio_ZigZagInterpolateXASampleNoLock(channel);
@@ -896,7 +897,7 @@ static int NativeAudio_GetXAMixSampleNoLock(int channel)
 
 // NOTE(aalhendi): PS1 SPU ADSR envelope behavior follows PSX-SPX.
 // Source reference: https://psx-spx.consoledev.net/soundprocessingunitspu/
-static int NativeAudio_ClampAdsrLevel(int level)
+internal int NativeAudio_ClampAdsrLevel(int level)
 {
 	if (level < NATIVE_AUDIO_ADSR_MIN)
 		return NATIVE_AUDIO_ADSR_MIN;
@@ -905,22 +906,22 @@ static int NativeAudio_ClampAdsrLevel(int level)
 	return level;
 }
 
-static b32 NativeAudio_AdsrModeIsExponential(int mode)
+internal b32 NativeAudio_AdsrModeIsExponential(int mode)
 {
 	return mode == SPU_VOICE_EXPIncN || mode == SPU_VOICE_EXPIncR || mode == SPU_VOICE_EXPDec;
 }
 
-static b32 NativeAudio_AdsrModeIsDecreasing(int mode)
+internal b32 NativeAudio_AdsrModeIsDecreasing(int mode)
 {
 	return mode == SPU_VOICE_LINEARDecN || mode == SPU_VOICE_LINEARDecR || mode == SPU_VOICE_EXPDec;
 }
 
-static b32 NativeAudio_AdsrModeIsPhaseNegative(int mode)
+internal b32 NativeAudio_AdsrModeIsPhaseNegative(int mode)
 {
 	return mode == SPU_VOICE_LINEARIncR || mode == SPU_VOICE_LINEARDecR || mode == SPU_VOICE_EXPIncR;
 }
 
-static int NativeAudio_AdsrSustainTarget(const struct NativeAudioVoice *voice)
+internal int NativeAudio_AdsrSustainTarget(const struct NativeAudioVoice *voice)
 {
 	int target = ((int)voice->attr.sl + 1) * 0x800;
 
@@ -929,13 +930,13 @@ static int NativeAudio_AdsrSustainTarget(const struct NativeAudioVoice *voice)
 	return target;
 }
 
-static void NativeAudio_AdsrSetPhase(struct NativeAudioVoice *voice, int phase)
+internal void NativeAudio_AdsrSetPhase(struct NativeAudioVoice *voice, int phase)
 {
 	voice->adsrPhase = (u8)phase;
 	voice->adsrCounter = 0;
 }
 
-static void NativeAudio_AdsrForceOff(struct NativeAudioVoice *voice)
+internal void NativeAudio_AdsrForceOff(struct NativeAudioVoice *voice)
 {
 	voice->adsrLevel = 0;
 	voice->adsrCounter = 0;
@@ -944,7 +945,7 @@ static void NativeAudio_AdsrForceOff(struct NativeAudioVoice *voice)
 	voice->active = 0;
 }
 
-static void NativeAudio_AdsrKeyOn(struct NativeAudioVoice *voice)
+internal void NativeAudio_AdsrKeyOn(struct NativeAudioVoice *voice)
 {
 	voice->adsrLevel = 0;
 	voice->adsrCounter = 0;
@@ -952,7 +953,7 @@ static void NativeAudio_AdsrKeyOn(struct NativeAudioVoice *voice)
 	voice->attr.envx = 0;
 }
 
-static void NativeAudio_AdsrKeyOff(struct NativeAudioVoice *voice)
+internal void NativeAudio_AdsrKeyOff(struct NativeAudioVoice *voice)
 {
 	if (voice->adsrPhase != NATIVE_AUDIO_ADSR_OFF)
 		NativeAudio_AdsrSetPhase(voice, NATIVE_AUDIO_ADSR_RELEASE);
@@ -960,15 +961,15 @@ static void NativeAudio_AdsrKeyOff(struct NativeAudioVoice *voice)
 		NativeAudio_AdsrForceOff(voice);
 }
 
-static b32 NativeAudio_AdsrRateIsAllOnes(int shiftValue, int stepValue, int bitCount)
+internal b32 NativeAudio_AdsrRateIsAllOnes(int shiftValue, int stepValue, int bitCount)
 {
 	int mask = (1 << bitCount) - 1;
 
 	return (stepValue | (shiftValue << 2)) == mask;
 }
 
-static void NativeAudio_AdsrRunEnvelopeStep(struct NativeAudioVoice *voice, int shiftValue, int stepValue, b32 exponential, b32 decreasing, b32 phaseNegative,
-                                            b32 rateAllOnes)
+internal void NativeAudio_AdsrRunEnvelopeStep(struct NativeAudioVoice *voice, int shiftValue, int stepValue, b32 exponential, b32 decreasing, b32 phaseNegative,
+                                              b32 rateAllOnes)
 {
 	int adsrStep;
 	u32 counterIncrement;
@@ -1042,7 +1043,7 @@ static void NativeAudio_AdsrRunEnvelopeStep(struct NativeAudioVoice *voice, int 
 	voice->attr.envx = (s16)voice->adsrLevel;
 }
 
-static void NativeAudio_AdsrAdvance(struct NativeAudioVoice *voice)
+internal void NativeAudio_AdsrAdvance(struct NativeAudioVoice *voice)
 {
 	switch (voice->adsrPhase)
 	{
@@ -1118,7 +1119,7 @@ static void NativeAudio_AdsrAdvance(struct NativeAudioVoice *voice)
 	}
 }
 
-static int NativeAudio_ApplyAdsrEnvelope(int sample, int adsrLevel)
+internal int NativeAudio_ApplyAdsrEnvelope(int sample, int adsrLevel)
 {
 	int scaleMax;
 
@@ -1131,7 +1132,7 @@ static int NativeAudio_ApplyAdsrEnvelope(int sample, int adsrLevel)
 	return NativeAudio_Clamp16((int)(((s64)sample * adsrLevel) / scaleMax));
 }
 
-static void NativeAudio_UpdatePackedAdsrFromFields(struct NativeAudioVoice *voice)
+internal void NativeAudio_UpdatePackedAdsrFromFields(struct NativeAudioVoice *voice)
 {
 	voice->attr.adsr1 = (u16)((voice->attr.sl & 0xf) | ((voice->attr.dr & 0xf) << 4) | ((voice->attr.ar & 0x7f) << 8) |
 	                          (NativeAudio_AdsrModeIsExponential(voice->attr.a_mode) ? 0x8000 : 0));
@@ -1140,7 +1141,7 @@ static void NativeAudio_UpdatePackedAdsrFromFields(struct NativeAudioVoice *voic
 	          (NativeAudio_AdsrModeIsExponential(voice->attr.s_mode) ? 0x8000 : 0) | (NativeAudio_AdsrModeIsExponential(voice->attr.r_mode) ? 0x20 : 0));
 }
 
-static void NativeAudio_DecodePackedAdsrToFields(struct NativeAudioVoice *voice, b32 decodeAdsr1, b32 decodeAdsr2)
+internal void NativeAudio_DecodePackedAdsrToFields(struct NativeAudioVoice *voice, b32 decodeAdsr1, b32 decodeAdsr2)
 {
 	if (decodeAdsr1)
 	{
@@ -1165,17 +1166,17 @@ static void NativeAudio_DecodePackedAdsrToFields(struct NativeAudioVoice *voice,
 	}
 }
 
-static int NativeAudio_ReadLE32(const u8 *bytes)
+internal int NativeAudio_ReadLE32(const u8 *bytes)
 {
 	return (int)((u32)bytes[0] | ((u32)bytes[1] << 8) | ((u32)bytes[2] << 16) | ((u32)bytes[3] << 24));
 }
 
-static int NativeAudio_ReadLE16Signed(const u8 *bytes)
+internal int NativeAudio_ReadLE16Signed(const u8 *bytes)
 {
 	return (s16)((u16)bytes[0] | ((u16)bytes[1] << 8));
 }
 
-static int NativeAudio_AlignUpInt(int value, int align)
+internal int NativeAudio_AlignUpInt(int value, int align)
 {
 	int mask = align - 1;
 
@@ -1185,7 +1186,7 @@ static int NativeAudio_AlignUpInt(int value, int align)
 	return (value + mask) & ~mask;
 }
 
-static void NativeAudio_ArenaFree(struct NativeAudioDecodeArena *arena)
+internal void NativeAudio_ArenaFree(struct NativeAudioDecodeArena *arena)
 {
 	free(arena->memory);
 	arena->memory = NULL;
@@ -1193,12 +1194,12 @@ static void NativeAudio_ArenaFree(struct NativeAudioDecodeArena *arena)
 	arena->used = 0;
 }
 
-static void NativeAudio_ArenaReset(struct NativeAudioDecodeArena *arena)
+internal void NativeAudio_ArenaReset(struct NativeAudioDecodeArena *arena)
 {
 	arena->used = 0;
 }
 
-static int NativeAudio_ArenaEnsureCapacity(struct NativeAudioDecodeArena *arena, int capacity)
+internal int NativeAudio_ArenaEnsureCapacity(struct NativeAudioDecodeArena *arena, int capacity)
 {
 	u8 *newMemory;
 	int newCapacity;
@@ -1230,7 +1231,7 @@ static int NativeAudio_ArenaEnsureCapacity(struct NativeAudioDecodeArena *arena,
 	return 1;
 }
 
-static void *NativeAudio_ArenaPush(struct NativeAudioDecodeArena *arena, int size, int align, int *markerOut)
+internal void *NativeAudio_ArenaPush(struct NativeAudioDecodeArena *arena, int size, int align, int *markerOut)
 {
 	int marker;
 	int end;
@@ -1252,13 +1253,13 @@ static void *NativeAudio_ArenaPush(struct NativeAudioDecodeArena *arena, int siz
 	return &arena->memory[marker];
 }
 
-static void NativeAudio_ArenaRewind(struct NativeAudioDecodeArena *arena, int marker)
+internal void NativeAudio_ArenaRewind(struct NativeAudioDecodeArena *arena, int marker)
 {
 	if ((marker >= 0) && (marker <= arena->used))
 		arena->used = marker;
 }
 
-static void NativeAudio_ArenaSwap(struct NativeAudioDecodeArena *a, struct NativeAudioDecodeArena *b)
+internal void NativeAudio_ArenaSwap(struct NativeAudioDecodeArena *a, struct NativeAudioDecodeArena *b)
 {
 	struct NativeAudioDecodeArena tmp = *a;
 
@@ -1266,7 +1267,7 @@ static void NativeAudio_ArenaSwap(struct NativeAudioDecodeArena *a, struct Nativ
 	*b = tmp;
 }
 
-static int NativeAudio_VoiceArenaEnsureCapacityNoLock(int capacity)
+internal int NativeAudio_VoiceArenaEnsureCapacityNoLock(int capacity)
 {
 	struct NativeAudioDecodeArena *arena = &s_audio.voicePcmArena;
 	u8 *oldMemory;
@@ -1314,7 +1315,7 @@ static int NativeAudio_VoiceArenaEnsureCapacityNoLock(int capacity)
 	return 1;
 }
 
-static int NativeAudio_ReadFileBytes(const char *path, struct NativeAudioByteBuffer *bytes)
+internal int NativeAudio_ReadFileBytes(const char *path, struct NativeAudioByteBuffer *bytes)
 {
 	FILE *fp;
 	long size;
@@ -1367,14 +1368,14 @@ static int NativeAudio_ReadFileBytes(const char *path, struct NativeAudioByteBuf
 	return 1;
 }
 
-static void NativeAudio_FreeByteBuffer(struct NativeAudioByteBuffer *bytes)
+internal void NativeAudio_FreeByteBuffer(struct NativeAudioByteBuffer *bytes)
 {
 	free(bytes->data);
 	bytes->data = NULL;
 	bytes->size = 0;
 }
 
-static int NativeAudio_PcmReserve(struct NativeAudioPcmBuffer *pcm, int extra)
+internal int NativeAudio_PcmReserve(struct NativeAudioPcmBuffer *pcm, int extra)
 {
 	int target;
 
@@ -1385,7 +1386,7 @@ static int NativeAudio_PcmReserve(struct NativeAudioPcmBuffer *pcm, int extra)
 	return target <= pcm->capacity;
 }
 
-static int NativeAudio_PcmPush(struct NativeAudioPcmBuffer *pcm, s16 sample)
+internal int NativeAudio_PcmPush(struct NativeAudioPcmBuffer *pcm, s16 sample)
 {
 	if (!NativeAudio_PcmReserve(pcm, 1))
 		return 0;
@@ -1394,7 +1395,7 @@ static int NativeAudio_PcmPush(struct NativeAudioPcmBuffer *pcm, s16 sample)
 	return 1;
 }
 
-static int NativeAudio_DecodeAdpcmNibble(u8 soundParameter, int nibble, int *old, int *older)
+internal int NativeAudio_DecodeAdpcmNibble(u8 soundParameter, int nibble, int *old, int *older)
 {
 	int shift = soundParameter & 0xf;
 	int weight = (soundParameter >> 4) & 0xf;
@@ -1417,7 +1418,7 @@ static int NativeAudio_DecodeAdpcmNibble(u8 soundParameter, int nibble, int *old
 	return sample;
 }
 
-static int NativeAudio_DecodeSpuSample(u32 addr, u32 loopAddr, struct NativeAudioPcmBuffer *pcm, int *loopStart, int *loopEnd, int *loopEnabled)
+internal int NativeAudio_DecodeSpuSample(u32 addr, u32 loopAddr, struct NativeAudioPcmBuffer *pcm, int *loopStart, int *loopEnd, int *loopEnabled)
 {
 	int old = 0;
 	int older = 0;
@@ -1472,7 +1473,7 @@ static int NativeAudio_DecodeSpuSample(u32 addr, u32 loopAddr, struct NativeAudi
 	return pcm->count > 0;
 }
 
-static void NativeAudio_FreeVoicePcm(struct NativeAudioVoice *voice)
+internal void NativeAudio_FreeVoicePcm(struct NativeAudioVoice *voice)
 {
 	voice->pcm = NULL;
 	voice->sampleCount = 0;
@@ -1482,7 +1483,7 @@ static void NativeAudio_FreeVoicePcm(struct NativeAudioVoice *voice)
 	voice->looped = 0;
 }
 
-static void NativeAudio_ResetVoicePcmArenaNoLock(int markDirty)
+internal void NativeAudio_ResetVoicePcmArenaNoLock(int markDirty)
 {
 	int i;
 
@@ -1495,7 +1496,7 @@ static void NativeAudio_ResetVoicePcmArenaNoLock(int markDirty)
 	}
 }
 
-static int NativeAudio_PrepareVoicePcmBuffer(u32 addr, struct NativeAudioPcmBuffer *pcm, int *markerOut)
+internal int NativeAudio_PrepareVoicePcmBuffer(u32 addr, struct NativeAudioPcmBuffer *pcm, int *markerOut)
 {
 	int maxSamples;
 	int maxBytes;
@@ -1525,7 +1526,7 @@ static int NativeAudio_PrepareVoicePcmBuffer(u32 addr, struct NativeAudioPcmBuff
 	return 1;
 }
 
-static void NativeAudio_MarkVoiceSamplesDirty(void)
+internal void NativeAudio_MarkVoiceSamplesDirty(void)
 {
 	int i;
 
@@ -1533,7 +1534,7 @@ static void NativeAudio_MarkVoiceSamplesDirty(void)
 		s_audio.voices[i].sampleDirty = 1;
 }
 
-static void NativeAudio_WrapVoiceLoop(struct NativeAudioVoice *voice)
+internal void NativeAudio_WrapVoiceLoop(struct NativeAudioVoice *voice)
 {
 	u64 loopStartFp = (u64)voice->loopStart << NATIVE_AUDIO_FP_SHIFT;
 	u64 loopEndFp = (u64)voice->loopEnd << NATIVE_AUDIO_FP_SHIFT;
@@ -1544,7 +1545,7 @@ static void NativeAudio_WrapVoiceLoop(struct NativeAudioVoice *voice)
 	voice->looped = 1;
 }
 
-static int NativeAudio_UpdateVoiceSample(struct NativeAudioVoice *voice)
+internal int NativeAudio_UpdateVoiceSample(struct NativeAudioVoice *voice)
 {
 	struct NativeAudioPcmBuffer pcm;
 	int loopStart;
@@ -1581,13 +1582,13 @@ static int NativeAudio_UpdateVoiceSample(struct NativeAudioVoice *voice)
 	return 1;
 }
 
-static void NativeAudio_FreeXA(void)
+internal void NativeAudio_FreeXA(void)
 {
 	memset(&s_audio.xa, 0, sizeof(s_audio.xa));
 	NativeAudio_ArenaReset(&s_audio.xaPcmArena);
 }
 
-static void NativeAudio_CopyVoiceToState(struct NativeAudioVoiceState *dst, const struct NativeAudioVoice *src)
+internal void NativeAudio_CopyVoiceToState(struct NativeAudioVoiceState *dst, const struct NativeAudioVoice *src)
 {
 	dst->attr = src->attr;
 	dst->sampleCount = src->sampleCount;
@@ -1604,7 +1605,7 @@ static void NativeAudio_CopyVoiceToState(struct NativeAudioVoiceState *dst, cons
 	dst->adsrPhase = src->adsrPhase;
 }
 
-static void NativeAudio_CopyStateToVoice(struct NativeAudioVoice *dst, const struct NativeAudioVoiceState *src)
+internal void NativeAudio_CopyStateToVoice(struct NativeAudioVoice *dst, const struct NativeAudioVoiceState *src)
 {
 	dst->attr = src->attr;
 	dst->sampleCount = 0;
@@ -1622,7 +1623,7 @@ static void NativeAudio_CopyStateToVoice(struct NativeAudioVoice *dst, const str
 	dst->pcm = NULL;
 }
 
-static void NativeAudio_CopyXAToState(struct NativeAudioXAState *dst, const struct NativeAudioXA *src)
+internal void NativeAudio_CopyXAToState(struct NativeAudioXAState *dst, const struct NativeAudioXA *src)
 {
 	dst->frameCount = src->frameCount;
 	dst->sampleRate = src->sampleRate;
@@ -1637,7 +1638,7 @@ static void NativeAudio_CopyXAToState(struct NativeAudioXAState *dst, const stru
 	dst->volumeRight = src->volumeRight;
 }
 
-static int NativeAudio_ValidateVoiceSnapshot(const struct NativeAudioVoiceState *voice)
+internal int NativeAudio_ValidateVoiceSnapshot(const struct NativeAudioVoiceState *voice)
 {
 	if (voice->active && (voice->attr.addr >= NATIVE_AUDIO_SPU_MEMSIZE))
 		return 0;
@@ -1650,7 +1651,7 @@ static int NativeAudio_ValidateVoiceSnapshot(const struct NativeAudioVoiceState 
 	return 1;
 }
 
-static int NativeAudio_ValidateXASnapshot(const struct NativeAudioXAState *xa)
+internal int NativeAudio_ValidateXASnapshot(const struct NativeAudioXAState *xa)
 {
 	u64 outputFrameCount;
 
@@ -1676,7 +1677,7 @@ static int NativeAudio_ValidateXASnapshot(const struct NativeAudioXAState *xa)
 	return 1;
 }
 
-static int NativeAudio_ValidateReverbSnapshot(const struct NativeAudioReverbState *reverb)
+internal int NativeAudio_ValidateReverbSnapshot(const struct NativeAudioReverbState *reverb)
 {
 	if ((reverb->mode < SPU_REV_MODE_OFF) || (reverb->mode >= SPU_REV_MODE_MAX))
 		return 0;
@@ -1695,7 +1696,7 @@ static int NativeAudio_ValidateReverbSnapshot(const struct NativeAudioReverbStat
 	return 1;
 }
 
-static void NativeAudio_ClearOutputQueueNoLock(void)
+internal void NativeAudio_ClearOutputQueueNoLock(void)
 {
 	s_audio.output.scheduledReadFrame = 0;
 	s_audio.output.scheduledFrameCount = 0;
@@ -1704,11 +1705,11 @@ static void NativeAudio_ClearOutputQueueNoLock(void)
 		SDL_ClearAudioStream(s_audio.output.stream);
 }
 
-static int NativeAudio_OpenDevice(void);
-static void NativeAudio_MixFrame(s16 *outLeft, s16 *outRight);
-static int NativeAudio_RenderFramesNoLock(s16 *out, int frameCount);
+internal int NativeAudio_OpenDevice(void);
+internal void NativeAudio_MixFrame(s16 *outLeft, s16 *outRight);
+internal int NativeAudio_RenderFramesNoLock(s16 *out, int frameCount);
 
-static void NativeAudio_SelectDriverHint(void)
+internal void NativeAudio_SelectDriverHint(void)
 {
 #if defined(__linux__)
 	if (SDL_GetHint(SDL_HINT_AUDIO_DRIVER) == NULL)
@@ -1723,7 +1724,7 @@ static void NativeAudio_SelectDriverHint(void)
 		SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, "1024");
 }
 
-static int NativeAudio_BuildXAPath(char *path, size_t pathSize, int categoryID, int fileNumber)
+internal int NativeAudio_BuildXAPath(char *path, size_t pathSize, int categoryID, int fileNumber)
 {
 	const char *dir = NULL;
 	int written;
@@ -1741,7 +1742,7 @@ static int NativeAudio_BuildXAPath(char *path, size_t pathSize, int categoryID, 
 	return (written > 0) && ((size_t)written < pathSize);
 }
 
-static int NativeAudio_LookupXATrackInfo(int categoryID, int xaID, struct NativeAudioXaTrackInfo *info)
+internal int NativeAudio_LookupXATrackInfo(int categoryID, int xaID, struct NativeAudioXaTrackInfo *info)
 {
 	struct NativeAudioByteBuffer xnf;
 	int numXasTotal;
@@ -1818,8 +1819,8 @@ static int NativeAudio_LookupXATrackInfo(int categoryID, int xaID, struct Native
 	return info->numSectors > 0;
 }
 
-static int NativeAudio_DecodeXA28Nibbles(const u8 *sector, int frameOff, int block, int nibble, int channel, struct NativeAudioXaDecodeState *state,
-                                         struct NativeAudioPcmBuffer *out)
+internal int NativeAudio_DecodeXA28Nibbles(const u8 *sector, int frameOff, int block, int nibble, int channel, struct NativeAudioXaDecodeState *state,
+                                           struct NativeAudioPcmBuffer *out)
 {
 	int param = sector[frameOff + 4 + block * 2 + nibble];
 	int shift = param & 0xf;
@@ -1854,7 +1855,7 @@ static int NativeAudio_DecodeXA28Nibbles(const u8 *sector, int frameOff, int blo
 	return 1;
 }
 
-static int NativeAudio_DecodeXASectorMono(const u8 *sector, int sectorBase, struct NativeAudioXaDecodeState *state, struct NativeAudioPcmBuffer *out)
+internal int NativeAudio_DecodeXASectorMono(const u8 *sector, int sectorBase, struct NativeAudioXaDecodeState *state, struct NativeAudioPcmBuffer *out)
 {
 	int frame;
 
@@ -1902,7 +1903,7 @@ static int NativeAudio_DecodeXASectorMono(const u8 *sector, int sectorBase, stru
 	return 1;
 }
 
-static int NativeAudio_DecodeXASectorStereo(const u8 *sector, int sectorBase, struct NativeAudioXaDecodeState *state, struct NativeAudioPcmBuffer *out)
+internal int NativeAudio_DecodeXASectorStereo(const u8 *sector, int sectorBase, struct NativeAudioXaDecodeState *state, struct NativeAudioPcmBuffer *out)
 {
 	int frame;
 
@@ -1944,8 +1945,8 @@ static int NativeAudio_DecodeXASectorStereo(const u8 *sector, int sectorBase, st
 	return 1;
 }
 
-static int NativeAudio_DecodeXAFile(const u8 *bytes, int byteCount, int channelFilter, int maxSectors, struct NativeAudioPcmBuffer *pcm, int *sampleRate,
-                                    int *numChannels)
+internal int NativeAudio_DecodeXAFile(const u8 *bytes, int byteCount, int channelFilter, int maxSectors, struct NativeAudioPcmBuffer *pcm, int *sampleRate,
+                                      int *numChannels)
 {
 	int sectorSize;
 	int sectorBase;
@@ -2006,7 +2007,7 @@ static int NativeAudio_DecodeXAFile(const u8 *bytes, int byteCount, int channelF
 	return pcm->count > 0;
 }
 
-static int NativeAudio_GetXAMaxStereoSamples(int numSectors, int *sampleCountOut)
+internal int NativeAudio_GetXAMaxStereoSamples(int numSectors, int *sampleCountOut)
 {
 	int samplesPerSector;
 
@@ -2021,7 +2022,7 @@ static int NativeAudio_GetXAMaxStereoSamples(int numSectors, int *sampleCountOut
 	return 1;
 }
 
-static int NativeAudio_PrepareXAPcmBuffer(struct NativeAudioDecodeArena *arena, int numSectors, struct NativeAudioPcmBuffer *pcm, int *markerOut)
+internal int NativeAudio_PrepareXAPcmBuffer(struct NativeAudioDecodeArena *arena, int numSectors, struct NativeAudioPcmBuffer *pcm, int *markerOut)
 {
 	int maxSamples;
 	int maxBytes;
@@ -2045,7 +2046,7 @@ static int NativeAudio_PrepareXAPcmBuffer(struct NativeAudioDecodeArena *arena, 
 	return 1;
 }
 
-static int NativeAudio_LoadXATrackPcm(struct NativeAudioDecodeArena *arena, int categoryID, int xaID, s16 **pcmOut, int *frameCountOut, int *sampleRateOut)
+internal int NativeAudio_LoadXATrackPcm(struct NativeAudioDecodeArena *arena, int categoryID, int xaID, s16 **pcmOut, int *frameCountOut, int *sampleRateOut)
 {
 	struct NativeAudioXaTrackInfo info;
 	struct NativeAudioByteBuffer data;
@@ -2113,13 +2114,13 @@ static int NativeAudio_LoadXATrackPcm(struct NativeAudioDecodeArena *arena, int 
 	return 1;
 }
 
-static void NativeAudio_MixSample(int *dstLeft, int *dstRight, int sampleLeft, int sampleRight)
+internal void NativeAudio_MixSample(int *dstLeft, int *dstRight, int sampleLeft, int sampleRight)
 {
 	*dstLeft += sampleLeft;
 	*dstRight += sampleRight;
 }
 
-static int NativeAudio_GetQueuedFramesNoLock(void)
+internal int NativeAudio_GetQueuedFramesNoLock(void)
 {
 	const int frameBytes = (int)sizeof(s16) * NATIVE_AUDIO_CHANNELS;
 	int queuedBytes;
@@ -2135,7 +2136,7 @@ static int NativeAudio_GetQueuedFramesNoLock(void)
 	return queuedFrames;
 }
 
-static void NativeAudio_AddUnderrunFramesNoLock(int frameCount)
+internal void NativeAudio_AddUnderrunFramesNoLock(int frameCount)
 {
 #ifdef CTR_INTERNAL
 	if (frameCount <= 0)
@@ -2150,7 +2151,7 @@ static void NativeAudio_AddUnderrunFramesNoLock(int frameCount)
 #endif
 }
 
-static void NativeAudio_AddOverflowFramesNoLock(int frameCount)
+internal void NativeAudio_AddOverflowFramesNoLock(int frameCount)
 {
 #ifdef CTR_INTERNAL
 	if (frameCount <= 0)
@@ -2165,7 +2166,7 @@ static void NativeAudio_AddOverflowFramesNoLock(int frameCount)
 #endif
 }
 
-static int NativeAudio_QueueRenderedFramesNoLock(const s16 *frames, int frameCount)
+internal int NativeAudio_QueueRenderedFramesNoLock(const s16 *frames, int frameCount)
 {
 	const int frameSamples = NATIVE_AUDIO_CHANNELS;
 	int framesQueued = 0;
@@ -2197,7 +2198,7 @@ static int NativeAudio_QueueRenderedFramesNoLock(const s16 *frames, int frameCou
 	return framesQueued;
 }
 
-static int NativeAudio_DrainRenderedFramesNoLock(s16 *out, int frameCount)
+internal int NativeAudio_DrainRenderedFramesNoLock(s16 *out, int frameCount)
 {
 	const int frameSamples = NATIVE_AUDIO_CHANNELS;
 	int framesDrained = 0;
@@ -2227,7 +2228,7 @@ static int NativeAudio_DrainRenderedFramesNoLock(s16 *out, int frameCount)
 	return framesDrained;
 }
 
-static void SDLCALL NativeAudio_StreamCallback(void *userdata, SDL_AudioStream *stream, int additional_amount, int total_amount)
+internal void SDLCALL NativeAudio_StreamCallback(void *userdata, SDL_AudioStream *stream, int additional_amount, int total_amount)
 {
 	const int frameBytes = (int)sizeof(s16) * NATIVE_AUDIO_CHANNELS;
 	s16 out[NATIVE_AUDIO_VBLANK_FRAMES * NATIVE_AUDIO_CHANNELS];
@@ -2347,7 +2348,7 @@ void NativeAudio_GetOutputStats(int *underrunFrames, int *overflowFrames, int *q
 	NativeAudio_UnlockOutput();
 }
 
-static int NativeAudio_ShouldReportOutputStatsNoLock(int *underrunFrames, int *overflowFrames, int *queuedFrames)
+internal int NativeAudio_ShouldReportOutputStatsNoLock(int *underrunFrames, int *overflowFrames, int *queuedFrames)
 {
 	if (s_audio.output.reportVBlankCountdown > 0)
 	{
@@ -2518,7 +2519,7 @@ int NativeAudio_RestoreState(const void *src, int srcSize)
 	return 1;
 }
 
-static void NativeAudio_MixFrame(s16 *outLeft, s16 *outRight)
+internal void NativeAudio_MixFrame(s16 *outLeft, s16 *outRight)
 {
 	int mixLeft = 0;
 	int mixRight = 0;
@@ -2623,7 +2624,7 @@ static void NativeAudio_MixFrame(s16 *outLeft, s16 *outRight)
 	*outRight = (s16)NativeAudio_Clamp16(mixRight);
 }
 
-static int NativeAudio_RenderFramesNoLock(s16 *out, int frameCount)
+internal int NativeAudio_RenderFramesNoLock(s16 *out, int frameCount)
 {
 	int frame;
 
@@ -2699,7 +2700,7 @@ void NativeAudio_StepVBlank(void)
 #endif
 }
 
-static int NativeAudio_OpenDevice(void)
+internal int NativeAudio_OpenDevice(void)
 {
 	SDL_AudioSpec want;
 	SDL_AudioSpec srcSpec;
@@ -3183,7 +3184,7 @@ int NativeAudio_GetXACurrOffset(void)
 	return offset;
 }
 
-static int NativeAudio_GetXAMaxSampleAtSourceFrameNoLock(u64 frameIndex)
+internal int NativeAudio_GetXAMaxSampleAtSourceFrameNoLock(u64 frameIndex)
 {
 	int max = 0;
 	int frame;

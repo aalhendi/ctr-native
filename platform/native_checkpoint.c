@@ -1,5 +1,7 @@
 #include "platform/native_checkpoint.h"
 
+#include <macros.h>
+
 #include "../platform.h"
 #include "ctr_scratchpad.h"
 #include "platform/native_state.h"
@@ -51,12 +53,12 @@ struct NativeCheckpointHeader
 	struct NativeCheckpointRegion regions[13];
 };
 
-static u32 NativeCheckpoint_Align4(u32 value)
+internal u32 NativeCheckpoint_Align4(u32 value)
 {
 	return (value + 3u) & ~3u;
 }
 
-static int NativeCheckpoint_GetActiveMempackIndex(void)
+internal int NativeCheckpoint_GetActiveMempackIndex(void)
 {
 	int i;
 
@@ -72,7 +74,7 @@ static int NativeCheckpoint_GetActiveMempackIndex(void)
 	return 0;
 }
 
-static int NativeCheckpoint_GetRegionSize(u32 kind)
+internal int NativeCheckpoint_GetRegionSize(u32 kind)
 {
 	switch (kind)
 	{
@@ -107,7 +109,7 @@ static int NativeCheckpoint_GetRegionSize(u32 kind)
 	return 0;
 }
 
-static void *NativeCheckpoint_GetRegionPtr(u32 kind)
+internal void *NativeCheckpoint_GetRegionPtr(u32 kind)
 {
 	switch (kind)
 	{
@@ -138,7 +140,7 @@ static void *NativeCheckpoint_GetRegionPtr(u32 kind)
 	return NULL;
 }
 
-static int NativeCheckpoint_CaptureD233(void *dst, int dstSize)
+internal int NativeCheckpoint_CaptureD233(void *dst, int dstSize)
 {
 	struct OverlayDATA_233 *state = (struct OverlayDATA_233 *)dst;
 
@@ -151,7 +153,7 @@ static int NativeCheckpoint_CaptureD233(void *dst, int dstSize)
 	return 1;
 }
 
-static int NativeCheckpoint_RestoreD233(const void *src, int srcSize)
+internal int NativeCheckpoint_RestoreD233(const void *src, int srcSize)
 {
 	const struct OverlayDATA_233 *state = (const struct OverlayDATA_233 *)src;
 
@@ -164,7 +166,7 @@ static int NativeCheckpoint_RestoreD233(const void *src, int srcSize)
 	return 1;
 }
 
-static int NativeCheckpoint_CaptureRegion(u32 kind, void *dst, int dstSize)
+internal int NativeCheckpoint_CaptureRegion(u32 kind, void *dst, int dstSize)
 {
 	void *src;
 
@@ -181,7 +183,7 @@ static int NativeCheckpoint_CaptureRegion(u32 kind, void *dst, int dstSize)
 	return 1;
 }
 
-static int NativeCheckpoint_RestoreRegion(u32 kind, const void *src, int srcSize)
+internal int NativeCheckpoint_RestoreRegion(u32 kind, const void *src, int srcSize)
 {
 	void *dst;
 
@@ -196,11 +198,11 @@ static int NativeCheckpoint_RestoreRegion(u32 kind, const void *src, int srcSize
 	return 1;
 }
 
-static int NativeCheckpoint_InitHeader(struct NativeCheckpointHeader *header)
+internal int NativeCheckpoint_InitHeader(struct NativeCheckpointHeader *header)
 {
 	u32 offset = NativeCheckpoint_Align4((u32)sizeof(*header));
 	u32 i;
-	static const u32 regionKinds[] = {
+	local_persist const u32 regionKinds[] = {
 	    NATIVE_CHECKPOINT_REGION_RDATA, NATIVE_CHECKPOINT_REGION_DATA, NATIVE_CHECKPOINT_REGION_SDATA, NATIVE_CHECKPOINT_REGION_D230,
 	    NATIVE_CHECKPOINT_REGION_V230,  NATIVE_CHECKPOINT_REGION_D231, NATIVE_CHECKPOINT_REGION_D232,  NATIVE_CHECKPOINT_REGION_D233,
 	    NATIVE_CHECKPOINT_REGION_GAR3,  NATIVE_CHECKPOINT_REGION_CRD3, NATIVE_CHECKPOINT_REGION_MPAK,  NATIVE_CHECKPOINT_REGION_SCRP,
@@ -232,7 +234,7 @@ static int NativeCheckpoint_InitHeader(struct NativeCheckpointHeader *header)
 	return 1;
 }
 
-static int NativeCheckpoint_ValidateHeader(const struct NativeCheckpointHeader *header, int srcSize)
+internal int NativeCheckpoint_ValidateHeader(const struct NativeCheckpointHeader *header, int srcSize)
 {
 	struct NativeCheckpointHeader liveHeader;
 	u32 i;

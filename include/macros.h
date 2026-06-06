@@ -52,6 +52,10 @@ typedef int8_t s8;
 #define force_inline static inline
 #endif
 
+#define internal                static
+#define local_persist           static
+#define global_variable         static
+
 #define len(arr)                (sizeof(arr) / sizeof(arr[0]))
 #define OFFSETOF(TYPE, ELEMENT) ((u32)offsetof(TYPE, ELEMENT))
 

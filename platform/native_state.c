@@ -1,5 +1,7 @@
 #include "platform/native_state.h"
 
+#include <macros.h>
+
 #include "platform/native_audio.h"
 #include "platform/native_gpu.h"
 #include "platform/native_input.h"
@@ -36,12 +38,12 @@ struct NativeStateHeader
 	struct NativeStateRegion regions[3];
 };
 
-static u32 NativeState_Align4(u32 value)
+internal u32 NativeState_Align4(u32 value)
 {
 	return (value + 3u) & ~3u;
 }
 
-static int NativeState_GetRegionSize(u32 kind)
+internal int NativeState_GetRegionSize(u32 kind)
 {
 	switch (kind)
 	{
@@ -56,7 +58,7 @@ static int NativeState_GetRegionSize(u32 kind)
 	return 0;
 }
 
-static int NativeState_CaptureRegion(u32 kind, void *dst, int dstSize)
+internal int NativeState_CaptureRegion(u32 kind, void *dst, int dstSize)
 {
 	switch (kind)
 	{
@@ -71,7 +73,7 @@ static int NativeState_CaptureRegion(u32 kind, void *dst, int dstSize)
 	return 0;
 }
 
-static int NativeState_RestoreRegion(u32 kind, const void *src, int srcSize)
+internal int NativeState_RestoreRegion(u32 kind, const void *src, int srcSize)
 {
 	switch (kind)
 	{
@@ -86,11 +88,11 @@ static int NativeState_RestoreRegion(u32 kind, const void *src, int srcSize)
 	return 0;
 }
 
-static int NativeState_InitHeader(struct NativeStateHeader *header)
+internal int NativeState_InitHeader(struct NativeStateHeader *header)
 {
 	u32 offset = NativeState_Align4((u32)sizeof(*header));
 	u32 regionCount = 0;
-	static const u32 regionKinds[] = {
+	local_persist const u32 regionKinds[] = {
 	    NATIVE_STATE_REGION_INPUT,
 	    NATIVE_STATE_REGION_AUDIO,
 	    NATIVE_STATE_REGION_GPU,

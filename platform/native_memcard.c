@@ -1,5 +1,7 @@
 #include <platform/native_memcard.h>
 
+#include <macros.h>
+
 #include "platform/native_path.h"
 
 #include <errno.h>
@@ -33,11 +35,11 @@ struct NativeMemcardDeviceName
 	int slot;
 };
 
-static struct NativeMemcardFindState s_memcardFind;
-static char s_memcardRoot[NATIVE_MEMCARD_MAX_PATH];
-static char s_memcardResolvedPath[NATIVE_MEMCARD_MAX_PATH];
+global_variable struct NativeMemcardFindState s_memcardFind;
+global_variable char s_memcardRoot[NATIVE_MEMCARD_MAX_PATH];
+global_variable char s_memcardResolvedPath[NATIVE_MEMCARD_MAX_PATH];
 
-static struct NativeMemcardDeviceName NativeMemcard_ParseDeviceName(const char *save_name)
+internal struct NativeMemcardDeviceName NativeMemcard_ParseDeviceName(const char *save_name)
 {
 	struct NativeMemcardDeviceName result = {save_name, 0};
 
@@ -58,7 +60,7 @@ static struct NativeMemcardDeviceName NativeMemcard_ParseDeviceName(const char *
 	return result;
 }
 
-static const char *NativeMemcard_ActiveRoot(void)
+internal const char *NativeMemcard_ActiveRoot(void)
 {
 	if (s_memcardRoot[0] == '\0')
 		return NATIVE_MEMCARD_DEFAULT_ROOT;
@@ -66,7 +68,7 @@ static const char *NativeMemcard_ActiveRoot(void)
 	return s_memcardRoot;
 }
 
-static int NativeMemcard_CopyString(char *dst, int dst_size, const char *src)
+internal int NativeMemcard_CopyString(char *dst, int dst_size, const char *src)
 {
 	int i;
 
@@ -80,17 +82,17 @@ static int NativeMemcard_CopyString(char *dst, int dst_size, const char *src)
 	return src[i] == '\0';
 }
 
-static int NativeMemcard_IsCtrSaveName(const char *name)
+internal int NativeMemcard_IsCtrSaveName(const char *name)
 {
 	return (strcmp(name, "BASCUS-94426-SLOTS") == 0) || (strncmp(name, "BASCUS-94426G", 13) == 0);
 }
 
-static int NativeMemcard_JoinPath(char *dst, int dst_size, const char *left, const char *right)
+internal int NativeMemcard_JoinPath(char *dst, int dst_size, const char *left, const char *right)
 {
 	return NativePath_Join(dst, (size_t)dst_size, NativeStr8_FromCString(left), NativeStr8_FromCString(right));
 }
 
-static int NativeMemcard_SlotDir(char *dst, int dst_size, int slot)
+internal int NativeMemcard_SlotDir(char *dst, int dst_size, int slot)
 {
 	int written;
 
@@ -101,7 +103,7 @@ static int NativeMemcard_SlotDir(char *dst, int dst_size, int slot)
 	return (written >= 0) && (written < dst_size);
 }
 
-static int NativeMemcard_BuildSlotRoot(char *dst, int dst_size, const char *root, int slot)
+internal int NativeMemcard_BuildSlotRoot(char *dst, int dst_size, const char *root, int slot)
 {
 	char slotDir[16];
 
@@ -111,7 +113,7 @@ static int NativeMemcard_BuildSlotRoot(char *dst, int dst_size, const char *root
 	return NativeMemcard_JoinPath(dst, dst_size, root, slotDir);
 }
 
-static int NativeMemcard_PathExists(const char *path)
+internal int NativeMemcard_PathExists(const char *path)
 {
 #if defined(_WIN32)
 	DWORD attributes;
@@ -131,7 +133,7 @@ static int NativeMemcard_PathExists(const char *path)
 #endif
 }
 
-static int NativeMemcard_PathIsDirectory(const char *path)
+internal int NativeMemcard_PathIsDirectory(const char *path)
 {
 #if defined(_WIN32)
 	DWORD attributes;
@@ -153,7 +155,7 @@ static int NativeMemcard_PathIsDirectory(const char *path)
 #endif
 }
 
-static int NativeMemcard_MakeDir(const char *path)
+internal int NativeMemcard_MakeDir(const char *path)
 {
 	if ((path == NULL) || (path[0] == '\0'))
 		return 0;
@@ -171,7 +173,7 @@ static int NativeMemcard_MakeDir(const char *path)
 #endif
 }
 
-static int NativeMemcard_EnsureSlotRoot(const char *root, int slot)
+internal int NativeMemcard_EnsureSlotRoot(const char *root, int slot)
 {
 	char slotRoot[NATIVE_MEMCARD_MAX_PATH];
 
@@ -183,7 +185,7 @@ static int NativeMemcard_EnsureSlotRoot(const char *root, int slot)
 	return NativeMemcard_MakeDir(slotRoot);
 }
 
-static int NativeMemcard_BuildPathFromDeviceName(char *dst, int dst_size, const char *save_name, int ensureSlotRoot)
+internal int NativeMemcard_BuildPathFromDeviceName(char *dst, int dst_size, const char *save_name, int ensureSlotRoot)
 {
 	struct NativeMemcardDeviceName device = NativeMemcard_ParseDeviceName(save_name);
 	const char *root = NativeMemcard_ActiveRoot();
@@ -200,14 +202,14 @@ static int NativeMemcard_BuildPathFromDeviceName(char *dst, int dst_size, const 
 	return NativeMemcard_JoinPath(dst, dst_size, slotRoot, device.name);
 }
 
-static const char *NativeMemcard_PathFromDeviceName(const char *save_name, int ensureSlotRoot)
+internal const char *NativeMemcard_PathFromDeviceName(const char *save_name, int ensureSlotRoot)
 {
 	if (!NativeMemcard_BuildPathFromDeviceName(s_memcardResolvedPath, sizeof(s_memcardResolvedPath), save_name, ensureSlotRoot))
 		s_memcardResolvedPath[0] = '\0';
 	return s_memcardResolvedPath;
 }
 
-static enum NativeMemcardResult NativeMemcard_CopyFile(const char *src_path, const char *dst_path)
+internal enum NativeMemcardResult NativeMemcard_CopyFile(const char *src_path, const char *dst_path)
 {
 	unsigned char buffer[NATIVE_MEMCARD_COPY_BUFFER];
 	FILE *src;
@@ -243,7 +245,7 @@ static enum NativeMemcardResult NativeMemcard_CopyFile(const char *src_path, con
 	return result;
 }
 
-static enum NativeMemcardResult NativeMemcard_CopyOneSave(const char *src_root, const char *dst_root, const char *name, int overwrite)
+internal enum NativeMemcardResult NativeMemcard_CopyOneSave(const char *src_root, const char *dst_root, const char *name, int overwrite)
 {
 	char src_path[NATIVE_MEMCARD_MAX_PATH];
 	char dst_path[NATIVE_MEMCARD_MAX_PATH];
@@ -260,7 +262,7 @@ static enum NativeMemcardResult NativeMemcard_CopyOneSave(const char *src_root, 
 	return NativeMemcard_CopyFile(src_path, dst_path);
 }
 
-static enum NativeMemcardResult NativeMemcard_CopyCtrSavesFromDir(const char *src_root, const char *dst_root, int overwrite)
+internal enum NativeMemcardResult NativeMemcard_CopyCtrSavesFromDir(const char *src_root, const char *dst_root, int overwrite)
 {
 	enum NativeMemcardResult result;
 
@@ -327,7 +329,7 @@ static enum NativeMemcardResult NativeMemcard_CopyCtrSavesFromDir(const char *sr
 	return NATIVE_MEMCARD_OK;
 }
 
-static int NativeMemcard_MatchesPattern(const char *name, const char *pattern)
+internal int NativeMemcard_MatchesPattern(const char *name, const char *pattern)
 {
 	while (*pattern != '\0')
 	{
@@ -360,7 +362,7 @@ static int NativeMemcard_MatchesPattern(const char *name, const char *pattern)
 	return *name == '\0';
 }
 
-static void NativeMemcard_SplitPattern(const char *path, char *dir, int dir_size, char *pattern, int pattern_size)
+internal void NativeMemcard_SplitPattern(const char *path, char *dir, int dir_size, char *pattern, int pattern_size)
 {
 	const char *slash = strrchr(path, '/');
 #if defined(_WIN32)
@@ -394,12 +396,12 @@ static void NativeMemcard_SplitPattern(const char *path, char *dir, int dir_size
 	}
 }
 
-static int NativeMemcard_CompareNames(const char *left, const char *right)
+internal int NativeMemcard_CompareNames(const char *left, const char *right)
 {
 	return strcmp(left, right) > 0;
 }
 
-static void NativeMemcard_AddFoundName(const char *name)
+internal void NativeMemcard_AddFoundName(const char *name)
 {
 	int i;
 	int insert;
@@ -424,7 +426,7 @@ static void NativeMemcard_AddFoundName(const char *name)
 	s_memcardFind.count++;
 }
 
-static void NativeMemcard_BuildFindList(const char *pattern)
+internal void NativeMemcard_BuildFindList(const char *pattern)
 {
 	const char *path = NativeMemcard_PathFromDeviceName(pattern, 0);
 	char dir[NATIVE_MEMCARD_MAX_PATH];

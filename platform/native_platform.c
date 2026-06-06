@@ -1,5 +1,7 @@
 #include "../platform.h"
 
+#include <macros.h>
+
 #include "platform/native_audio.h"
 #include "platform/native_glad.h"
 #include "platform/native_gpu.h"
@@ -25,15 +27,15 @@ extern int g_dbg_wireframeMode;
 extern int g_windowHeight;
 extern int g_windowWidth;
 
-static int s_hostAltKeyState = 0;
-static int s_platformInitialized = 0;
-static int s_platformBeginScene = 0;
-static int s_pinnedVramDisplayFrames = 0;
-static int s_frameGap = 2000;
-static int s_frameCount = 0;
-static int s_oldTicks = 0;
+global_variable int s_hostAltKeyState = 0;
+global_variable int s_platformInitialized = 0;
+global_variable int s_platformBeginScene = 0;
+global_variable int s_pinnedVramDisplayFrames = 0;
+global_variable int s_frameGap = 2000;
+global_variable int s_frameCount = 0;
+global_variable int s_oldTicks = 0;
 
-static void Platform_CalcFPS(void)
+internal void Platform_CalcFPS(void)
 {
 	if (s_frameCount++ != s_frameGap)
 		return;
@@ -46,7 +48,7 @@ static void Platform_CalcFPS(void)
 	printf("FPS: %d\n", (1000 * s_frameGap) / delta);
 }
 
-static void Platform_GetWindowName(const char *appName, char *buffer, size_t bufferSize)
+internal void Platform_GetWindowName(const char *appName, char *buffer, size_t bufferSize)
 {
 #ifdef CTR_INTERNAL
 	snprintf(buffer, bufferSize, "%s | Internal", appName);
@@ -55,14 +57,14 @@ static void Platform_GetWindowName(const char *appName, char *buffer, size_t buf
 #endif
 }
 
-static void Platform_HandleWindowResize(int width, int height)
+internal void Platform_HandleWindowResize(int width, int height)
 {
 	g_windowWidth = width;
 	g_windowHeight = height;
 	NativeRenderer_ResetDevice();
 }
 
-static void Platform_HandleFullscreenToggle(void)
+internal void Platform_HandleFullscreenToggle(void)
 {
 	int fullscreen = (SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) != 0;
 
@@ -72,7 +74,7 @@ static void Platform_HandleFullscreenToggle(void)
 }
 
 #if defined(CTR_INTERNAL)
-static void Platform_TakeScreenshot(void)
+internal void Platform_TakeScreenshot(void)
 {
 	u8 *pixels = (u8 *)malloc(g_windowWidth * g_windowHeight * 4);
 
@@ -87,7 +89,7 @@ static void Platform_TakeScreenshot(void)
 }
 #endif
 
-static void Platform_HandleKey(int key, char down)
+internal void Platform_HandleKey(int key, char down)
 {
 	if (down == 0)
 		SubmitName_UseKeyboard(0);
@@ -367,11 +369,11 @@ int NikoGetEnterKey(void)
 #define NATIVE_VSYNC_HZ          60
 #define NATIVE_VSYNC_CATCHUP_MAX 8
 
-static Uint64 s_nextVBlankCounter = 0;
-static Uint64 s_vblankRemainder = 0;
-static int s_nativeVBlankCount = 0;
+global_variable Uint64 s_nextVBlankCounter = 0;
+global_variable Uint64 s_vblankRemainder = 0;
+global_variable int s_nativeVBlankCount = 0;
 
-static void Native_AdvanceVBlankTarget(void)
+internal void Native_AdvanceVBlankTarget(void)
 {
 	const Uint64 freq = SDL_GetPerformanceFrequency();
 	const Uint64 hz = NATIVE_VSYNC_HZ;
@@ -385,7 +387,7 @@ static void Native_AdvanceVBlankTarget(void)
 	}
 }
 
-static void Native_EnsureVBlankTarget(void)
+internal void Native_EnsureVBlankTarget(void)
 {
 	const Uint64 now = SDL_GetPerformanceCounter();
 
@@ -397,7 +399,7 @@ static void Native_EnsureVBlankTarget(void)
 	}
 }
 
-static void Native_WaitUntilVBlankTarget(void)
+internal void Native_WaitUntilVBlankTarget(void)
 {
 	const Uint64 freq = SDL_GetPerformanceFrequency();
 
@@ -420,7 +422,7 @@ static void Native_WaitUntilVBlankTarget(void)
 	}
 }
 
-static void Native_EmitVBlank(void)
+internal void Native_EmitVBlank(void)
 {
 	if (vsync_callback != NULL)
 		vsync_callback();
@@ -429,7 +431,7 @@ static void Native_EmitVBlank(void)
 	s_nativeVBlankCount++;
 }
 
-static int Native_CatchUpDueVBlanks(void)
+internal int Native_CatchUpDueVBlanks(void)
 {
 	int emittedVBlanks = 0;
 
@@ -459,7 +461,7 @@ static int Native_CatchUpDueVBlanks(void)
 	return emittedVBlanks;
 }
 
-static void Native_WaitAndEmitVBlank(void)
+internal void Native_WaitAndEmitVBlank(void)
 {
 	Native_EnsureVBlankTarget();
 	Native_WaitUntilVBlankTarget();

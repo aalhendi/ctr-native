@@ -1,5 +1,7 @@
 #include "platform/native_savestate.h"
 
+#include <macros.h>
+
 #if defined(CTR_INTERNAL)
 #include "platform/native_checkpoint.h"
 #include "platform/native_checkpoint_file.h"
@@ -20,12 +22,12 @@
 #define NATIVE_SAVESTATE_DIR        "debug/states"
 #define NATIVE_SAVESTATE_QUICK_PATH "debug/states/quick.ctrstates"
 
-static s32 s_quickSaveRequested;
-static s32 s_quickLoadRequested;
-static u8 *s_quickPayload;
-static int s_quickPayloadSize;
+global_variable s32 s_quickSaveRequested;
+global_variable s32 s_quickLoadRequested;
+global_variable u8 *s_quickPayload;
+global_variable int s_quickPayloadSize;
 
-static s32 NativeSaveState_PathExists(const char *path)
+internal s32 NativeSaveState_PathExists(const char *path)
 {
 	struct stat st;
 
@@ -35,7 +37,7 @@ static s32 NativeSaveState_PathExists(const char *path)
 	return stat(path, &st) == 0;
 }
 
-static s32 NativeSaveState_MakeDir(const char *path)
+internal s32 NativeSaveState_MakeDir(const char *path)
 {
 	if ((path == NULL) || (path[0] == '\0'))
 		return 0;
@@ -52,12 +54,12 @@ static s32 NativeSaveState_MakeDir(const char *path)
 	return (errno == EEXIST) && NativeSaveState_PathExists(path);
 }
 
-static s32 NativeSaveState_PrepareDir(void)
+internal s32 NativeSaveState_PrepareDir(void)
 {
 	return NativeSaveState_MakeDir(NATIVE_SAVESTATE_ROOT) && NativeSaveState_MakeDir(NATIVE_SAVESTATE_DIR);
 }
 
-static s32 NativeSaveState_PreparePayload(void)
+internal s32 NativeSaveState_PreparePayload(void)
 {
 	const int payloadSize = NativeCheckpoint_GetSize();
 
@@ -84,7 +86,7 @@ static s32 NativeSaveState_PreparePayload(void)
 	return 1;
 }
 
-static s32 NativeSaveState_SaveQuick(void)
+internal s32 NativeSaveState_SaveQuick(void)
 {
 	if (!NativeSaveState_PrepareDir())
 	{
@@ -111,7 +113,7 @@ static s32 NativeSaveState_SaveQuick(void)
 	return 1;
 }
 
-static s32 NativeSaveState_LoadQuick(void)
+internal s32 NativeSaveState_LoadQuick(void)
 {
 	struct NativeCheckpointFileRecordInfo info;
 

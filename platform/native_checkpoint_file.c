@@ -1,5 +1,7 @@
 #include "platform/native_checkpoint_file.h"
 
+#include <macros.h>
+
 #if defined(CTR_INTERNAL)
 #include <stdio.h>
 #include <string.h>
@@ -35,7 +37,7 @@ struct NativeCheckpointFileRecordHeader
 	u32 reserved[3];
 };
 
-static u32 NativeCheckpointFile_Checksum(const void *src, int size)
+internal u32 NativeCheckpointFile_Checksum(const void *src, int size)
 {
 	const u8 *bytes = (const u8 *)src;
 	u32 hash = NATIVE_CHECKPOINT_FILE_FNV_OFFSET;
@@ -50,7 +52,7 @@ static u32 NativeCheckpointFile_Checksum(const void *src, int size)
 	return hash;
 }
 
-static void NativeCheckpointFile_InitHeader(struct NativeCheckpointFileHeader *header)
+internal void NativeCheckpointFile_InitHeader(struct NativeCheckpointFileHeader *header)
 {
 	memset(header, 0, sizeof(*header));
 	header->magic = NATIVE_CHECKPOINT_FILE_MAGIC;
@@ -59,23 +61,23 @@ static void NativeCheckpointFile_InitHeader(struct NativeCheckpointFileHeader *h
 	header->recordHeaderSize = (u32)sizeof(struct NativeCheckpointFileRecordHeader);
 }
 
-static int NativeCheckpointFile_WriteExact(FILE *file, const void *src, size_t size)
+internal int NativeCheckpointFile_WriteExact(FILE *file, const void *src, size_t size)
 {
 	return fwrite(src, 1, size, file) == size;
 }
 
-static int NativeCheckpointFile_ReadExact(FILE *file, void *dst, size_t size)
+internal int NativeCheckpointFile_ReadExact(FILE *file, void *dst, size_t size)
 {
 	return fread(dst, 1, size, file) == size;
 }
 
-static int NativeCheckpointFile_ValidateHeader(const struct NativeCheckpointFileHeader *header)
+internal int NativeCheckpointFile_ValidateHeader(const struct NativeCheckpointFileHeader *header)
 {
 	return (header->magic == NATIVE_CHECKPOINT_FILE_MAGIC) && (header->version == NATIVE_CHECKPOINT_FILE_VERSION) && (header->headerSize == sizeof(*header)) &&
 	       (header->recordHeaderSize == sizeof(struct NativeCheckpointFileRecordHeader));
 }
 
-static int NativeCheckpointFile_WriteHeader(FILE *file, const struct NativeCheckpointFileHeader *header)
+internal int NativeCheckpointFile_WriteHeader(FILE *file, const struct NativeCheckpointFileHeader *header)
 {
 	long oldPos;
 
@@ -96,7 +98,7 @@ static int NativeCheckpointFile_WriteHeader(FILE *file, const struct NativeCheck
 	return 1;
 }
 
-static void NativeCheckpointFile_FillInfo(struct NativeCheckpointFileRecordInfo *info, const struct NativeCheckpointFileRecordHeader *record)
+internal void NativeCheckpointFile_FillInfo(struct NativeCheckpointFileRecordInfo *info, const struct NativeCheckpointFileRecordHeader *record)
 {
 	if (info == NULL)
 		return;
@@ -108,7 +110,7 @@ static void NativeCheckpointFile_FillInfo(struct NativeCheckpointFileRecordInfo 
 	info->checksum = record->checksum;
 }
 
-static int NativeCheckpointFile_ChecksumStream(FILE *file, u32 payloadSize, u32 *checksumOut)
+internal int NativeCheckpointFile_ChecksumStream(FILE *file, u32 payloadSize, u32 *checksumOut)
 {
 	u8 buffer[NATIVE_CHECKPOINT_FILE_CHUNK_SIZE];
 	u32 hash = NATIVE_CHECKPOINT_FILE_FNV_OFFSET;

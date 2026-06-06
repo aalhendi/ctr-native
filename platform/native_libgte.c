@@ -31,14 +31,14 @@ extern u32 gte_leadingzerocount(u32 lzcs);
 #define MAX(a, b) fst_max(a, b)
 #endif
 
-static inline s32 fst_min(s32 a, s32 b)
+internal inline s32 fst_min(s32 a, s32 b)
 {
 	s32 diff = a - b;
 	s32 dsgn = diff >> 31;
 	return b + (diff & dsgn);
 }
 
-static inline s32 fst_max(s32 a, s32 b)
+internal inline s32 fst_max(s32 a, s32 b)
 {
 	s32 diff = a - b;
 	s32 dsgn = diff >> 31;

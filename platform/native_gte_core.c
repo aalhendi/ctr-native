@@ -35,9 +35,9 @@ GTERegisters gteRegs;
 #define CV2(n)        (n < 3 ? gteRegs.CP2C.p[(n << 3) + 6].sd : 0)
 #define CV3(n)        (n < 3 ? gteRegs.CP2C.p[(n << 3) + 7].sd : 0)
 
-static int m_sf;
-static s64 m_mac0;
-static s64 m_mac3;
+global_variable int m_sf;
+global_variable s64 m_mac0;
+global_variable s64 m_mac3;
 
 unsigned int gte_leadingzerocount(unsigned int lzcs)
 {
@@ -47,7 +47,8 @@ unsigned int gte_leadingzerocount(unsigned int lzcs)
 	// perform fast bit scan
 
 	u32 lzcr = lzcs;
-	static const char debruijn32[32] = {0, 31, 9, 30, 3, 8, 13, 29, 2, 5, 7, 21, 12, 24, 28, 19, 1, 10, 4, 14, 6, 22, 25, 20, 11, 15, 23, 26, 16, 27, 17, 18};
+	local_persist const char debruijn32[32] = {0, 31, 9, 30, 3, 8,  13, 29, 2,  5,  7,  21, 12, 24, 28, 19,
+	                                           1, 10, 4, 14, 6, 22, 25, 20, 11, 15, 23, 26, 16, 27, 17, 18};
 
 	lzcr |= lzcr >> 1;
 	lzcr |= lzcr >> 2;
@@ -75,7 +76,7 @@ int LIM(int value, int max, int min, unsigned int flag)
 	return value;
 }
 
-static inline s64 gte_shift(s64 a, int sf)
+internal inline s64 gte_shift(s64 a, int sf)
 {
 	if (sf > 0)
 		return a >> 12;
@@ -85,7 +86,7 @@ static inline s64 gte_shift(s64 a, int sf)
 	return a;
 }
 
-static int BOUNDS(/*int44*/ s64 value, int max_flag, int min_flag)
+internal int BOUNDS(/*int44*/ s64 value, int max_flag, int min_flag)
 {
 	if (value /*.positive_overflow()*/ > (s64)0x7ffffffffff)
 		C2_FLAG |= max_flag;
@@ -96,11 +97,11 @@ static int BOUNDS(/*int44*/ s64 value, int max_flag, int min_flag)
 	return (int)(gte_shift(value /*.value()*/, m_sf));
 }
 
-static u32 gte_divide(u16 numerator, u16 denominator)
+internal u32 gte_divide(u16 numerator, u16 denominator)
 {
 	if (numerator < (denominator * 2))
 	{
-		static const u8 table[] = {
+		local_persist const u8 table[] = {
 		    0xff, 0xfd, 0xfb, 0xf9, 0xf7, 0xf5, 0xf3, 0xf1, 0xef, 0xee, 0xec, 0xea, 0xe8, 0xe6, 0xe4, 0xe3, 0xe1, 0xdf, 0xdd, 0xdc, 0xda, 0xd8, 0xd6, 0xd5,
 		    0xd3, 0xd1, 0xd0, 0xce, 0xcd, 0xcb, 0xc9, 0xc8, 0xc6, 0xc5, 0xc3, 0xc1, 0xc0, 0xbe, 0xbd, 0xbb, 0xba, 0xb8, 0xb7, 0xb5, 0xb4, 0xb2, 0xb1, 0xb0,
 		    0xae, 0xad, 0xab, 0xaa, 0xa9, 0xa7, 0xa6, 0xa4, 0xa3, 0xa2, 0xa0, 0x9f, 0x9e, 0x9c, 0x9b, 0x9a, 0x99, 0x97, 0x96, 0x95, 0x94, 0x92, 0x91, 0x90,
@@ -128,33 +129,33 @@ static u32 gte_divide(u16 numerator, u16 denominator)
 
 /* Setting bits 12 & 19-22 in FLAG does not set bit 31 */
 
-static int A1(/*int44*/ s64 a)
+internal int A1(/*int44*/ s64 a)
 {
 	return BOUNDS(a, (1 << 31) | (1 << 30), (1 << 31) | (1 << 27));
 }
-static int A2(/*int44*/ s64 a)
+internal int A2(/*int44*/ s64 a)
 {
 	return BOUNDS(a, (1 << 31) | (1 << 29), (1 << 31) | (1 << 26));
 }
-static int A3(/*int44*/ s64 a)
+internal int A3(/*int44*/ s64 a)
 {
 	m_mac3 = a;
 	return BOUNDS(a, (1 << 31) | (1 << 28), (1 << 31) | (1 << 25));
 }
-static int Lm_B1(int a, int lm)
+internal int Lm_B1(int a, int lm)
 {
 	return LIM(a, 0x7fff, -0x8000 * !lm, (1 << 31) | (1 << 24));
 }
-static int Lm_B2(int a, int lm)
+internal int Lm_B2(int a, int lm)
 {
 	return LIM(a, 0x7fff, -0x8000 * !lm, (1 << 31) | (1 << 23));
 }
-static int Lm_B3(int a, int lm)
+internal int Lm_B3(int a, int lm)
 {
 	return LIM(a, 0x7fff, -0x8000 * !lm, (1 << 22));
 }
 
-static int Lm_B3_sf(s64 value, int sf, int lm)
+internal int Lm_B3_sf(s64 value, int sf, int lm)
 {
 	int value_sf = (int)(gte_shift(value, sf));
 	int value_12 = (int)(gte_shift(value, 1));
@@ -174,24 +175,24 @@ static int Lm_B3_sf(s64 value, int sf, int lm)
 	return value_sf;
 }
 
-static int Lm_C1(int a)
+internal int Lm_C1(int a)
 {
 	return LIM(a, 0x00ff, 0x0000, (1 << 21));
 }
-static int Lm_C2(int a)
+internal int Lm_C2(int a)
 {
 	return LIM(a, 0x00ff, 0x0000, (1 << 20));
 }
-static int Lm_C3(int a)
+internal int Lm_C3(int a)
 {
 	return LIM(a, 0x00ff, 0x0000, (1 << 19));
 }
-static int Lm_D(s64 a, int sf)
+internal int Lm_D(s64 a, int sf)
 {
 	return LIM((int)(gte_shift(a, sf)), 0xffff, 0x0000, (1 << 31) | (1 << 18));
 }
 
-static u32 Lm_E(u32 result)
+internal u32 Lm_E(u32 result)
 {
 	if (result == 0xffffffff)
 	{
@@ -205,7 +206,7 @@ static u32 Lm_E(u32 result)
 	return result;
 }
 
-static s64 F(s64 a)
+internal s64 F(s64 a)
 {
 	m_mac0 = a;
 
@@ -218,7 +219,7 @@ static s64 F(s64 a)
 	return a;
 }
 
-static int Lm_G1(s64 a)
+internal int Lm_G1(s64 a)
 {
 	if (a > 0x3ff)
 	{
@@ -234,7 +235,7 @@ static int Lm_G1(s64 a)
 	return (int)(a);
 }
 
-static int Lm_G2(s64 a)
+internal int Lm_G2(s64 a)
 {
 	if (a > 0x3ff)
 	{
@@ -251,7 +252,7 @@ static int Lm_G2(s64 a)
 	return (int)(a);
 }
 
-static int Lm_G1_ia(s64 a)
+internal int Lm_G1_ia(s64 a)
 {
 	if (a > 0x3ffffff)
 		return 0x3ffffff;
@@ -262,7 +263,7 @@ static int Lm_G1_ia(s64 a)
 	return (int)(a);
 }
 
-static int Lm_G2_ia(s64 a)
+internal int Lm_G2_ia(s64 a)
 {
 	if (a > 0x3ffffff)
 		return 0x3ffffff;
@@ -273,7 +274,7 @@ static int Lm_G2_ia(s64 a)
 	return (int)(a);
 }
 
-static int Lm_H(s64 value, int sf)
+internal int Lm_H(s64 value, int sf)
 {
 	s64 value_sf = gte_shift(value, sf);
 	int value_12 = (int)(gte_shift(value, 1));
@@ -292,7 +293,7 @@ static int Lm_H(s64 value, int sf)
 	return value_12;
 }
 
-static int GTE_RotTransPers(int idx, int lm)
+internal int GTE_RotTransPers(int idx, int lm)
 {
 	int h_over_sz3;
 

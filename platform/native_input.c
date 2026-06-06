@@ -86,32 +86,32 @@ struct NativeInputStateSnapshot
 	struct NativeInputControllerStateSnapshot controllers[NATIVE_INPUT_MAX_CONTROLLERS];
 };
 
-static struct NativeInputControllerMapping s_controllerMapping;
-static struct NativeInputKeyboardMapping s_keyboardMapping;
-static s32 s_controllerToSlotMapping[NATIVE_INPUT_MAX_CONTROLLERS] = {-1, -1, -1, -1};
+global_variable struct NativeInputControllerMapping s_controllerMapping;
+global_variable struct NativeInputKeyboardMapping s_keyboardMapping;
+global_variable s32 s_controllerToSlotMapping[NATIVE_INPUT_MAX_CONTROLLERS] = {-1, -1, -1, -1};
 
-static struct NativeInputController s_controllers[NATIVE_INPUT_MAX_CONTROLLERS];
-static struct PlatformInputPadSnapshot s_installedSnapshots[NATIVE_INPUT_MAX_CONTROLLERS];
-static u8 *s_padSlotData[NATIVE_INPUT_PHYSICAL_SLOT_COUNT];
-static const bool *s_keyboardState;
-static s32 s_inputInitialized;
-static s32 s_installedSnapshotsActive;
-static s32 s_activeKeyboardControllers = 0x1;
+global_variable struct NativeInputController s_controllers[NATIVE_INPUT_MAX_CONTROLLERS];
+global_variable struct PlatformInputPadSnapshot s_installedSnapshots[NATIVE_INPUT_MAX_CONTROLLERS];
+global_variable u8 *s_padSlotData[NATIVE_INPUT_PHYSICAL_SLOT_COUNT];
+global_variable const bool *s_keyboardState;
+global_variable s32 s_inputInitialized;
+global_variable s32 s_installedSnapshotsActive;
+global_variable s32 s_activeKeyboardControllers = 0x1;
 
 extern s32 g_padCommEnable;
 
-static u16 NativeInput_GetSnapshotButtons(const struct PlatformInputPadSnapshot *snapshot)
+internal u16 NativeInput_GetSnapshotButtons(const struct PlatformInputPadSnapshot *snapshot)
 {
 	return (u16)(snapshot->buttons[0] | (snapshot->buttons[1] << 8));
 }
 
-static void NativeInput_SetSnapshotButtons(struct PlatformInputPadSnapshot *snapshot, u16 buttons)
+internal void NativeInput_SetSnapshotButtons(struct PlatformInputPadSnapshot *snapshot, u16 buttons)
 {
 	snapshot->buttons[0] = (u8)(buttons & 0xff);
 	snapshot->buttons[1] = (u8)(buttons >> 8);
 }
 
-static void NativeInput_ResetSnapshot(s32 slot)
+internal void NativeInput_ResetSnapshot(s32 slot)
 {
 	struct PlatformInputPadSnapshot *snapshot = &s_controllers[slot].snapshot;
 
@@ -126,7 +126,7 @@ static void NativeInput_ResetSnapshot(s32 slot)
 	memset(snapshot->reserved, 0, sizeof(snapshot->reserved));
 }
 
-static void NativeInput_MakeDisconnectedSnapshot(struct PlatformInputPadSnapshot *snapshot)
+internal void NativeInput_MakeDisconnectedSnapshot(struct PlatformInputPadSnapshot *snapshot)
 {
 	if (snapshot == NULL)
 		return;
@@ -142,7 +142,7 @@ static void NativeInput_MakeDisconnectedSnapshot(struct PlatformInputPadSnapshot
 	memset(snapshot->reserved, 0, sizeof(snapshot->reserved));
 }
 
-static void NativeInput_WritePadPacket(u8 *dst, const struct PlatformInputPadSnapshot *snapshot)
+internal void NativeInput_WritePadPacket(u8 *dst, const struct PlatformInputPadSnapshot *snapshot)
 {
 	if ((dst == NULL) || (snapshot == NULL))
 		return;
@@ -157,7 +157,7 @@ static void NativeInput_WritePadPacket(u8 *dst, const struct PlatformInputPadSna
 	dst[7] = snapshot->analog[3];
 }
 
-static s32 NativeInput_UseMultitapBus(void)
+internal s32 NativeInput_UseMultitapBus(void)
 {
 	s32 slot;
 
@@ -168,7 +168,7 @@ static s32 NativeInput_UseMultitapBus(void)
 	return 0;
 }
 
-static void NativeInput_WritePadBus(void)
+internal void NativeInput_WritePadBus(void)
 {
 	u8 *slot0 = s_padSlotData[0];
 	u8 *slot1 = s_padSlotData[1];
@@ -206,7 +206,7 @@ static void NativeInput_WritePadBus(void)
 	}
 }
 
-static void NativeInput_WriteInstalledSnapshots(void)
+internal void NativeInput_WriteInstalledSnapshots(void)
 {
 	s32 slot;
 
@@ -216,7 +216,7 @@ static void NativeInput_WriteInstalledSnapshots(void)
 	NativeInput_WritePadBus();
 }
 
-static void NativeInput_DefaultMappings(void)
+internal void NativeInput_DefaultMappings(void)
 {
 	s_keyboardMapping.kc_square = SDL_SCANCODE_X;
 	s_keyboardMapping.kc_circle = SDL_SCANCODE_V;
@@ -266,7 +266,7 @@ static void NativeInput_DefaultMappings(void)
 	s_controllerMapping.gc_axis_right_y = SDL_GAMEPAD_AXIS_RIGHTY | NATIVE_INPUT_MAP_FLAG_AXIS;
 }
 
-static s32 NativeInput_ControllerButtonState(SDL_Gamepad *controller, s32 buttonOrAxis)
+internal s32 NativeInput_ControllerButtonState(SDL_Gamepad *controller, s32 buttonOrAxis)
 {
 	if (controller == NULL)
 		return 0;
@@ -288,7 +288,7 @@ static s32 NativeInput_ControllerButtonState(SDL_Gamepad *controller, s32 button
 	return SDL_GetGamepadButton(controller, (SDL_GamepadButton)buttonOrAxis) * 32767;
 }
 
-static u8 NativeInput_AxisToByte(s32 axis)
+internal u8 NativeInput_AxisToByte(s32 axis)
 {
 	s32 value = (axis / 256) + 128;
 
@@ -301,7 +301,7 @@ static u8 NativeInput_AxisToByte(s32 axis)
 	return (u8)value;
 }
 
-static void NativeInput_ApplyController(s32 slot)
+internal void NativeInput_ApplyController(s32 slot)
 {
 	struct NativeInputController *nativeController = &s_controllers[slot];
 	struct PlatformInputPadSnapshot *snapshot = &nativeController->snapshot;
@@ -368,7 +368,7 @@ static void NativeInput_ApplyController(s32 slot)
 	snapshot->analog[3] = NativeInput_AxisToByte(NativeInput_ControllerButtonState(controller, mapping->gc_axis_left_y));
 }
 
-static u16 NativeInput_ReadKeyboard(void)
+internal u16 NativeInput_ReadKeyboard(void)
 {
 	const struct NativeInputKeyboardMapping *mapping = &s_keyboardMapping;
 	u16 buttons = 0xffff;
@@ -412,7 +412,7 @@ static u16 NativeInput_ReadKeyboard(void)
 	return buttons;
 }
 
-static s32 NativeInput_KeyboardSuppressed(void)
+internal s32 NativeInput_KeyboardSuppressed(void)
 {
 	if (s_keyboardState == NULL)
 		return 0;
@@ -420,7 +420,7 @@ static s32 NativeInput_KeyboardSuppressed(void)
 	return s_keyboardState[SDL_SCANCODE_RALT] || s_keyboardState[SDL_SCANCODE_LALT];
 }
 
-static void NativeInput_ApplyKeyboard(s32 slot, u16 keyboardButtons)
+internal void NativeInput_ApplyKeyboard(s32 slot, u16 keyboardButtons)
 {
 	struct PlatformInputPadSnapshot *snapshot = &s_controllers[slot].snapshot;
 	u16 buttons;
@@ -435,7 +435,7 @@ static void NativeInput_ApplyKeyboard(s32 slot, u16 keyboardButtons)
 	NativeInput_SetSnapshotButtons(snapshot, buttons & keyboardButtons);
 }
 
-static s32 NativeInput_FindSlotForDeviceIndex(Sint32 deviceIndex)
+internal s32 NativeInput_FindSlotForDeviceIndex(Sint32 deviceIndex)
 {
 	s32 slot;
 
@@ -454,7 +454,7 @@ static s32 NativeInput_FindSlotForDeviceIndex(Sint32 deviceIndex)
 	return -1;
 }
 
-static void NativeInput_CloseController(s32 slot)
+internal void NativeInput_CloseController(s32 slot)
 {
 	struct NativeInputController *controller;
 
@@ -471,7 +471,7 @@ static void NativeInput_CloseController(s32 slot)
 	controller->switchingAnalog = 0;
 }
 
-static void NativeInput_OpenController(SDL_JoystickID instanceId, s32 slot)
+internal void NativeInput_OpenController(SDL_JoystickID instanceId, s32 slot)
 {
 	struct NativeInputController *controller;
 	SDL_Joystick *joystick;
@@ -496,7 +496,7 @@ static void NativeInput_OpenController(SDL_JoystickID instanceId, s32 slot)
 	controller->switchingAnalog = 0;
 }
 
-static void NativeInput_OpenKnownControllers(void)
+internal void NativeInput_OpenKnownControllers(void)
 {
 	SDL_JoystickID *gamepads;
 	s32 count = 0;

@@ -1,5 +1,6 @@
 #include "platform/native_assets.h"
 
+#include <macros.h>
 #include <psx/types.h>
 
 #include <platform/native_path.h>
@@ -30,11 +31,11 @@ struct NativeAssetsByteBuffer
 	int size;
 };
 
-static char s_nativeAssetsBaseDir[NATIVE_ASSETS_PATH_MAX] = ".";
-static char s_nativeAssetsDir[NATIVE_ASSETS_PATH_MAX] = NATIVE_ASSETS_DIR_NAME;
-static int s_nativeAssetsInitialized;
+global_variable char s_nativeAssetsBaseDir[NATIVE_ASSETS_PATH_MAX] = ".";
+global_variable char s_nativeAssetsDir[NATIVE_ASSETS_PATH_MAX] = NATIVE_ASSETS_DIR_NAME;
+global_variable int s_nativeAssetsInitialized;
 
-static int NativeAssets_FileExists(const char *path)
+internal int NativeAssets_FileExists(const char *path)
 {
 	FILE *file = fopen(path, "rb");
 
@@ -45,7 +46,7 @@ static int NativeAssets_FileExists(const char *path)
 	return 1;
 }
 
-static int NativeAssets_BaseHasRequiredFile(NativeStr8 baseDir)
+internal int NativeAssets_BaseHasRequiredFile(NativeStr8 baseDir)
 {
 	char path[NATIVE_ASSETS_PATH_MAX];
 
@@ -55,7 +56,7 @@ static int NativeAssets_BaseHasRequiredFile(NativeStr8 baseDir)
 	return NativeAssets_FileExists(path);
 }
 
-static int NativeAssets_SetBaseDir(NativeStr8 baseDir)
+internal int NativeAssets_SetBaseDir(NativeStr8 baseDir)
 {
 	baseDir = NativePath_TrimTrailingSeparators(baseDir);
 	if (!NativePath_NormalizeSlashes(s_nativeAssetsBaseDir, sizeof(s_nativeAssetsBaseDir), baseDir))
@@ -130,17 +131,17 @@ FILE *NativeAssets_Open(const char *relativePath, const char *mode)
 	return NativeAssets_OpenStr8(NativeStr8_FromCString(relativePath), mode);
 }
 
-static int NativeAssets_ReadExact(FILE *file, void *dst, size_t size)
+internal int NativeAssets_ReadExact(FILE *file, void *dst, size_t size)
 {
 	return fread(dst, 1, size, file) == size;
 }
 
-static u32 NativeAssets_ReadLE32(const u8 *data)
+internal u32 NativeAssets_ReadLE32(const u8 *data)
 {
 	return ((u32)data[0]) | ((u32)data[1] << 8) | ((u32)data[2] << 16) | ((u32)data[3] << 24);
 }
 
-static int NativeAssets_ReadFileBytes(const char *path, struct NativeAssetsByteBuffer *bytes)
+internal int NativeAssets_ReadFileBytes(const char *path, struct NativeAssetsByteBuffer *bytes)
 {
 	FILE *file;
 	long size;
@@ -191,26 +192,26 @@ static int NativeAssets_ReadFileBytes(const char *path, struct NativeAssetsByteB
 	return 1;
 }
 
-static void NativeAssets_FreeByteBuffer(struct NativeAssetsByteBuffer *bytes)
+internal void NativeAssets_FreeByteBuffer(struct NativeAssetsByteBuffer *bytes)
 {
 	free(bytes->data);
 	bytes->data = NULL;
 	bytes->size = 0;
 }
 
-static void NativeAssets_PrintHeader(void)
+internal void NativeAssets_PrintHeader(void)
 {
 	fprintf(stderr, "[CTR Native] Missing or incomplete assets.\n");
 	fprintf(stderr, "[CTR Native] Expected NTSC-U retail assets under: %s\n", NativeAssets_GetAssetDir());
 }
 
-static void NativeAssets_PrintFooter(void)
+internal void NativeAssets_PrintFooter(void)
 {
 	fprintf(stderr, "[CTR Native] Required files: %s, %s, %s, %s, plus XA files referenced by %s\n", NATIVE_ASSETS_BIGFILE_PATH, NATIVE_ASSETS_KART_HWL_PATH,
 	        NATIVE_ASSETS_TEST_STR_PATH, NATIVE_ASSETS_XNF_PATH, NATIVE_ASSETS_XNF_PATH);
 }
 
-static int NativeAssets_CheckRequiredFile(const char *path)
+internal int NativeAssets_CheckRequiredFile(const char *path)
 {
 	char assetPath[NATIVE_ASSETS_PATH_MAX];
 
@@ -227,9 +228,9 @@ static int NativeAssets_CheckRequiredFile(const char *path)
 	return 0;
 }
 
-static int NativeAssets_ValidateXA(void)
+internal int NativeAssets_ValidateXA(void)
 {
-	static const char *xaDirs[NATIVE_ASSETS_XA_TYPE_COUNT] = {
+	local_persist const char *xaDirs[NATIVE_ASSETS_XA_TYPE_COUNT] = {
 	    "XA/MUSIC",
 	    "XA/ENG/EXTRA",
 	    "XA/ENG/GAME",

@@ -9,12 +9,12 @@
 // MIT-licensed LIBSPU.C while moving host SPU ownership into ctr-native.
 // See THIRD_PARTY_NOTICES.md.
 
-static s32 s_inTransfer = 0;
-static s32 s_transferMode = SPU_TRANSFER_BY_DMA;
-static SpuTransferCallbackProc s_transferCallback = NULL;
-static s32 s_spuIRQEnabled = 0;
-static u32 s_spuIRQAddr = 0;
-static SpuIRQCallbackProc s_spuIRQCallback = NULL;
+global_variable s32 s_inTransfer = 0;
+global_variable s32 s_transferMode = SPU_TRANSFER_BY_DMA;
+global_variable SpuTransferCallbackProc s_transferCallback = NULL;
+global_variable s32 s_spuIRQEnabled = 0;
+global_variable u32 s_spuIRQAddr = 0;
+global_variable SpuIRQCallbackProc s_spuIRQCallback = NULL;
 
 unsigned int SpuWrite(unsigned char *addr, unsigned int size)
 {
@@ -55,7 +55,7 @@ void SpuInit(void)
 	NativeAudio_SpuInit();
 }
 
-static void NativeLibSpu_SetVoiceAttr(SpuVoiceAttr *arg)
+internal void NativeLibSpu_SetVoiceAttr(SpuVoiceAttr *arg)
 {
 	NativeAudio_SpuSetVoiceAttr(arg);
 }

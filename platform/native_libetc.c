@@ -4,10 +4,11 @@
  * See THIRD_PARTY_NOTICES.md for copyright and license details.
  */
 
+#include <macros.h>
 #include <psx/libetc.h>
 
 void (*vsync_callback)(void) = NULL;
-static int s_videoMode = -1;
+global_variable int s_videoMode = -1;
 
 int VSyncCallback(void (*func)(void))
 {

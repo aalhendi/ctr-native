@@ -25,22 +25,24 @@
  * See THIRD_PARTY_NOTICES.md for copyright and license details.
  */
 
+#include <macros.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "platform/native_glad.h"
 
-static void *get_proc(const char *namez);
+internal void *get_proc(const char *namez);
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #ifndef _WINDOWS_
 #undef APIENTRY
 #endif
 #include "platform/native_win32.h"
-static HMODULE libGL;
+global_variable HMODULE libGL;
 
 typedef void *(APIENTRYP PFNWGLGETPROCADDRESSPROC_PRIVATE)(const char *);
-static PFNWGLGETPROCADDRESSPROC_PRIVATE gladGetProcAddressPtr;
+global_variable PFNWGLGETPROCADDRESSPROC_PRIVATE gladGetProcAddressPtr;
 
 #ifdef _MSC_VER
 #ifdef __has_include
@@ -59,7 +61,7 @@ static PFNWGLGETPROCADDRESSPROC_PRIVATE gladGetProcAddressPtr;
 #endif
 #endif
 
-static int open_gl(void)
+internal int open_gl(void)
 {
 #ifndef IS_UWP
 	libGL = LoadLibraryW(L"opengl32.dll");
@@ -75,7 +77,7 @@ static int open_gl(void)
 	return 0;
 }
 
-static void close_gl(void)
+internal void close_gl(void)
 {
 	if (libGL != NULL)
 	{
@@ -85,20 +87,21 @@ static void close_gl(void)
 }
 #else
 #include <dlfcn.h>
-static void *libGL;
+global_variable void *libGL;
 
 #if !defined(__APPLE__) && !defined(__HAIKU__)
 typedef void *(APIENTRYP PFNGLXGETPROCADDRESSPROC_PRIVATE)(const char *);
-static PFNGLXGETPROCADDRESSPROC_PRIVATE gladGetProcAddressPtr;
+global_variable PFNGLXGETPROCADDRESSPROC_PRIVATE gladGetProcAddressPtr;
 #endif
 
-static int open_gl(void)
+internal int open_gl(void)
 {
 #ifdef __APPLE__
-	static const char *NAMES[] = {"../Frameworks/OpenGL.framework/OpenGL", "/Library/Frameworks/OpenGL.framework/OpenGL",
-	                              "/System/Library/Frameworks/OpenGL.framework/OpenGL", "/System/Library/Frameworks/OpenGL.framework/Versions/Current/OpenGL"};
+	local_persist const char *NAMES[] = {"../Frameworks/OpenGL.framework/OpenGL", "/Library/Frameworks/OpenGL.framework/OpenGL",
+	                                     "/System/Library/Frameworks/OpenGL.framework/OpenGL",
+	                                     "/System/Library/Frameworks/OpenGL.framework/Versions/Current/OpenGL"};
 #else
-	static const char *NAMES[] = {"libGL.so.1", "libGL.so"};
+	local_persist const char *NAMES[] = {"libGL.so.1", "libGL.so"};
 #endif
 
 	unsigned int index = 0;
@@ -120,7 +123,7 @@ static int open_gl(void)
 	return 0;
 }
 
-static void close_gl(void)
+internal void close_gl(void)
 {
 	if (libGL != NULL)
 	{
@@ -130,7 +133,7 @@ static void close_gl(void)
 }
 #endif
 
-static void *get_proc(const char *namez)
+internal void *get_proc(const char *namez)
 {
 	void *result = NULL;
 	if (libGL == NULL)
@@ -173,14 +176,14 @@ struct gladGLversionStruct GLVersion = {0, 0};
 #define _GLAD_IS_SOME_NEW_VERSION 1
 #endif
 
-static int max_loaded_major;
-static int max_loaded_minor;
+global_variable int max_loaded_major;
+global_variable int max_loaded_minor;
 
-static const char *exts = NULL;
-static int num_exts_i = 0;
-static char **exts_i = NULL;
+global_variable const char *exts = NULL;
+global_variable int num_exts_i = 0;
+global_variable char **exts_i = NULL;
 
-static int get_exts(void)
+internal int get_exts(void)
 {
 #ifdef _GLAD_IS_SOME_NEW_VERSION
 	if (max_loaded_major < 3)
@@ -222,7 +225,7 @@ static int get_exts(void)
 	return 1;
 }
 
-static void free_exts(void)
+internal void free_exts(void)
 {
 	if (exts_i != NULL)
 	{
@@ -236,7 +239,7 @@ static void free_exts(void)
 	}
 }
 
-static int has_ext(const char *ext)
+internal int has_ext(const char *ext)
 {
 #ifdef _GLAD_IS_SOME_NEW_VERSION
 	if (max_loaded_major < 3)
@@ -972,7 +975,7 @@ PFNGLGETOBJECTLABELKHRPROC glad_glGetObjectLabelKHR = NULL;
 PFNGLOBJECTPTRLABELKHRPROC glad_glObjectPtrLabelKHR = NULL;
 PFNGLGETOBJECTPTRLABELKHRPROC glad_glGetObjectPtrLabelKHR = NULL;
 PFNGLGETPOINTERVKHRPROC glad_glGetPointervKHR = NULL;
-static void load_GL_VERSION_1_0(GLADloadproc load)
+internal void load_GL_VERSION_1_0(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_1_0)
 		return;
@@ -1283,7 +1286,7 @@ static void load_GL_VERSION_1_0(GLADloadproc load)
 	glad_glTranslated = (PFNGLTRANSLATEDPROC)load("glTranslated");
 	glad_glTranslatef = (PFNGLTRANSLATEFPROC)load("glTranslatef");
 }
-static void load_GL_VERSION_1_1(GLADloadproc load)
+internal void load_GL_VERSION_1_1(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_1_1)
 		return;
@@ -1318,7 +1321,7 @@ static void load_GL_VERSION_1_1(GLADloadproc load)
 	glad_glPopClientAttrib = (PFNGLPOPCLIENTATTRIBPROC)load("glPopClientAttrib");
 	glad_glPushClientAttrib = (PFNGLPUSHCLIENTATTRIBPROC)load("glPushClientAttrib");
 }
-static void load_GL_VERSION_1_2(GLADloadproc load)
+internal void load_GL_VERSION_1_2(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_1_2)
 		return;
@@ -1327,7 +1330,7 @@ static void load_GL_VERSION_1_2(GLADloadproc load)
 	glad_glTexSubImage3D = (PFNGLTEXSUBIMAGE3DPROC)load("glTexSubImage3D");
 	glad_glCopyTexSubImage3D = (PFNGLCOPYTEXSUBIMAGE3DPROC)load("glCopyTexSubImage3D");
 }
-static void load_GL_VERSION_1_3(GLADloadproc load)
+internal void load_GL_VERSION_1_3(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_1_3)
 		return;
@@ -1378,7 +1381,7 @@ static void load_GL_VERSION_1_3(GLADloadproc load)
 	glad_glMultTransposeMatrixf = (PFNGLMULTTRANSPOSEMATRIXFPROC)load("glMultTransposeMatrixf");
 	glad_glMultTransposeMatrixd = (PFNGLMULTTRANSPOSEMATRIXDPROC)load("glMultTransposeMatrixd");
 }
-static void load_GL_VERSION_1_4(GLADloadproc load)
+internal void load_GL_VERSION_1_4(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_1_4)
 		return;
@@ -1430,7 +1433,7 @@ static void load_GL_VERSION_1_4(GLADloadproc load)
 	glad_glBlendColor = (PFNGLBLENDCOLORPROC)load("glBlendColor");
 	glad_glBlendEquation = (PFNGLBLENDEQUATIONPROC)load("glBlendEquation");
 }
-static void load_GL_VERSION_1_5(GLADloadproc load)
+internal void load_GL_VERSION_1_5(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_1_5)
 		return;
@@ -1454,7 +1457,7 @@ static void load_GL_VERSION_1_5(GLADloadproc load)
 	glad_glGetBufferParameteriv = (PFNGLGETBUFFERPARAMETERIVPROC)load("glGetBufferParameteriv");
 	glad_glGetBufferPointerv = (PFNGLGETBUFFERPOINTERVPROC)load("glGetBufferPointerv");
 }
-static void load_GL_VERSION_2_0(GLADloadproc load)
+internal void load_GL_VERSION_2_0(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_2_0)
 		return;
@@ -1552,7 +1555,7 @@ static void load_GL_VERSION_2_0(GLADloadproc load)
 	glad_glVertexAttrib4usv = (PFNGLVERTEXATTRIB4USVPROC)load("glVertexAttrib4usv");
 	glad_glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)load("glVertexAttribPointer");
 }
-static void load_GL_VERSION_2_1(GLADloadproc load)
+internal void load_GL_VERSION_2_1(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_2_1)
 		return;
@@ -1563,7 +1566,7 @@ static void load_GL_VERSION_2_1(GLADloadproc load)
 	glad_glUniformMatrix3x4fv = (PFNGLUNIFORMMATRIX3X4FVPROC)load("glUniformMatrix3x4fv");
 	glad_glUniformMatrix4x3fv = (PFNGLUNIFORMMATRIX4X3FVPROC)load("glUniformMatrix4x3fv");
 }
-static void load_GL_VERSION_3_0(GLADloadproc load)
+internal void load_GL_VERSION_3_0(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_3_0)
 		return;
@@ -1652,7 +1655,7 @@ static void load_GL_VERSION_3_0(GLADloadproc load)
 	glad_glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)load("glGenVertexArrays");
 	glad_glIsVertexArray = (PFNGLISVERTEXARRAYPROC)load("glIsVertexArray");
 }
-static void load_GL_VERSION_3_1(GLADloadproc load)
+internal void load_GL_VERSION_3_1(GLADloadproc load)
 {
 	if (!GLAD_GL_VERSION_3_1)
 		return;
@@ -1672,7 +1675,7 @@ static void load_GL_VERSION_3_1(GLADloadproc load)
 	glad_glBindBufferBase = (PFNGLBINDBUFFERBASEPROC)load("glBindBufferBase");
 	glad_glGetIntegeri_v = (PFNGLGETINTEGERI_VPROC)load("glGetIntegeri_v");
 }
-static void load_GL_KHR_debug(GLADloadproc load)
+internal void load_GL_KHR_debug(GLADloadproc load)
 {
 	if (!GLAD_GL_KHR_debug)
 		return;
@@ -1699,7 +1702,7 @@ static void load_GL_KHR_debug(GLADloadproc load)
 	glad_glGetObjectPtrLabelKHR = (PFNGLGETOBJECTPTRLABELKHRPROC)load("glGetObjectPtrLabelKHR");
 	glad_glGetPointervKHR = (PFNGLGETPOINTERVKHRPROC)load("glGetPointervKHR");
 }
-static int find_extensionsGL(void)
+internal int find_extensionsGL(void)
 {
 	if (!get_exts())
 		return 0;
@@ -1708,7 +1711,7 @@ static int find_extensionsGL(void)
 	return 1;
 }
 
-static void find_coreGL(void)
+internal void find_coreGL(void)
 {
 	/* Thank you @elmindreda
 	 * https://github.com/elmindreda/greg/blob/master/templates/greg.c.in#L176
@@ -1788,7 +1791,7 @@ int gladLoadGLLoader(GLADloadproc load)
 	return GLVersion.major != 0 || GLVersion.minor != 0;
 }
 
-static void load_GL_ES_VERSION_2_0(GLADloadproc load)
+internal void load_GL_ES_VERSION_2_0(GLADloadproc load)
 {
 	if (!GLAD_GL_ES_VERSION_2_0)
 		return;
@@ -1935,7 +1938,7 @@ static void load_GL_ES_VERSION_2_0(GLADloadproc load)
 	glad_glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)load("glVertexAttribPointer");
 	glad_glViewport = (PFNGLVIEWPORTPROC)load("glViewport");
 }
-static int find_extensionsGLES2(void)
+internal int find_extensionsGLES2(void)
 {
 	if (!get_exts())
 		return 0;
@@ -1944,7 +1947,7 @@ static int find_extensionsGLES2(void)
 	return 1;
 }
 
-static void find_coreGLES2(void)
+internal void find_coreGLES2(void)
 {
 	/* Thank you @elmindreda
 	 * https://github.com/elmindreda/greg/blob/master/templates/greg.c.in#L176

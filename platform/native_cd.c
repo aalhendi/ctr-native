@@ -14,19 +14,19 @@
 #define NATIVE_CD_MAX_OPEN_FILES 8
 #define NATIVE_CD_SECTOR_SIZE    0x800
 
-static s32 s_cdDebugLevel;
-static s32 s_cdLastCom;
-static CdlCB s_cdReadyCallback;
-static CdlCB s_cdSyncCallback;
-static u32 s_cdSectorData[NATIVE_CD_SECTOR_WORDS];
-static CdlCB s_nativeCdReadCallback;
-static FILE *s_nativeCdFiles[NATIVE_CD_MAX_OPEN_FILES];
-static s32 s_nativeCdFileCount;
-static s32 s_nativeCdCurrentFile;
+global_variable s32 s_cdDebugLevel;
+global_variable s32 s_cdLastCom;
+global_variable CdlCB s_cdReadyCallback;
+global_variable CdlCB s_cdSyncCallback;
+global_variable u32 s_cdSectorData[NATIVE_CD_SECTOR_WORDS];
+global_variable CdlCB s_nativeCdReadCallback;
+global_variable FILE *s_nativeCdFiles[NATIVE_CD_MAX_OPEN_FILES];
+global_variable s32 s_nativeCdFileCount;
+global_variable s32 s_nativeCdCurrentFile;
 
 int boolDecodeXaDuringVsyncCallback;
 
-static s32 NativeCD_NormalizeFilename(char *dst, s32 dstCount, const char *src)
+internal s32 NativeCD_NormalizeFilename(char *dst, s32 dstCount, const char *src)
 {
 	NativeStr8 filename = NativeStr8_FromCString(src);
 	size_t i;
@@ -46,7 +46,7 @@ static s32 NativeCD_NormalizeFilename(char *dst, s32 dstCount, const char *src)
 	return NativePath_NormalizeSlashes(dst, (size_t)dstCount, filename);
 }
 
-static NativeStr8 NativeCD_PathAfterRoot(NativeStr8 filename)
+internal NativeStr8 NativeCD_PathAfterRoot(NativeStr8 filename)
 {
 	if ((filename.len != 0) && NativePath_IsSeparator(filename.ptr[0]))
 		return NativeStr8_Skip(filename, 1);
@@ -54,7 +54,7 @@ static NativeStr8 NativeCD_PathAfterRoot(NativeStr8 filename)
 	return filename;
 }
 
-static s32 NativeCD_OpenHostFile(const char *filename, s32 *outSize)
+internal s32 NativeCD_OpenHostFile(const char *filename, s32 *outSize)
 {
 	char normalized[256];
 	char rootlessPath[256];
@@ -103,7 +103,7 @@ static s32 NativeCD_OpenHostFile(const char *filename, s32 *outSize)
 	return fileIndex;
 }
 
-static s32 NativeCD_SearchHostFile(CdlFILE *loc, const char *filename)
+internal s32 NativeCD_SearchHostFile(CdlFILE *loc, const char *filename)
 {
 	char normalized[256];
 	char rootlessPath[256];
@@ -136,7 +136,7 @@ static s32 NativeCD_SearchHostFile(CdlFILE *loc, const char *filename)
 	return 1;
 }
 
-static s32 NativeCD_HostPosToInt(const CdlLOC *pos)
+internal s32 NativeCD_HostPosToInt(const CdlLOC *pos)
 {
 	s32 value;
 
@@ -144,12 +144,12 @@ static s32 NativeCD_HostPosToInt(const CdlLOC *pos)
 	return value;
 }
 
-static void NativeCD_HostIntToPos(s32 value, CdlLOC *pos)
+internal void NativeCD_HostIntToPos(s32 value, CdlLOC *pos)
 {
 	memcpy(pos, &value, sizeof(value));
 }
 
-static s32 NativeCD_SetHostLoc(const CdlLOC *pos)
+internal s32 NativeCD_SetHostLoc(const CdlLOC *pos)
 {
 	s32 encodedPos;
 	s32 fileIndex;
@@ -167,7 +167,7 @@ static s32 NativeCD_SetHostLoc(const CdlLOC *pos)
 	return fseek(s_nativeCdFiles[s_nativeCdCurrentFile], sector * NATIVE_CD_SECTOR_SIZE, SEEK_SET) == 0;
 }
 
-static s32 NativeCD_ReadHostSectors(s32 sectors, void *dst)
+internal s32 NativeCD_ReadHostSectors(s32 sectors, void *dst)
 {
 	size_t byteCount;
 
@@ -179,7 +179,7 @@ static s32 NativeCD_ReadHostSectors(s32 sectors, void *dst)
 	return fread(dst, 1, byteCount, s_nativeCdFiles[s_nativeCdCurrentFile]) == byteCount;
 }
 
-static void NativeCD_SetLastCom(int com)
+internal void NativeCD_SetLastCom(int com)
 {
 	s_cdLastCom = com;
 }

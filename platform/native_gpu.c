@@ -4,6 +4,7 @@
  * See THIRD_PARTY_NOTICES.md for copyright and license details.
  */
 
+#include <macros.h>
 #include "platform/native_gpu.h"
 
 #include <SDL3/SDL.h>
@@ -35,7 +36,7 @@ extern int g_dbg_polygonSelected;
 #define GET_CLUT_X(clut)           ((clut & 0x3F) << 4)
 #define GET_CLUT_Y(clut)           (clut >> 6)
 
-static TexFormat GetTPageFormat(int tpage)
+internal TexFormat GetTPageFormat(int tpage)
 {
 	const int mode = (tpage >> 7) & 0x3;
 
@@ -45,7 +46,7 @@ static TexFormat GetTPageFormat(int tpage)
 	return mode == 3 ? TF_16_BIT : (TexFormat)mode;
 }
 
-static short GetTPageBase(int tpage)
+internal short GetTPageBase(int tpage)
 {
 	const u16 page = (u16)tpage;
 
@@ -97,7 +98,7 @@ typedef struct
 	int splitIndex;
 } NativeGpuState;
 
-static NativeGpuState s_gpu;
+global_variable NativeGpuState s_gpu;
 
 struct NativeGpuSnapshot
 {
@@ -176,7 +177,7 @@ int NativeGpu_RestoreState(const void *src, int srcSize)
 	return 1;
 }
 
-static void DrawEnvDimensionsInt(int *width, int *height)
+internal void DrawEnvDimensionsInt(int *width, int *height)
 {
 	if (activeDrawEnv.dfe)
 	{
@@ -190,7 +191,7 @@ static void DrawEnvDimensionsInt(int *width, int *height)
 	}
 }
 
-static void DrawEnvDimensionsFloat(float *width, float *height)
+internal void DrawEnvDimensionsFloat(float *width, float *height)
 {
 	int intWidth;
 	int intHeight;
@@ -723,12 +724,12 @@ void TriangulateQuad()
 
 //------------------------------------------------------------------------------------------------------------------------
 
-static bool NativeGpu_RectOverlaps(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh)
+internal bool NativeGpu_RectOverlaps(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh)
 {
 	return (aw > 0) && (ah > 0) && (bw > 0) && (bh > 0) && (ax < bx + bw) && (bx < ax + aw) && (ay < by + bh) && (by < ay + ah);
 }
 
-static bool NativeGpu_TPageOverlapsActiveDrawPage(int tpage)
+internal bool NativeGpu_TPageOverlapsActiveDrawPage(int tpage)
 {
 	const int pageX = (tpage & 0xf) << 6;
 	const int pageY = (tpage & 0x10) ? 0x100 : 0;
@@ -744,7 +745,7 @@ static bool NativeGpu_TPageOverlapsActiveDrawPage(int tpage)
 	return NativeGpu_RectOverlaps(pageX, pageY, pageW, pageH, activeDrawEnv.clip.x, activeDrawEnv.clip.y, activeDrawEnv.clip.w, activeDrawEnv.clip.h);
 }
 
-static void NativeGpu_PrepareFramebufferFeedback(int tpage)
+internal void NativeGpu_PrepareFramebufferFeedback(int tpage)
 {
 	if (!NativeGpu_TPageOverlapsActiveDrawPage(tpage))
 		return;
@@ -763,7 +764,7 @@ static void NativeGpu_PrepareFramebufferFeedback(int tpage)
 	s_gpu.framebufferFeedbackRunActive = true;
 }
 
-static void AddSplit(bool semiTrans, bool textured, bool framebufferFeedback)
+internal void AddSplit(bool semiTrans, bool textured, bool framebufferFeedback)
 {
 	int tpage = activeDrawEnv.tpage;
 
@@ -868,7 +869,7 @@ void DrawSplit(const GPUDrawSplit *split)
 		NativeRenderer_PopDebugLabel();
 }
 
-static void SetPSXMaskState(u32 code)
+internal void SetPSXMaskState(u32 code)
 {
 	s_gpu.psxDrawMaskSet = (code & 1) != 0;
 }
@@ -973,12 +974,12 @@ void ParsePrimitivesLinkedList(u32 *p, int singlePrimitive)
 	}
 }
 
-static inline int IsNull(POLY_FT3 *poly)
+internal inline int IsNull(POLY_FT3 *poly)
 {
 	return poly->x0 == -1 && poly->y0 == -1 && poly->x1 == -1 && poly->y1 == -1 && poly->x2 == -1 && poly->y2 == -1;
 }
 
-static int ProcessFlatLines(P_TAG *polyTag)
+internal int ProcessFlatLines(P_TAG *polyTag)
 {
 	const bool shadeTexOn = true;
 	const bool semiTrans = (polyTag->code & 2);
@@ -1115,7 +1116,7 @@ static int ProcessFlatLines(P_TAG *polyTag)
 	return 0;
 }
 
-static int ProcessGouraudLines(P_TAG *polyTag)
+internal int ProcessGouraudLines(P_TAG *polyTag)
 {
 	const bool shadeTexOn = true;
 	const bool semiTrans = (polyTag->code & 2);
@@ -1160,7 +1161,7 @@ static int ProcessGouraudLines(P_TAG *polyTag)
 	return 0;
 }
 
-static int ProcessFlatPoly(P_TAG *polyTag)
+internal int ProcessFlatPoly(P_TAG *polyTag)
 {
 	const bool shadeTexOn = (polyTag->code & 1) == 0;
 	const bool semiTrans = (polyTag->code & 2);
@@ -1242,7 +1243,7 @@ static int ProcessFlatPoly(P_TAG *polyTag)
 	return 0;
 }
 
-static int ProcessGouraudPoly(P_TAG *polyTag)
+internal int ProcessGouraudPoly(P_TAG *polyTag)
 {
 	const bool shadeTexOn = true;
 	const bool semiTrans = (polyTag->code & 2);
@@ -1321,7 +1322,7 @@ static int ProcessGouraudPoly(P_TAG *polyTag)
 	return 0;
 }
 
-static int ProcessTileAndSprt(P_TAG *polyTag)
+internal int ProcessTileAndSprt(P_TAG *polyTag)
 {
 	// NOTE: TILE does not support switching shadeTex on real PSX
 	const bool shadeTexOn = (polyTag->code & 1) == 0;
@@ -1452,7 +1453,7 @@ static int ProcessTileAndSprt(P_TAG *polyTag)
 	return 0;
 }
 
-static int ProcessDrawEnv(P_TAG *polyTag)
+internal int ProcessDrawEnv(P_TAG *polyTag)
 {
 	const u32 *codePtr = (u32 *)&polyTag->pad0;
 	int processedLongs = 0;
@@ -1535,7 +1536,7 @@ static int ProcessDrawEnv(P_TAG *polyTag)
 	return processedLongs;
 }
 
-static void ProcessDrawEnvCommand(u32 code)
+internal void ProcessDrawEnvCommand(u32 code)
 {
 	const int primSubType = code >> 24 & 0x0F;
 
@@ -1571,7 +1572,7 @@ static void ProcessDrawEnvCommand(u32 code)
 	}
 }
 
-static int ProcessPsyXPrims(P_TAG *polyTag)
+internal int ProcessPsyXPrims(P_TAG *polyTag)
 {
 	const int primType = polyTag->code & 0xF0;
 	const int primSubType = polyTag->code & 0x0F;

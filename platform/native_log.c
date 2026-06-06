@@ -1,5 +1,7 @@
 #include "platform/native_log.h"
 
+#include <macros.h>
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,10 +10,10 @@
 #include "platform/native_win32.h"
 #endif
 
-static FILE *s_logStream = NULL;
-static char s_logPath[512]; // TODO(aalhendi): yeah this is an issue waiting to happen. w/e
+global_variable FILE *s_logStream = NULL;
+global_variable char s_logPath[512]; // TODO(aalhendi): yeah this is an issue waiting to happen. w/e
 
-static void Platform_LogWrite(FILE *consoleStream, const char *text)
+internal void Platform_LogWrite(FILE *consoleStream, const char *text)
 {
 	FILE *stream = (consoleStream != NULL) ? consoleStream : stdout;
 
@@ -28,7 +30,7 @@ static void Platform_LogWrite(FILE *consoleStream, const char *text)
 	}
 }
 
-static void Platform_LogV(FILE *consoleStream, const char *fmt, va_list args)
+internal void Platform_LogV(FILE *consoleStream, const char *fmt, va_list args)
 {
 	char text[4096];
 	int written = vsnprintf(text, sizeof(text), fmt, args);

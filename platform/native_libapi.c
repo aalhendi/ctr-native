@@ -4,12 +4,14 @@
  * See THIRD_PARTY_NOTICES.md for copyright and license details.
  */
 
+#include <macros.h>
+
 #include <SDL3/SDL.h>
 #include <psx/libapi.h>
 
 #define CTR_NATIVE_RCNT1_HZ 15720u
 
-static Uint64 s_rootCounterBase = 0;
+global_variable Uint64 s_rootCounterBase = 0;
 
 int SetRCnt(int spec, unsigned short target, int mode)
 {
