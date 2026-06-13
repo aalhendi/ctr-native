@@ -60,11 +60,16 @@ void CTR_CycleTex_LEV(struct AnimTex *animtex, int timer);
 void CTR_ErrorScreen(char r, char g, char b);
 void CTR_CycleTex_Model(struct AnimTex *animtex, int timer);
 void CTR_CycleTex_2p3p4pWumpaHUD(u32 *ptrActiveTex, u32 *ptrArray, int numFrames);
+void CTR_ClearRenderLists_1P2P(struct GameTracker *gGT, int numPlyrCurrGame);
+void CTR_ClearRenderLists_3P4P(struct GameTracker *gGT, int numPlyrCurrGame);
+void CTR_EmptyFunc_MainFrame_ResetDB(void);
+void CTR_MatrixToRot(SVECTOR *rot, MATRIX *matrix, u32 flags);
 void CTR_ScrambleGhostString(char *dst, const char *src);
 void CTR_unknownMaybeThunk1(void *dst, void *src);
 void CTR_unknownMaybeThunk2(void *dst, void *src);
 void CTR_unknownMaybeThunk3(void *dst, void *src, int byteCount);
 
+void CTR_Box_DrawWirePrims(Point p1, Point p2, Color color, void *ot);
 void CTR_Box_DrawWireBox(RECT *r, const Color *color, void *ot, struct PrimMem *primMem);
 void CTR_Box_DrawClearBox(const RECT *r, const Color *color, int transparency, u_long *ot);
 void CTR_Box_DrawSolidBox(RECT *r, Color color, u_long *ot);
@@ -1155,7 +1160,6 @@ void RB_Burst_Init(struct Instance *weaponInst);
 void GAMEPAD_ShockFreq(struct Driver *d, int frame, int val);
 int RaceFlag_IsTransitioning(void);
 void LOAD_Robots1P(int characterID);
-void CTR_Box_DrawWirePrims(Point p1, Point p2, Color color, void *ot);
 void UI_Map_DrawRawIcon( // 1st param is probably a ptr type of some sort (maybe s16*)?, could maybe do `void*` for now
     int ptrMap, int *param_2, int iconID, int colorID, int unused, s16 scale);
 int RaceFlag_GetCanDraw(void);
