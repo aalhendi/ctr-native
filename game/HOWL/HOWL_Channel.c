@@ -126,7 +126,6 @@ void Channel_DestroySelf(struct ChannelStats *stats)
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8002b7d0-0x8002b898
 struct ChannelStats *Channel_AllocSlot(int flags, struct ChannelAttr *attr)
 {
-	int i;
 	struct ChannelAttr *newAttr;
 	struct ChannelStats *stats;
 
@@ -147,11 +146,9 @@ struct ChannelStats *Channel_AllocSlot(int flags, struct ChannelAttr *attr)
 	// make new ChanenlAttr
 	newAttr = &sdata->channelAttrNew[stats->channelID];
 
-	// copy all 0x10 bytes in ChannelAttr
-	for (i = 0; i < 4; i++)
-	{
-		((int *)newAttr)[i] = ((int *)attr)[i];
-	}
+	// NOTE(aalhendi): Retail copies four ChannelAttr words; keep the native
+	// copy defined so optimization preserves the caller's field writes.
+	*newAttr = *attr;
 
 	stats->flags = 1;
 
