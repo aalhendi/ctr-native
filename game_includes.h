@@ -113,7 +113,17 @@
 
 #include "game/LIST.c"
 
-#include "game/LOAD/LOAD_00_50_FULL.c"
+#include "game/LOAD/LOAD_Callbacks.c"
+#include "game/LOAD/LOAD_ModelPtrs.c"
+#include "game/LOAD/LOAD_File.c"
+#include "game/LOAD/LOAD_Howl.c"
+#include "game/LOAD/LOAD_Assets.c"
+#include "game/LOAD/LOAD_Queue.c"
+#include "game/LOAD/LOAD_Hub.c"
+#include "game/LOAD/LOAD_Overlays.c"
+#include "game/LOAD/LOAD_TenStages.c"
+#include "game/LOAD/LOAD_Level.c"
+#include "game/LOAD/LOAD_IsOpen.c"
 
 #include "game/MAIN/MainDB_00_GetClipSize.c"
 #include "game/MAIN/MainDB_01_PrimMem.c"
