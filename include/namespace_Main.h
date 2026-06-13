@@ -551,7 +551,8 @@ struct GameTracker
 		int unk1DB8[4];
 
 		// 1dc8
-		int unk1dc8[4];
+		// player/team IDs ordered by accumulated VS/Battle standings score
+		int standingsOrder[4];
 
 		// 1dd8
 		// 0b0001 for everyone on team 1
@@ -564,7 +565,8 @@ struct GameTracker
 		int numTeams;
 
 		// 1de0
-		int unk_afterTeams[4];
+		// weighted VS/Battle standings score for each player/team
+		int standingsScore[4];
 
 		// 1df0
 		int numWeapons;

@@ -236,7 +236,7 @@ static void MainGameEnd_UpdateStandingsOrder(struct GameTracker *gGT)
 		for (int rank = 0; rank < 3; rank++)
 			score += gGT->standingsPoints[team * 3 + rank] * (3 - rank);
 
-		gGT->battleSetup.unk_afterTeams[team] = score;
+		gGT->battleSetup.standingsScore[team] = score;
 	}
 
 	u8 usedTeams = 0;
@@ -254,14 +254,14 @@ static void MainGameEnd_UpdateStandingsOrder(struct GameTracker *gGT)
 			if (!MainGameEnd_BattleTeamActive(gGT, team))
 				continue;
 
-			if (gGT->battleSetup.unk_afterTeams[team] < bestScore)
+			if (gGT->battleSetup.standingsScore[team] < bestScore)
 				continue;
 
-			bestScore = gGT->battleSetup.unk_afterTeams[team];
+			bestScore = gGT->battleSetup.standingsScore[team];
 			bestTeam = team;
 		}
 
-		gGT->battleSetup.unk1dc8[rank] = bestTeam;
+		gGT->battleSetup.standingsOrder[rank] = bestTeam;
 
 		if (bestTeam >= 0)
 			usedTeams |= 1u << bestTeam;
