@@ -325,6 +325,15 @@ enum Actions
 	ACTION_RACE_FINISHED = 0x2000000,
 };
 
+enum BotFlags
+{
+	BOT_FLAG_ESTIMATE_NAV = 0x1,
+	BOT_FLAG_DAMAGE_ACTIVE = 0x2,
+	BOT_FLAG_MOON_GRAVITY = 0x20,
+	BOT_FLAG_BOSS_PATH_REQUESTED = 0x40,
+	BOT_FLAG_BOSS_PATH_ACTIVE = 0x80,
+};
+
 struct MetaPhys
 {
 	u32 unusedDebugStr;
@@ -385,19 +394,15 @@ struct BotData
 	struct NavFrame *botNavFrame;
 
 	// 0x5a8
-	int unk5a8;
+	int navProgressRemainder;
 
 	// 0x5ac
 	int unk5ac;
 
 	// 0x5b0
-	// u32 flags
-	// & 0x010 - is blasted? Something to do with damage, might also be "am currently on a s/tp"
-	// & 0x100 - camera spectates this AI
-	// & 0x200 - race started for AI
-	// & 0x020 - bot has moon gravity
+	// u32 BotFlags plus other AI-only state bits.
 	// bits 9-16 might be = (navframe flags << 8)
-	int botFlags;
+	u32 botFlags;
 
 	// 0x5b4
 	// acceleration from start-line
@@ -408,7 +413,7 @@ struct BotData
 	s16 botPath;
 
 	// 0x5ba
-	s16 unk5ba;
+	s16 aiDamageState;
 
 
 	/*
@@ -432,7 +437,7 @@ struct BotData
 			s16 rotXZ;
 
 			// 0x5be
-			s16 drift_unk1;
+			s16 ai_driftTarget;
 
 			// 0x5c0
 			s16 ai_mulDrift;
@@ -515,7 +520,7 @@ struct BotData
 	s16 weaponCooldown;
 
 	// 0x626
-	u8 unk626;
+	u8 blastBounceCount;
 	u8 desiredPath_BossOnly;
 
 	// 0x628
@@ -1681,10 +1686,16 @@ struct Driver
 	// 0x670 - size of pool object
 };
 
+enum
+{
+	DRIVER_NTSC_RETAIL_SIZE = 0x62c,
+};
+
 _Static_assert(sizeof(struct MetaPhys) == 0x1C);
 
 _Static_assert(sizeof(struct BotData) == 0x94);
 
+_Static_assert(offsetof(struct Driver, ghostTape) == DRIVER_NTSC_RETAIL_SIZE);
 _Static_assert(offsetof(struct Driver, rotCurr.x) == 0x2ec);
 _Static_assert(offsetof(struct Driver, rotCurr.y) == 0x2ee);
 _Static_assert(offsetof(struct Driver, AxisAngle3_normalVec) == 0x370);

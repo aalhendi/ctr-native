@@ -151,6 +151,26 @@ struct MetaDataMODEL
 	int (*LInC)(struct Instance *i, struct Thread *t, struct ScratchpadStruct *sps);
 };
 
+enum BossWeaponMetaThrowFlag
+{
+	BOSS_WEAPON_THROW = 2,
+	BOSS_WEAPON_NORMAL = 3,
+};
+
+enum BossWeaponMetaType
+{
+	BOSS_WEAPON_NONE = 0xf,
+	BOSS_WEAPON_ENCODED_TNT = 0x64,
+	BOSS_WEAPON_ENCODED_BOMB = 0x65,
+	BOSS_WEAPON_ENCODED_POTION = 0x66,
+};
+
+enum BossWeaponMetaJuiceFlag
+{
+	BOSS_WEAPON_JUICED = 0x1,
+	BOSS_WEAPON_RANDOM_JUICE = 0x2,
+};
+
 struct MetaDataBOSS
 {
 	// 0x0
@@ -160,9 +180,9 @@ struct MetaDataBOSS
 	// 2=throw, 3=normal
 	u8 throwFlag;
 
-	// 0x64=tnt, 0x65=bomb, 0x66=potion, 0xf=what?
+	// May be a direct pickup ID, or 0x64=tnt, 0x65=bomb, 0x66=potion, 0xf=none
 	u8 weaponType;
-	u8 unk1;
+	u8 pathChangeDisabled;
 
 	// 0x4
 	u16 weaponCooldown;
@@ -3172,12 +3192,12 @@ struct sData
 	int randomNumber;
 
 	// 8008d428
-	s16 unk_8008d428;
+	s16 bossPathRequestTimer;
 
-	s16 unk_8008d42a;
+	s16 bossPathRequestPhase;
 
 	// 8008d42C
-	int unk_8008d42C;
+	int bossJuiceCounter;
 
 	// 8008d430
 	// -1 for no expansion

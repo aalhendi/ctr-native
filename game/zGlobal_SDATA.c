@@ -318,8 +318,8 @@ struct sData sdata_static = {.langBufferSize = 0x3F04,
 #endif
 
                              .randomNumber = 100,
-                             .unk_8008d428 = 0,
-                             .unk_8008d42C = 0,
+                             .bossPathRequestTimer = 0,
+                             .bossJuiceCounter = 0,
 
                              .battleSetupExpandMenu = -1,
                              .battleSetupRowHighlighted = 5,

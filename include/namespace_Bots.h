@@ -7,12 +7,18 @@ struct NavFrame
 	u8 rot[4];
 
 	// 0xA
-	s16 unk[2];
+	union
+	{
+		s16 distToNextNav[2];
+		struct
+		{
+			// 0xA
+			s16 distToNextNavXYZ;
 
-	// 0xA
-	// 0xC
-	// two shorts, usually same as each other
-	// search for "[5]" and "[6]"
+			// 0xC
+			s16 distToNextNavXZ;
+		};
+	};
 
 	// 0xE - flags
 	// bit 1 (0x1): TurboIncrement(normal turbo)
@@ -39,6 +45,7 @@ struct NavFrame
 	// 0x13 - flags
 	// & 0x10 - need rampPhys
 	// & 0x20 - is reflective
+	// & 0x40 - run Level Instance collision
 	// & 0xF - (if & 0x10) NavHeader rampPhys index
 	// & 0xF - (if & 0x20) reflection variable
 	// & 0xF - (if not 0x10 and not 0x20)
