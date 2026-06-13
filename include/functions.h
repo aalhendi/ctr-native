@@ -391,19 +391,26 @@ void RenderVSYNC(struct GameTracker *gGT);
 void RenderFMV(void);
 void RenderSubmit(struct GameTracker *gGT);
 void MainFrame_ResetDB(struct GameTracker *gGT);
+void MainFrame_InitVideoSTR(u32 boolPlayVideoStr, RECT *r, s16 posX, s16 posY);
+void MainFrame_VisMemFullFrame(struct GameTracker *gGT, struct Level *level);
 void MainFrame_RequestMaskHint(s16 hintId, char interruptWarpPad);
 void MainFrame_TogglePauseAudio(int bool_pause);
 
 void StateZero(void);
 void startSP(void);
 
+void MainFreeze_ConfigDrawNPC105(s16 startX, s16 startY, s16 radius, int angleStep, s16 angle, char *color, u_long *otMem, struct PrimMem *primMem);
+void MainFreeze_ConfigSetupEntry(void);
 void MainFreeze_SafeAdvDestroy(void);
+void MainFreeze_MenuPtrOptions(struct RectMenu *menu);
 void MainFreeze_MenuPtrQuit(struct RectMenu *menu);
 void MainFreeze_MenuPtrDefault(struct RectMenu *menu);
 void MainFreeze_IfPressStart(void);
 
 void MainGameStart_Initialize(struct GameTracker *gGT, char boolStopAudio);
 
+void MainInit_VisMem(struct GameTracker *gGT);
+void MainInit_RainBuffer(struct GameTracker *gGT);
 void MainInit_Drivers(struct GameTracker *gGT);
 void MainInit_JitPoolsNew(struct GameTracker *gGT);
 void MainInit_JitPoolsReset(struct GameTracker *gGT);
@@ -412,6 +419,7 @@ void MainInit_PrimMem(struct GameTracker *gGT);
 
 void MainInit_OTMem(struct GameTracker *gGT);
 void MainInit_FinalizeInit(struct GameTracker *gGT);
+int MainInit_StringToLevID(char *str);
 void MainInit_VRAMClear(void);
 void MainInit_VRAMDisplay(void);
 
@@ -539,6 +547,7 @@ void RECTMENU_Show(struct RectMenu *m);
 
 int MixRNG_Scramble(void);
 
+void MainStats_ClearBattleVS(void);
 void MainStats_RestartRaceCountLoss(void);
 
 void Particle_UpdateAllParticles(void);

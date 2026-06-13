@@ -25,8 +25,6 @@
 #include "game/RenderWeather/RedBeaker_RenderRain.c"
 #include "game/RenderWeather/RenderWeather.c"
 
-#include "game/MAIN/MAIN_AAA_BigBlock1.c"
-
 #include "game/CAM.c"
 
 #include "game/BOTS.c"
@@ -107,6 +105,7 @@
 
 #include "game/LevInstDef.c"
 
+#include "game/LibraryOfModels/LibraryOfModels_0_Store.c"
 #include "game/LibraryOfModels/LibraryOfModels_1_Clear.c"
 
 #include "game/LinkedCollide.c"
@@ -125,33 +124,25 @@
 #include "game/LOAD/LOAD_Level.c"
 #include "game/LOAD/LOAD_IsOpen.c"
 
-#include "game/MAIN/MainDB_00_GetClipSize.c"
-#include "game/MAIN/MainDB_01_PrimMem.c"
-#include "game/MAIN/MainDB_02_OTMem.c"
-#include "game/MAIN/MainDrawCb_00_DrawSync.c"
-#include "game/MAIN/MainDrawCb_01_Vsync.c"
+#include "game/MAIN/MainInit.c"
+#include "game/MAIN/MainKillGame.c"
+#include "game/MAIN/MainLoadVLC.c"
+#include "game/MAIN/MainMain.c"
+#include "game/MAIN/MainDB.c"
+#include "game/MAIN/MainDrawCb.c"
 
-#include "game/MAIN/MainFrame_00_TogglePauseAudio.c"
-#include "game/MAIN/MainFrame_01_ResetDB.c"
-#include "game/MAIN/MainFrame_02_GameLogic.c"
-#include "game/MAIN/MainFrame_05_InitVideoSTR.c"
-#include "game/MAIN/MainFrame_06_HaveAllPads.c"
-#include "game/MAIN/MainFrame_07_VisMemFullFrame.c"
-#include "game/MAIN/MainFrame_07_RequestMaskHint.c"
-#include "game/MAIN/MainFrame_08_RenderFrame.c"
+#include "game/MAIN/MainFrame.c"
+#include "game/MAIN/MainFrame_RenderFrame.c"
 
 #include "game/MAIN/MainFreeze.c"
 
-#include "game/MAIN/MainGameStart_00_Initialize.c"
-#include "game/MAIN/MainGameEnd_00_SoloRaceGetReward.c"
-#include "game/MAIN/MainGameEnd_01_SoloRaceSaveHighScore.c"
-#include "game/MAIN/MainGameEnd_02_Initialize.c"
-#include "game/MAIN/MainStats_00_ClearBattleVS.c"
-#include "game/MAIN/MainStats_01_RestartRaceCountLoss.c"
+#include "game/MAIN/MainGameStart.c"
+#include "game/MAIN/MainGameEnd.c"
+#include "game/MAIN/MainStats.c"
 
-#include "game/MAIN/MainRaceTrack_00_StartLoad.c"
-#include "game/MAIN/MainRaceTrack_01_RequestLoad.c"
+#include "game/MAIN/MainRaceTrack.c"
 
+#include "game/MATH/MATH_0_Sin.c"
 #include "game/MATH/MATH_1_Cos.c"
 #include "game/MATH/TRIG_AngleSinCos.c"
 #include "game/MATH/MATH_2_FastSqrt.c"
