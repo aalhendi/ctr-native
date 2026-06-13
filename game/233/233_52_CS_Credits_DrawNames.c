@@ -80,9 +80,11 @@ void CS_Credits_DrawNames(struct CreditsObj *co)
 			}
 			else
 			{
+				colorSlot = CREDITS_FADE;
+
 				int fade8 = (fadeAmount << 8) / 20;
 				char *src = (char *)data.ptrColor[charId];
-				char *dst = (char *)&data.colors[31];
+				char *dst = (char *)&data.colors[CREDITS_FADE];
 
 				for (int i = 0; i < 4; i++)
 				{
