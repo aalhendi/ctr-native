@@ -358,7 +358,7 @@ struct Turbo
 	// 0xC
 	// Value that decreases every time VehTurbo_ThTick gets called
 	// If it reaches 0 it makes the fire start disappearing
-	char fireDisappearCountdown;
+	s8 fireDisappearCountdown;
 
 	// 0xD
 	// Used for the distortion of the sound that indicates active fire/reserves
@@ -447,7 +447,7 @@ struct BotData
 			s16 ai_fireLevel;
 
 			// 0x5c8
-			int ai_squishCooldown; // why does this get interpreted as a s16 sometimes and an int other times
+			int ai_squishCooldown; // retail uses both halfword and word operations on this slot
 
 			// 0x5cc
 			int unk5cc;
@@ -490,10 +490,10 @@ struct BotData
 	s16 estimatePos[3];
 
 	// 0x612
-	char estimateRotNav[3];
+	u8 estimateRotNav[3];
 
 	// 0x615
-	char estimateRotCurrY;
+	u8 estimateRotCurrY;
 
 	// 0x616
 	s16 distToNextNavXYZ;
@@ -565,25 +565,25 @@ struct Driver
 	// 0x2C
 	u32 instFlagsBackup;
 	// 0x30
-	char numWumpas;
+	s8 numWumpas;
 	// 0x31
 	char numCrystals;
 	// 0x32
 	char numTimeCrates;
 	// 0x33
-	char accelConst;
+	s8 accelConst;
 	// 0x34
-	char turnConst;
+	s8 turnConst;
 
 	// 0x35
 	// Super Engine from Beta,
 	// ever used in retail?
-	char turboConst;
+	s8 turboConst;
 
 	// 0x36
-	char heldItemID;
+	u8 heldItemID;
 	// 0x37
-	char numHeldItems;
+	u8 numHeldItems;
 	// 0x38
 	s16 superEngineTimer;
 	// 0x3A
@@ -605,7 +605,7 @@ struct Driver
 	// 0x4A
 	u8 driverID;
 	// 0x4B
-	char simpTurnState;
+	s8 simpTurnState;
 	// 0x4C
 	u8 matrixArray;
 	// 0x4D
@@ -678,7 +678,7 @@ struct Driver
 	s16 ampTurnState;
 
 	// 0xC2
-	char currentTerrain;
+	u8 currentTerrain;
 
 	// 0xc3
 	// eight frames, 0-7
@@ -811,7 +811,7 @@ struct Driver
 	// 0x366
 	// forced to jump while on turtles,
 	// should we say "forcedJump_turtles"?
-	char forcedJump_trampoline;
+	u8 forcedJump_trampoline;
 
 	// 0x367
 	// clock effect
@@ -829,10 +829,10 @@ struct Driver
 	s16 AxisAngle3_normalVec[3];
 
 	// 0x376
-	char kartState;
+	u8 kartState;
 
 	// 0x377
-	char Screen_OffsetY;
+	s8 Screen_OffsetY;
 
 	// 0x378
 	s16 AxisAngle4_normalVec[3];
@@ -1114,10 +1114,10 @@ struct Driver
 	s16 const_DamagedSpeed;
 
 	// 0x43A - 0x12
-	char const_TurnRate; // OK
+	u8 const_TurnRate; // OK
 
 	// 0x43B - 0x13
-	char const_BackwardTurnRate; // OK
+	u8 const_BackwardTurnRate; // OK
 
 	// 0x43C - 0x14
 	s16 const_TurnDecreaseRate; // OK
@@ -1135,16 +1135,16 @@ struct Driver
 	s16 const_unk444;
 
 	// 0x446 - 0x19
-	char const_SteerAccel_Stage4_FirstFrame;
+	s8 const_SteerAccel_Stage4_FirstFrame;
 
 	// 0x447 - 0x1A
-	char const_SteerAccel_Stage2_FirstFrame;
+	s8 const_SteerAccel_Stage2_FirstFrame;
 
 	// 0x448 - 0x1B
-	char const_SteerAccel_Stage2_FrameLength;
+	s8 const_SteerAccel_Stage2_FrameLength;
 
 	// not part of metaPhys
-	char boolFirstFrameSinceRevEngine;
+	u8 boolFirstFrameSinceRevEngine;
 
 	// 0x44a - 0x1C
 	s16 const_SteerAccel_Stage1_MaxSteer;
@@ -1171,32 +1171,32 @@ struct Driver
 
 	// all related to VehPhysGeneral_LerpToForwards
 	// only affected by steering without sliding
-	char angleMaxCounterSteer; // 0x22 kart model angle lerp rotation Limit max*
-	char unk458;               // 0x23 kart model angle lerp rotation Limit min*
-	char unk459;               // 0x24 kart model angle lerp rotation strength/ratio max*
-	char unk45a;               // 0x25 kart model angle lerp rotation strength/ratio min*
+	u8 angleMaxCounterSteer; // 0x22 kart model angle lerp rotation Limit max*
+	u8 unk458;               // 0x23 kart model angle lerp rotation Limit min*
+	u8 unk459;               // 0x24 kart model angle lerp rotation strength/ratio max*
+	u8 unk45a;               // 0x25 kart model angle lerp rotation strength/ratio min*
 
 	char unk45b; // unused? skips straight to 0x45c
 
 	// 0x45c, 0x45d - 0x26, 0x27
 	// resist turning at low speed
-	char const_turnResistMin;
-	char const_turnResistMax;
+	u8 const_turnResistMin;
+	u8 const_turnResistMax;
 
 	// 0x45e, 0x45f - 0x28, 0x29
 	// hold drift in direction it started,
 	// compared to switching direction "SwitchWay"
-	char const_SteerVel_DriftSwitchWay;
-	char const_SteerVel_DriftStandard;
+	s8 const_SteerVel_DriftSwitchWay;
+	s8 const_SteerVel_DriftStandard;
 
 	// all VehPhysProc_PowerSlide_PhysAngular
 	// or VehPhysProc_PowerSlide_Finalize
-	char unk460; // 0x460 - 0x2A
-	char unk461; // 0x461 - 0x2B
-	char unk462; // 0x462 - 0x2C
+	s8 unk460; // 0x460 - 0x2A
+	s8 unk461; // 0x461 - 0x2B
+	u8 unk462; // 0x462 - 0x2C
 
 	// 0x463 - 0x2D
-	char const_Drifting_FramesTillSpinout;
+	u8 const_Drifting_FramesTillSpinout;
 
 	// 0x464, 0x466, 0x468 - 0x2E, 0x2F, 0x30
 	s16 unk464; // impact turning?
@@ -1204,8 +1204,8 @@ struct Driver
 	s16 const_Drifting_CameraSpinRate;
 
 	// 0x46A, 0x46B - 0x31, 0x32
-	char unk46a; // destinedRot max lerping
-	char unk46b; // destinedRot min lerping?
+	u8 unk46a; // destinedRot max lerping
+	u8 unk46b; // destinedRot min lerping?
 
 	// 0x46C, 0x46E, 0x470, 0x472, 0x474 - 0x33, 0x34, 0x35, 0x36, 0x37
 	s16 unk46c;
@@ -1215,11 +1215,11 @@ struct Driver
 	s16 unk474; // sliding angle rotation factor?*
 
 	// 0x476, 0x477, 0x478, 0x479, 0x47A - 0x38, 0x39, 0x3A, 0x3B, 0x3C
-	char const_turboMaxRoom;        // point where turbo meter is empty
-	char const_turboLowRoomWarning; // point where turbo turns red
-	char const_turboFullBarReserveGain;
-	char unk479; // 582 related -- somehow affects the force of the next variable (0x47a)
-	char unk47A; // 582 related -- defines the angle when doing a turbo boost
+	u8 const_turboMaxRoom;        // point where turbo meter is empty
+	u8 const_turboLowRoomWarning; // point where turbo turns red
+	u8 const_turboFullBarReserveGain;
+	u8 unk479; // 582 related -- somehow affects the force of the next variable (0x47a)
+	u8 unk47A; // 582 related -- defines the angle when doing a turbo boost
 
 	char unk47B; // unused? metaphys skips straight to 0x47C
 
@@ -1531,10 +1531,10 @@ struct Driver
 			s16 driftTotalTimeMS;
 
 			// 0x586
-			char numBoostsAttempted;
+			s8 numBoostsAttempted;
 
 			// 0x587
-			char numBoostsSuccess;
+			s8 numBoostsSuccess;
 
 			// == end ==
 
@@ -1601,13 +1601,13 @@ struct Driver
 			s16 animFrame;
 
 			// 0x58c
-			char boolParticlesSpawned;
-			char boolStillFalling;
-			char boolLiftingPlayer;
-			char boolWhistle;
+			u8 boolParticlesSpawned;
+			u8 boolStillFalling;
+			u8 boolLiftingPlayer;
+			u8 boolWhistle;
 
 			// 0x590
-			char unused[8];
+			u8 unused[8];
 
 		} MaskGrab;
 
@@ -1615,7 +1615,7 @@ struct Driver
 		struct
 		{
 			// 0x580
-			char boolInited;
+			u8 boolInited;
 
 			// == end ==
 
@@ -1624,7 +1624,7 @@ struct Driver
 		// state 6
 		struct
 		{
-			char boolPlayBackwards;
+			u8 boolPlayBackwards;
 		} Blasted;
 
 		// state 10
@@ -1683,9 +1683,7 @@ struct Driver
 
 _Static_assert(sizeof(struct MetaPhys) == 0x1C);
 
-#if 1 // idk this might be version dependant
 _Static_assert(sizeof(struct BotData) == 0x94);
-#endif
 
 _Static_assert(offsetof(struct Driver, rotCurr.x) == 0x2ec);
 _Static_assert(offsetof(struct Driver, rotCurr.y) == 0x2ee);

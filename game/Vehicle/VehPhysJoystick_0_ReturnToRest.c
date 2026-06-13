@@ -8,11 +8,11 @@ int VehPhysJoystick_ReturnToRest(int stickVal, int half, struct RacingWheelData 
 	if (rwd == 0)
 		rwd = &rwd_default;
 
-	stickVal -= rwd->gamepadCenter;
+	stickVal = CTR_MipsSubLo(stickVal, rwd->gamepadCenter);
 
 	if (stickVal < 0)
 	{
-		return -VehCalc_MapToRange(-stickVal, rwd->deadZone, rwd->range, 0, half);
+		return CTR_MipsNegLo(VehCalc_MapToRange(CTR_MipsNegLo(stickVal), rwd->deadZone, rwd->range, 0, half));
 	}
 
 	return VehCalc_MapToRange(stickVal, rwd->deadZone, rwd->range, 0, half);

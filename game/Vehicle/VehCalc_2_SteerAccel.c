@@ -22,14 +22,16 @@ int VehCalc_SteerAccel(int param_1, int param_2, int param_3, int param_4, int p
 
 	else
 	{
+		int stage3Start = CTR_MipsAddLo(param_2, param_3);
+
 		// Steering Stage 3
 		// frames 12+
 		// decrease steer acceleration as time passes
-		if (param_2 + param_3 < param_1)
+		if (stage3Start < param_1)
 		{
 			// map "frame" from [12,64] -> [0xC00,0]
 
-			param_6 = VehCalc_MapToRange(param_1, param_2 + param_3, param_4, param_6, 0);
+			param_6 = VehCalc_MapToRange(param_1, stage3Start, param_4, param_6, 0);
 		}
 	}
 

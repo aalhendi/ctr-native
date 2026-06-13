@@ -5,7 +5,7 @@ int VehPhysGeneral_LerpQuarterStrength(int current, int desired)
 {
 	if (desired != 0)
 	{
-		desired = desired >> 2;
+		desired = CTR_MipsSra(desired, 2);
 
 		if (desired == 0)
 		{

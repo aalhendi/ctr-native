@@ -7,15 +7,15 @@ void VehPhysForce_ConvertSpeedToVecOut(struct Driver *driver, Vec3 *vel)
 	int yAngle = driver->axisRotationY;
 	int ySine = MATH_Sin(yAngle);
 	int yCos = MATH_Cos(yAngle);
-	int yComponent = FP_MULT(driver->speed, yCos);
+	int yComponent = CTR_MipsSra(CTR_MipsMulLo(driver->speed, yCos), FRACTIONAL_BITS);
 
 	int xAngle = driver->axisRotationX;
 	int xCos = MATH_Cos(xAngle);
 	int xSine = MATH_Sin(xAngle);
 
-	vel->x = FP_MULT(yComponent, xSine);
-	vel->y = FP_MULT(driver->speed, ySine);
-	vel->z = FP_MULT(yComponent, xCos);
+	vel->x = CTR_MipsSra(CTR_MipsMulLo(yComponent, xSine), FRACTIONAL_BITS);
+	vel->y = CTR_MipsSra(CTR_MipsMulLo(driver->speed, ySine), FRACTIONAL_BITS);
+	vel->z = CTR_MipsSra(CTR_MipsMulLo(yComponent, xCos), FRACTIONAL_BITS);
 }
 
 void VehPhysForce_ConvertSpeedToVec(struct Driver *driver)
@@ -35,17 +35,7 @@ enum
 
 static int VehPhysForce_OnGravity_Abs(int value)
 {
-	return value < 0 ? -value : value;
-}
-
-static u32 VehPhysForce_OnGravity_ReadWord(const void *base, int offset)
-{
-	return *(const u32 *)(const void *)((const char *)base + offset);
-}
-
-static s16 VehPhysForce_OnGravity_ReadS16(const void *base, int offset)
-{
-	return *(const s16 *)(const void *)((const char *)base + offset);
+	return value < 0 ? CTR_MipsNegLo(value) : value;
 }
 
 static u32 VehPhysForce_OnGravity_PackS16Pair(s32 lo, s32 hi)
@@ -55,11 +45,11 @@ static u32 VehPhysForce_OnGravity_PackS16Pair(s32 lo, s32 hi)
 
 static void VehPhysForce_OnGravity_SetLightMatrixTranspose(const MATRIX *m)
 {
-	u32 r0 = VehPhysForce_OnGravity_ReadWord(m, 0x0);
-	u32 r1 = VehPhysForce_OnGravity_ReadWord(m, 0x4);
-	u32 r2 = VehPhysForce_OnGravity_ReadWord(m, 0x8);
-	u32 r3 = VehPhysForce_OnGravity_ReadWord(m, 0xc);
-	s16 r4 = VehPhysForce_OnGravity_ReadS16(m, 0x10);
+	u32 r0 = VehPhysForce_OnGravity_PackS16Pair(m->m[0][0], m->m[0][1]);
+	u32 r1 = VehPhysForce_OnGravity_PackS16Pair(m->m[0][2], m->m[1][0]);
+	u32 r2 = VehPhysForce_OnGravity_PackS16Pair(m->m[1][1], m->m[1][2]);
+	u32 r3 = VehPhysForce_OnGravity_PackS16Pair(m->m[2][0], m->m[2][1]);
+	s16 r4 = m->m[2][2];
 	const u32 highMask = 0xffff0000u;
 
 	// NOTE(aalhendi): Retail constructs a transposed copy of matrixMovingDir in
@@ -111,7 +101,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 
 	Vec3 localVelocity = VehPhysForce_OnGravity_RotateVectorLocal(&driver->matrixMovingDir, (s16)velocity->x, (s16)velocity->y, (s16)velocity->z);
 	int originalLocalZ = localVelocity.z;
-	int gravityY = -driver->const_Gravity;
+	int gravityY = CTR_MipsNegLo(driver->const_Gravity);
 	struct QuadBlock *underDriver = driver->underDriver;
 
 	// NOTE(aalhendi): Retail does not branch before reading this flag. Native
@@ -120,10 +110,11 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 	// flag, while host C would crash on a null dereference.
 	if ((underDriver != NULL) && ((underDriver->quadFlags & VEH_PHYS_FORCE_QUAD_LOW_GRAVITY) != 0))
 	{
-		gravityY = (-driver->const_Gravity * 41) / 100;
+		int scaledGravity = CTR_MipsAddLo(CTR_MipsSll(gravityY, 2), gravityY);
+		gravityY = CTR_MipsAddLo(CTR_MipsSll(scaledGravity, 3), gravityY) / 100;
 	}
 
-	gravityY = (gravityY * elapsedTimeMS) >> 5;
+	gravityY = CTR_MipsSra(CTR_MipsMulLo(gravityY, elapsedTimeMS), 5);
 	Vec3 localGravity = VehPhysForce_OnGravity_RotateVectorLocal(&driver->matrixMovingDir, 0, (s16)gravityY, 0);
 
 	if (((localGravity.z < 0) && (driver->unk_offset3B2 > 0)) || ((localGravity.z > 0) && (driver->unk_offset3B2 < 0)))
@@ -143,17 +134,17 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 
 	int originalLocalX = localVelocity.x;
 	int originalLocalY = localVelocity.y;
-	int localX = originalLocalX + localGravity.x;
-	int localY = originalLocalY + localGravity.y;
-	int localZ = originalLocalZ + localGravity.z;
+	int localX = CTR_MipsAddLo(originalLocalX, localGravity.x);
+	int localY = CTR_MipsAddLo(originalLocalY, localGravity.y);
+	int localZ = CTR_MipsAddLo(originalLocalZ, localGravity.z);
 
-	int maxForwardSpeed = driver->fireSpeed + driver->unk47E;
+	int maxForwardSpeed = CTR_MipsAddLo(driver->fireSpeed, driver->unk47E);
 	if ((localZ > maxForwardSpeed) && (originalLocalZ < maxForwardSpeed))
 	{
 		localZ = maxForwardSpeed;
 	}
 
-	int minForwardSpeed = driver->fireSpeed - (driver->unk47E >> 1);
+	int minForwardSpeed = CTR_MipsSubLo(driver->fireSpeed, CTR_MipsSra(driver->unk47E, 1));
 	if ((localZ < minForwardSpeed) && (originalLocalZ > minForwardSpeed))
 	{
 		localZ = minForwardSpeed;
@@ -165,7 +156,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 		localX = maxPerpendicularSpeed;
 	}
 
-	int minPerpendicularSpeed = -maxPerpendicularSpeed;
+	int minPerpendicularSpeed = CTR_MipsNegLo(maxPerpendicularSpeed);
 	if ((localX < minPerpendicularSpeed) && (originalLocalX > minPerpendicularSpeed))
 	{
 		localX = minPerpendicularSpeed;
@@ -189,7 +180,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 		}
 	}
 
-	int minTerminalVelocity = -terminalVelocity;
+	int minTerminalVelocity = CTR_MipsNegLo(terminalVelocity);
 	if (clampedLocalY < minTerminalVelocity)
 	{
 		clampedLocalY = originalLocalY;
@@ -221,7 +212,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 
 				if (driver->driverRankItemValue == 5)
 				{
-					perpendicularFriction = driver->const_BrakeFriction << 4;
+					perpendicularFriction = CTR_MipsSll(driver->const_BrakeFriction, 4);
 					forwardFriction = perpendicularFriction;
 				}
 			}
@@ -243,7 +234,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 						if (absSpeedApprox > 0x300)
 						{
 							int absBaseSpeed = VehPhysForce_OnGravity_Abs(baseSpeed);
-							if (absSpeedApprox < (absBaseSpeed >> 1))
+							if (absSpeedApprox < CTR_MipsSra(absBaseSpeed, 1))
 							{
 								actionsFlagSet |= VEH_PHYS_FORCE_ACTION_BACK_SKID;
 							}
@@ -273,12 +264,12 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 			perpendicularFriction = driver->const_BrakeFriction;
 			if (driver->driverRankItemValue == 5)
 			{
-				perpendicularFriction <<= 4;
+				perpendicularFriction = CTR_MipsSll(perpendicularFriction, 4);
 				forwardFriction = perpendicularFriction;
 			}
 			else if (driver->kartState == KS_BLASTED)
 			{
-				perpendicularFriction = (perpendicularFriction * 3) >> 2;
+				perpendicularFriction = CTR_MipsSra(CTR_MipsMulLo(perpendicularFriction, 3), 2);
 				forwardFriction = perpendicularFriction;
 			}
 			else
@@ -286,20 +277,20 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 				forwardFriction = perpendicularFriction;
 				if (driver->kartState == KS_SPINNING)
 				{
-					perpendicularFriction >>= 1;
+					perpendicularFriction = CTR_MipsSra(perpendicularFriction, 1);
 					forwardFriction = perpendicularFriction;
 				}
 			}
 		}
 
-		perpendicularFriction = (perpendicularFriction * elapsedTimeMS) >> 5;
-		forwardFriction = (forwardFriction * elapsedTimeMS) >> 5;
+		perpendicularFriction = CTR_MipsSra(CTR_MipsMulLo(perpendicularFriction, elapsedTimeMS), 5);
+		forwardFriction = CTR_MipsSra(CTR_MipsMulLo(forwardFriction, elapsedTimeMS), 5);
 
 		int terrainFrictionScale = driver->terrainMeta1->unk_0x20[0];
 		if (terrainFrictionScale != 0x100)
 		{
-			perpendicularFriction = (terrainFrictionScale * perpendicularFriction) >> 8;
-			forwardFriction = (terrainFrictionScale * forwardFriction) >> 8;
+			perpendicularFriction = CTR_MipsSra(CTR_MipsMulLo(terrainFrictionScale, perpendicularFriction), 8);
+			forwardFriction = CTR_MipsSra(CTR_MipsMulLo(terrainFrictionScale, forwardFriction), 8);
 		}
 
 		int terrainTimer = driver->filler_short;
@@ -309,11 +300,11 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 			if (terrainTimer == -0x140)
 			{
 				absLocalX = VehPhysForce_OnGravity_Abs(localX);
-				perpendicularFriction = absLocalX >> 1;
+				perpendicularFriction = CTR_MipsSra(absLocalX, 1);
 			}
 			else
 			{
-				perpendicularFriction += (perpendicularFriction * driver->const_unk444) >> 8;
+				perpendicularFriction = CTR_MipsAddLo(perpendicularFriction, CTR_MipsSra(CTR_MipsMulLo(perpendicularFriction, driver->const_unk444), 8));
 				if (perpendicularFriction < 0)
 				{
 					perpendicularFriction = 0;
@@ -329,7 +320,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 				GAMEPAD_ShockFreq(driver, 4, 0);
 			}
 
-			terrainTimer += elapsedTimeMS;
+			terrainTimer = CTR_MipsAddLo(terrainTimer, elapsedTimeMS);
 			if (terrainTimer > 0)
 			{
 				terrainTimer = 0;
@@ -338,13 +329,13 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 		}
 		else if (terrainTimer > 0)
 		{
-			terrainTimer -= elapsedTimeMS;
+			terrainTimer = CTR_MipsSubLo(terrainTimer, elapsedTimeMS);
 			if (terrainTimer < 0)
 			{
 				terrainTimer = 0;
 			}
 
-			perpendicularFriction += (perpendicularFriction * driver->const_unk444) >> 8;
+			perpendicularFriction = CTR_MipsAddLo(perpendicularFriction, CTR_MipsSra(CTR_MipsMulLo(perpendicularFriction, driver->const_unk444), 8));
 			driver->filler_short = (s16)terrainTimer;
 			if (perpendicularFriction < 0)
 			{
@@ -354,11 +345,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 
 		if (((actionsFlagSet & VEH_PHYS_FORCE_ACTION_800000) == 0) && ((terrainFlags & 0x80) != 0))
 		{
-			int absSideSpeed = localX >> 3;
-			if (absSideSpeed < 0)
-			{
-				absSideSpeed = -absSideSpeed;
-			}
+			int absSideSpeed = VehPhysForce_OnGravity_Abs(CTR_MipsSra(localX, 3));
 			if (perpendicularFriction < absSideSpeed)
 			{
 				perpendicularFriction = absSideSpeed;
@@ -372,11 +359,11 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 					goto APPLY_TERRAIN_FRICTION;
 				}
 
-				minForwardFriction = VehPhysForce_OnGravity_Abs(localZ - baseSpeed) >> 1;
+				minForwardFriction = CTR_MipsSra(VehPhysForce_OnGravity_Abs(CTR_MipsSubLo(localZ, baseSpeed)), 1);
 			}
 			else
 			{
-				minForwardFriction = VehPhysForce_OnGravity_Abs(localZ >> 1);
+				minForwardFriction = VehPhysForce_OnGravity_Abs(CTR_MipsSra(localZ, 1));
 			}
 
 			if (forwardFriction < minForwardFriction)
@@ -390,7 +377,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 		int xFriction = perpendicularFriction;
 		if ((terrainFlags & 0x100) != 0)
 		{
-			xFriction = (perpendicularFriction * 3) >> 2;
+			xFriction = CTR_MipsSra(CTR_MipsMulLo(perpendicularFriction, 3), 2);
 			if (xFriction < forwardFriction)
 			{
 				xFriction = forwardFriction;
@@ -465,7 +452,7 @@ CHECK_ROLLBACK_FROM_FORWARD:
 START_ROLLBACK:
 	if (driver->StartRollback_0x280 != 0)
 	{
-		driver->unknownTraction++;
+		driver->unknownTraction = (s16)CTR_MipsAddLo((u16)driver->unknownTraction, 1);
 	}
 	driver->StartRollback_0x280 = 0x280;
 }
@@ -513,7 +500,7 @@ void VehPhysForce_OnApplyForces(struct Thread *thread, struct Driver *driver)
 		if (driver->posCurr.y > maxMudSinkYLevel)
 		{
 			// sink slower as you approach the mud's bottom
-			int sinkSpeed = maxMudSinkYLevel - driver->posCurr.y;
+			int sinkSpeed = CTR_MipsSubLo(maxMudSinkYLevel, driver->posCurr.y);
 			driver->velocity.y = max(driver->velocity.y, sinkSpeed);
 		}
 	}
@@ -526,31 +513,19 @@ void VehPhysForce_OnApplyForces(struct Thread *thread, struct Driver *driver)
 	driver->unkAA = 0; // driver quadblock flags?
 	driver->currBlockTouching = nullptr;
 
-	driver->velocity.x += driver->accel.x;
-	driver->velocity.z += driver->accel.z;
-	driver->velocity.y += driver->accel.y;
+	driver->velocity.x = CTR_MipsAddLo(driver->velocity.x, driver->accel.x);
+	driver->velocity.z = CTR_MipsAddLo(driver->velocity.z, driver->accel.z);
+	driver->velocity.y = CTR_MipsAddLo(driver->velocity.y, driver->accel.y);
 }
-
-// NOTE(aalhendi): Keep bucket typed; native O2 can drop punned stack writes.
-// First 0x18 bytes match `struct BucketSearchParams`; the trailing hitDir
-// fields are written by `VehPhysCrash_AnyTwoCars`.
-struct VehPhysForce_CollideDrivers_Search
-{
-	struct BucketSearchParams bucket;
-	s16 hitDir[4];
-};
-
-_Static_assert(offsetof(struct VehPhysForce_CollideDrivers_Search, bucket) == 0);
-_Static_assert(offsetof(struct VehPhysForce_CollideDrivers_Search, hitDir) == sizeof(struct BucketSearchParams));
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005ebac-0x8005ee34.
 void VehPhysForce_CollideDrivers(struct Thread *thread, struct Driver *driver)
 {
 	u32 stepFlagSet = driver->stepFlagSet;
 
-	driver->velocity.x -= driver->accel.x;
-	driver->velocity.y -= driver->accel.y;
-	driver->velocity.z -= driver->accel.z;
+	driver->velocity.x = CTR_MipsSubLo(driver->velocity.x, driver->accel.x);
+	driver->velocity.y = CTR_MipsSubLo(driver->velocity.y, driver->accel.y);
+	driver->velocity.z = CTR_MipsSubLo(driver->velocity.z, driver->accel.z);
 
 	if ((stepFlagSet & 0x4000) != 0)
 	{
@@ -585,11 +560,11 @@ void VehPhysForce_CollideDrivers(struct Thread *thread, struct Driver *driver)
 
 	if ((thread->flags & 0x1000) == 0)
 	{
-		struct VehPhysForce_CollideDrivers_Search search;
+		struct DriverCollisionSearch search;
 
-		search.bucket.pos[0] = (s16)(driver->posCurr.x >> 8);
-		search.bucket.pos[1] = (s16)(driver->posCurr.y >> 8);
-		search.bucket.pos[2] = (s16)(driver->posCurr.z >> 8);
+		search.bucket.pos[0] = (s16)CTR_MipsSra(driver->posCurr.x, 8);
+		search.bucket.pos[1] = (s16)CTR_MipsSra(driver->posCurr.y, 8);
+		search.bucket.pos[2] = (s16)CTR_MipsSra(driver->posCurr.z, 8);
 		search.bucket.th = NULL;
 		search.bucket.radius = 0x7fffffff;
 
@@ -598,45 +573,46 @@ void VehPhysForce_CollideDrivers(struct Thread *thread, struct Driver *driver)
 
 		if (search.bucket.th != NULL)
 		{
-			int radiusSum = thread->driver_HitRadius + search.bucket.th->driver_HitRadius;
+			int radiusSum = CTR_MipsAddLo(thread->driver_HitRadius, search.bucket.th->driver_HitRadius);
 
-			if (search.bucket.radius < radiusSum * radiusSum)
+			if (search.bucket.radius < CTR_MipsMulLo(radiusSum, radiusSum))
 			{
-				VehPhysCrash_AnyTwoCars(thread, (u16 *)&search, &driver->velocity);
+				VehPhysCrash_AnyTwoCars(thread, &search, &driver->velocity);
 			}
 		}
 	}
 
 	if ((driver->unkAA & 2) != 0)
 	{
-		int diffX = (driver->posCurr.x >> 8) - driver->spsHitPos[0];
-		int diffZ = (driver->posCurr.z >> 8) - driver->spsHitPos[2];
-		int floorDiffY = ((driver->quadBlockHeight >> 8) - driver->spsHitPos[1]) + 4;
+		int diffX = CTR_MipsSubLo(CTR_MipsSra(driver->posCurr.x, 8), driver->spsHitPos[0]);
+		int diffZ = CTR_MipsSubLo(CTR_MipsSra(driver->posCurr.z, 8), driver->spsHitPos[2]);
+		int floorDiffY = CTR_MipsAddLo(CTR_MipsSubLo(CTR_MipsSra(driver->quadBlockHeight, 8), driver->spsHitPos[1]), 4);
 
-		if ((driver->spsNormalVec[0] * diffX + driver->spsNormalVec[1] * floorDiffY + driver->spsNormalVec[2] * diffZ) < 0)
+		if (CTR_MipsAddLo(CTR_MipsAddLo(CTR_MipsMulLo(driver->spsNormalVec[0], diffX), CTR_MipsMulLo(driver->spsNormalVec[1], floorDiffY)),
+		                  CTR_MipsMulLo(driver->spsNormalVec[2], diffZ)) < 0)
 		{
-			int diffY = (driver->posCurr.y >> 8) - driver->spsHitPos[1];
+			int diffY = CTR_MipsSubLo(CTR_MipsSra(driver->posCurr.y, 8), driver->spsHitPos[1]);
 
-			driver->velocity.x += diffX << 6;
-			driver->velocity.y += diffY << 6;
-			driver->velocity.z += diffZ << 6;
+			driver->velocity.x = CTR_MipsAddLo(driver->velocity.x, CTR_MipsSll(diffX, 6));
+			driver->velocity.y = CTR_MipsAddLo(driver->velocity.y, CTR_MipsSll(diffY, 6));
+			driver->velocity.z = CTR_MipsAddLo(driver->velocity.z, CTR_MipsSll(diffZ, 6));
 		}
 	}
 }
 
 static int VehPhysForce_TranslateMatrix_Abs(int value)
 {
-	return value < 0 ? -value : value;
+	return value < 0 ? CTR_MipsNegLo(value) : value;
 }
 
 static int VehPhysForce_TranslateMatrix_Div256TowardZero(int value)
 {
 	if (value < 0)
 	{
-		value += 0xff;
+		value = CTR_MipsAddLo(value, 0xff);
 	}
 
-	return value >> 8;
+	return CTR_MipsSra(value, 8);
 }
 
 static u32 VehPhysForce_TranslateMatrix_PackS16Pair(s32 lo, s32 hi)
@@ -669,8 +645,8 @@ static struct MatrixND *VehPhysForce_TranslateMatrix_GetBakedEntry(u8 matrixArra
 
 static u8 VehPhysForce_TranslateMatrix_RemapIndex(u8 matrixIndex, int fromArray, int toArray)
 {
-	int fromLast = data.bakedGteMath[fromArray].numEntries - 1;
-	int blend = 0x100 - (((u32)matrixIndex << 8) / fromLast);
+	int fromLast = CTR_MipsSubLo(data.bakedGteMath[fromArray].numEntries, 1);
+	int blend = CTR_MipsSubLo(0x100, CTR_MipsDiv(CTR_MipsSll(matrixIndex, 8), fromLast));
 
 	if (blend < 0)
 	{
@@ -681,7 +657,7 @@ static u8 VehPhysForce_TranslateMatrix_RemapIndex(u8 matrixIndex, int fromArray,
 		blend = 0x100;
 	}
 
-	return (u8)((blend * (data.bakedGteMath[toArray].numEntries - 1)) >> 8);
+	return (u8)CTR_MipsSra(CTR_MipsMulLo(blend, CTR_MipsSubLo(data.bakedGteMath[toArray].numEntries, 1)), 8);
 }
 
 static void VehPhysForce_TranslateMatrix_ResetMatrixAnim(struct Driver *d)
@@ -701,9 +677,9 @@ static void VehPhysForce_TranslateMatrix_UpdateSquashStretch(struct Instance *in
 	{
 		int scaleXZ;
 
-		inst->scale[1] = d->jumpSquishStretch + 0xccc;
+		inst->scale[1] = (s16)CTR_MipsAddLo((u16)d->jumpSquishStretch, 0xccc);
 
-		scaleXZ = 0xccc - VehPhysForce_TranslateMatrix_Div256TowardZero(d->jumpSquishStretch * 0x28);
+		scaleXZ = CTR_MipsSubLo(0xccc, VehPhysForce_TranslateMatrix_Div256TowardZero(CTR_MipsMulLo(d->jumpSquishStretch, 0x28)));
 		if (scaleXZ < 0x400)
 		{
 			scaleXZ = 0x400;
@@ -719,8 +695,8 @@ static void VehPhysForce_TranslateMatrix_UpdateSquashStretch(struct Instance *in
 
 	if ((d->actionsFlagSet & 0x400) == 0)
 	{
-		int smoothed = (d->jumpSquishStretch2 * 9 + jumpHeightCurr * 7) >> 4;
-		int delta = (d->jumpSquishStretch2 - smoothed) * 4;
+		int smoothed = CTR_MipsSra(CTR_MipsAddLo(CTR_MipsMulLo(d->jumpSquishStretch2, 9), CTR_MipsMulLo(jumpHeightCurr, 7)), 4);
+		int delta = CTR_MipsSll(CTR_MipsSubLo(d->jumpSquishStretch2, smoothed), 2);
 
 		if (VehPhysForce_TranslateMatrix_Abs(delta) < 0x960)
 		{
@@ -754,7 +730,7 @@ static void VehPhysForce_TranslateMatrix_UpdateSquashStretch(struct Instance *in
 
 	if (((d->actionsFlagSet & ACTION_TOUCH_GROUND) == 0) && (jumpHeightCurr < 0))
 	{
-		int mapped = VehCalc_MapToRange(-jumpHeightCurr, 0, 0xa00, 0x280, 0x320);
+		int mapped = VehCalc_MapToRange(CTR_MipsNegLo(jumpHeightCurr), 0, 0xa00, 0x280, 0x320);
 
 		if (targetSquish < mapped)
 		{
@@ -766,7 +742,7 @@ static void VehPhysForce_TranslateMatrix_UpdateSquashStretch(struct Instance *in
 
 	if ((d->instTntRecv != NULL) && (d->instTntRecv->scale[1] < 2500))
 	{
-		targetSquish += (d->instTntRecv->scale[1] - 0x800) * 2;
+		targetSquish = CTR_MipsAddLo(targetSquish, CTR_MipsSll(CTR_MipsSubLo(d->instTntRecv->scale[1], 0x800), 1));
 	}
 
 	if (VehPhysForce_TranslateMatrix_Abs(d->jumpSquishStretch) < VehPhysForce_TranslateMatrix_Abs(targetSquish))
@@ -775,7 +751,7 @@ static void VehPhysForce_TranslateMatrix_UpdateSquashStretch(struct Instance *in
 	}
 
 	d->jumpSquishStretch = VehCalc_InterpBySpeed(d->jumpSquishStretch, 300, 0);
-	d->jumpSquishStretch2 = (d->jumpSquishStretch2 * 9 + jumpHeightCurr * 7) >> 4;
+	d->jumpSquishStretch2 = (s16)CTR_MipsSra(CTR_MipsAddLo(CTR_MipsMulLo(d->jumpSquishStretch2, 9), CTR_MipsMulLo(jumpHeightCurr, 7)), 4);
 
 	if (d->squishTimer != 0)
 	{
@@ -788,16 +764,16 @@ static void VehPhysForce_TranslateMatrix_UpdateSquashStretch(struct Instance *in
 			OtherFX_Play_Echo(0x5b, 1, (d->actionsFlagSet >> 16) & 1);
 		}
 
-		inst->scale[1] = d->jumpSquishStretch + 0xccc;
+		inst->scale[1] = (s16)CTR_MipsAddLo((u16)d->jumpSquishStretch, 0xccc);
 		d->matrixArray = 5;
 		d->matrixIndex = 0;
 	}
 	else
 	{
-		inst->scale[1] = VehCalc_InterpBySpeed(inst->scale[1], 0xa0, d->jumpSquishStretch + 0xccc);
+		inst->scale[1] = VehCalc_InterpBySpeed(inst->scale[1], 0xa0, CTR_MipsAddLo(d->jumpSquishStretch, 0xccc));
 	}
 
-	int scaleXZ = 0xccc - VehPhysForce_TranslateMatrix_Div256TowardZero(d->jumpSquishStretch * 0xa0);
+	int scaleXZ = CTR_MipsSubLo(0xccc, VehPhysForce_TranslateMatrix_Div256TowardZero(CTR_MipsMulLo(d->jumpSquishStretch, 0xa0)));
 	inst->scale[0] = VehCalc_InterpBySpeed(inst->scale[0], 0xa0, scaleXZ);
 	inst->scale[2] = VehCalc_InterpBySpeed(inst->scale[2], 0xa0, scaleXZ);
 }
@@ -873,15 +849,15 @@ static void VehPhysForce_TranslateMatrix_CopyFacingMatrix(struct Instance *inst,
 
 static void VehPhysForce_TranslateMatrix_UpdateInstanceMatrix(struct Instance *inst, struct Driver *d)
 {
-	int screenOffsetY = ((s8)d->Screen_OffsetY * 3) >> 3;
+	int screenOffsetY = CTR_MipsSra(CTR_MipsMulLo((s8)d->Screen_OffsetY, 3), 3);
 
 	if (d->matrixArray == 0)
 	{
 		VehPhysForce_TranslateMatrix_CopyFacingMatrix(inst, d);
 
-		inst->matrix.t[0] = d->posCurr.x >> 8;
-		inst->matrix.t[1] = (d->posCurr.y >> 8) + screenOffsetY;
-		inst->matrix.t[2] = d->posCurr.z >> 8;
+		inst->matrix.t[0] = CTR_MipsSra(d->posCurr.x, 8);
+		inst->matrix.t[1] = CTR_MipsAddLo(CTR_MipsSra(d->posCurr.y, 8), screenOffsetY);
+		inst->matrix.t[2] = CTR_MipsSra(d->posCurr.z, 8);
 	}
 	else
 	{
@@ -893,16 +869,16 @@ static void VehPhysForce_TranslateMatrix_UpdateInstanceMatrix(struct Instance *i
 
 		rotated = VehPhysForce_TranslateMatrix_RotateVector(&d->matrixFacingDir, entryVec[0], entryVec[1], entryVec[2]);
 
-		inst->matrix.t[0] = (d->posCurr.x + rotated.x) >> 8;
-		inst->matrix.t[1] = ((d->posCurr.y + rotated.y) >> 8) + screenOffsetY;
-		inst->matrix.t[2] = (d->posCurr.z + rotated.z) >> 8;
+		inst->matrix.t[0] = CTR_MipsSra(CTR_MipsAddLo(d->posCurr.x, rotated.x), 8);
+		inst->matrix.t[1] = CTR_MipsAddLo(CTR_MipsSra(CTR_MipsAddLo(d->posCurr.y, rotated.y), 8), screenOffsetY);
+		inst->matrix.t[2] = CTR_MipsSra(CTR_MipsAddLo(d->posCurr.z, rotated.z), 8);
 	}
 
 	if (d->squishTimer != 0)
 	{
-		inst->matrix.t[0] += (d->AxisAngle2_normalVec[0] * 0x13) >> 12;
-		inst->matrix.t[1] += (d->AxisAngle2_normalVec[1] * 0x13) >> 12;
-		inst->matrix.t[2] += (d->AxisAngle2_normalVec[2] * 0x13) >> 12;
+		inst->matrix.t[0] = CTR_MipsAddLo(inst->matrix.t[0], CTR_MipsSra(CTR_MipsMulLo(d->AxisAngle2_normalVec[0], 0x13), 12));
+		inst->matrix.t[1] = CTR_MipsAddLo(inst->matrix.t[1], CTR_MipsSra(CTR_MipsMulLo(d->AxisAngle2_normalVec[1], 0x13), 12));
+		inst->matrix.t[2] = CTR_MipsAddLo(inst->matrix.t[2], CTR_MipsSra(CTR_MipsMulLo(d->AxisAngle2_normalVec[2], 0x13), 12));
 	}
 }
 
@@ -940,12 +916,17 @@ static void VehPhysForce_TranslateMatrix_SetWakeRotation(struct Instance *wake, 
 {
 	s32 sin = MATH_Sin(d->angle);
 	s32 cos = MATH_Cos(d->angle);
+	s32 negSin = CTR_MipsNegLo(sin);
 
 	// Retail writes paired matrix shorts with word stores.
-	*(s32 *)(void *)&wake->matrix.m[0][0] = cos;
-	*(s32 *)(void *)&wake->matrix.m[0][2] = sin;
-	*(s32 *)(void *)&wake->matrix.m[1][1] = 0x1000;
-	*(s32 *)(void *)&wake->matrix.m[2][0] = -sin;
+	wake->matrix.m[0][0] = (s16)cos;
+	wake->matrix.m[0][1] = (s16)((u32)cos >> 16);
+	wake->matrix.m[0][2] = (s16)sin;
+	wake->matrix.m[1][0] = (s16)((u32)sin >> 16);
+	wake->matrix.m[1][1] = 0x1000;
+	wake->matrix.m[1][2] = 0;
+	wake->matrix.m[2][0] = (s16)negSin;
+	wake->matrix.m[2][1] = (s16)((u32)negSin >> 16);
 	wake->matrix.m[2][2] = (s16)cos;
 }
 
@@ -972,8 +953,8 @@ static void VehPhysForce_TranslateMatrix_UpdateWake(struct Instance *inst, struc
 	}
 
 	wake->flags &= ~HIDE_MODEL;
-	wake->unk50 = inst->unk50 + 1;
-	wake->unk51 = inst->unk51 - 1;
+	wake->unk50 = (u8)CTR_MipsAddLo(inst->unk50, 1);
+	wake->unk51 = (u8)CTR_MipsSubLo(inst->unk51, 1);
 
 	wake->matrix.t[0] = inst->matrix.t[0];
 	wake->matrix.t[1] = 0;
@@ -1028,11 +1009,6 @@ struct VehPhysForceTrigPair
 	s32 cos;
 };
 
-static u32 VehPhysForce_ReadWord(const void *base, int offset)
-{
-	return *(const u32 *)(const void *)((const char *)base + offset);
-}
-
 static int VehPhysForce_CountLeadingSignBits(s32 value)
 {
 	u32 bits = (u32)value;
@@ -1047,7 +1023,8 @@ static int VehPhysForce_CountLeadingSignBits(s32 value)
 
 static struct VehPhysForceTrigPair VehPhysForce_TrigAngleSinCos(int angle)
 {
-	u32 packed = VehPhysForce_ReadWord(&data.trigApprox[angle & 0x3ff], 0);
+	struct TrigTable trig = data.trigApprox[angle & 0x3ff];
+	u32 packed = ((u32)(u16)trig.sin) | ((u32)(u16)trig.cos << 16);
 	struct VehPhysForceTrigPair pair;
 
 	if ((angle & 0x400) == 0)
@@ -1057,8 +1034,8 @@ static struct VehPhysForceTrigPair VehPhysForce_TrigAngleSinCos(int angle)
 
 		if ((angle & 0x800) != 0)
 		{
-			pair.sin = -pair.sin;
-			pair.cos = -pair.cos;
+			pair.sin = CTR_MipsNegLo(pair.sin);
+			pair.cos = CTR_MipsNegLo(pair.cos);
 		}
 	}
 	else
@@ -1067,9 +1044,9 @@ static struct VehPhysForceTrigPair VehPhysForce_TrigAngleSinCos(int angle)
 		pair.cos = (s16)packed;
 
 		if ((angle & 0x800) != 0)
-			pair.sin = -pair.sin;
+			pair.sin = CTR_MipsNegLo(pair.sin);
 		else
-			pair.cos = -pair.cos;
+			pair.cos = CTR_MipsNegLo(pair.cos);
 	}
 
 	return pair;
@@ -1082,15 +1059,15 @@ void VehPhysForce_RotAxisAngle(MATRIX *m, s16 *normVec, s16 angle)
 	s32 normalY = normVec[1];
 	s32 normalZ = normVec[2];
 	struct VehPhysForceTrigPair trig = VehPhysForce_TrigAngleSinCos(angle);
-	s32 normalXSq = normalX * normalX;
-	s32 normalZSq = normalZ * normalZ;
-	s32 crossXZ = normalX * -normalZ;
-	s32 denom = normalXSq + normalZSq;
-	s32 scaledSinY = (trig.sin * normalY) >> 12;
-	s32 scaledCosY = (trig.cos * normalY) >> 12;
-	s32 outX = (s16)scaledSinY;
+	s32 normalXSq = CTR_MipsMulLo(normalX, normalX);
+	s32 normalZSq = CTR_MipsMulLo(normalZ, normalZ);
+	s32 crossXZ = CTR_MipsMulLo(normalX, CTR_MipsNegLo(normalZ));
+	s32 denom = CTR_MipsAddLo(normalXSq, normalZSq);
+	s32 scaledSinY = CTR_MipsSra(CTR_MipsMulLo(trig.sin, normalY), 12);
+	s32 scaledCosY = CTR_MipsSra(CTR_MipsMulLo(trig.cos, normalY), 12);
+	s32 outX = scaledSinY;
 	s32 outY;
-	s32 outZ = (s16)scaledCosY;
+	s32 outZ = scaledCosY;
 
 	m->m[0][1] = (s16)normalX;
 	m->m[1][1] = (s16)normalY;
@@ -1098,16 +1075,16 @@ void VehPhysForce_RotAxisAngle(MATRIX *m, s16 *normVec, s16 angle)
 
 	if (denom == 0)
 	{
-		s32 dot = trig.sin * normalX + trig.cos * normalZ;
+		s32 dot = CTR_MipsAddLo(CTR_MipsMulLo(trig.sin, normalX), CTR_MipsMulLo(trig.cos, normalZ));
 
 		if (normalY < 0)
-			outX = -outX;
+			outX = CTR_MipsNegLo(outX);
 
-		outY = -dot >> 12;
+		outY = CTR_MipsSra(CTR_MipsNegLo(dot), 12);
 	}
 	else
 	{
-		int shift = 0x14 - VehPhysForce_CountLeadingSignBits(denom);
+		int shift = CTR_MipsSubLo(0x14, VehPhysForce_CountLeadingSignBits(denom));
 		s32 sinRemainder;
 		s32 cosRemainder;
 		s32 divX;
@@ -1116,21 +1093,21 @@ void VehPhysForce_RotAxisAngle(MATRIX *m, s16 *normVec, s16 angle)
 
 		if (shift > 0)
 		{
-			normalXSq >>= shift;
-			normalZSq >>= shift;
-			crossXZ >>= shift;
-			denom >>= shift;
+			normalXSq = CTR_MipsSra(normalXSq, shift);
+			normalZSq = CTR_MipsSra(normalZSq, shift);
+			crossXZ = CTR_MipsSra(crossXZ, shift);
+			denom = CTR_MipsSra(denom, shift);
 		}
 
-		sinRemainder = trig.sin - scaledSinY;
-		cosRemainder = trig.cos - scaledCosY;
-		divX = (sinRemainder * normalZSq + cosRemainder * crossXZ) / denom;
-		divZ = (sinRemainder * crossXZ + cosRemainder * normalXSq) / denom;
-		dot = trig.sin * normalX + trig.cos * normalZ;
+		sinRemainder = CTR_MipsSubLo(trig.sin, scaledSinY);
+		cosRemainder = CTR_MipsSubLo(trig.cos, scaledCosY);
+		divX = CTR_MipsDiv(CTR_MipsAddLo(CTR_MipsMulLo(sinRemainder, normalZSq), CTR_MipsMulLo(cosRemainder, crossXZ)), denom);
+		divZ = CTR_MipsDiv(CTR_MipsAddLo(CTR_MipsMulLo(sinRemainder, crossXZ), CTR_MipsMulLo(cosRemainder, normalXSq)), denom);
+		dot = CTR_MipsAddLo(CTR_MipsMulLo(trig.sin, normalX), CTR_MipsMulLo(trig.cos, normalZ));
 
-		outX = (s16)(outX + (s16)divX);
-		outY = -dot >> 12;
-		outZ = (s16)(outZ + (s16)divZ);
+		outX = CTR_MipsAddLo(outX, divX);
+		outY = CTR_MipsSra(CTR_MipsNegLo(dot), 12);
+		outZ = CTR_MipsAddLo(outZ, divZ);
 	}
 
 	m->m[0][2] = (s16)outX;
@@ -1181,7 +1158,12 @@ void VehPhysForce_CounterSteer(struct Driver *driver)
 	driver->accel.y = 0;
 	driver->accel.z = 0;
 
-	int speedApprox = abs(driver->speedApprox);
+	int speedApprox = driver->speedApprox;
+	if (speedApprox < 0)
+	{
+		speedApprox = CTR_MipsNegLo(speedApprox);
+	}
+
 	if (speedApprox <= FP8(3) || driver->actionsFlagSet & ACTION_WARP || driver->kartState == KS_CRASHING || driver->set_0xF0_OnWallRub ||
 	    !(driver->actionsFlagSet & ACTION_TOUCH_GROUND) || driver->terrainMeta1->counterSteerRatio == 0)
 	{
@@ -1189,19 +1171,19 @@ void VehPhysForce_CounterSteer(struct Driver *driver)
 	}
 
 	int angleLimit = (u8)driver->angleMaxCounterSteer;
-	int angle = driver->turnAngleCurr - driver->turnAnglePrev;
+	int angle = CTR_MipsSubLo(driver->turnAngleCurr, driver->turnAnglePrev);
 	if (angle > angleLimit)
 	{
 		angle = angleLimit;
 	}
-	else if (angle < -angleLimit)
+	else if (angle < CTR_MipsNegLo(angleLimit))
 	{
-		angle = -angleLimit;
+		angle = CTR_MipsNegLo(angleLimit);
 	}
 
 	int sine = MATH_Sin(angle);
-	int counterSteerStrength = (driver->terrainMeta1->counterSteerRatio * -8000) >> 8;
-	SVec3 accel = VehPhysForce_CounterSteer_RotateVector(&driver->matrixMovingDir, (s16)((counterSteerStrength * sine) >> 12), 0, 0);
+	int counterSteerStrength = CTR_MipsSra(CTR_MipsMulLo(driver->terrainMeta1->counterSteerRatio, -8000), 8);
+	SVec3 accel = VehPhysForce_CounterSteer_RotateVector(&driver->matrixMovingDir, (s16)CTR_MipsSra(CTR_MipsMulLo(counterSteerStrength, sine), 12), 0, 0);
 
 	driver->accel = accel;
 }

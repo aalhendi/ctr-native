@@ -8,8 +8,8 @@
 // param4 - fire level
 void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLevel)
 {
-	char kartState;
-	u8 count;
+	u8 kartState;
+	s8 count;
 
 	int newFireSpeedCap;
 	int newFireSize;
@@ -55,8 +55,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 	if (kartState == KS_BLASTED)
 		return;
 
-	// turn off 8th flag, turn on 22nd flag of actions flag set
-	// means ? (!(8)) and racer just got an outside turbo (22)
+	// Clear the turbo input latch and mark an outside turbo.
 	driver->actionsFlagSet = driver->actionsFlagSet & 0xffffff7f | 0x200000;
 
 	// turbo thread bucket
@@ -85,7 +84,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 
 #else
 
-		// some sort of variable related to drifting? check + 0x3be in japanese output
+		// Japan retail gates this through the extra turbo state byte.
 		if (driver->japanTurboUnknown == 0)
 		{
 			driver->numTurbos = 1;
@@ -96,7 +95,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 		}
 		else
 		{
-			driver->numTurbos++;
+			driver->numTurbos = (s16)CTR_MipsAddLo((u16)driver->numTurbos, 1);
 			if ((driver->numTurbosHighScore < driver->numTurbos) && ((gGT->gameMode1 & END_OF_RACE) == 0))
 			{
 				driver->numTurbosHighScore = driver->numTurbos;
@@ -161,8 +160,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 				addFlags = 0x2000000;
 			}
 
-			// make turbos invisible, and transparent.
-			// why does numPlyrCurrGame alter pause-menu invisible toggle?
+			// Make turbos invisible and transparent.
 			turboInst1->flags = turboInst1->flags | addFlags | 0x1040080;
 			turboInst2->flags = turboInst2->flags | addFlags | 0x1040080;
 		}
@@ -192,7 +190,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 
 			if ((driver->actionsFlagSetPrevFrame & 0x200000) == 0)
 			{
-				driver->numTurbos++;
+				driver->numTurbos = (s16)CTR_MipsAddLo((u16)driver->numTurbos, 1);
 
 #if BUILD == JpnRetail
 				// the japanese version of the game keeps track of your highest turbo chain in a race
@@ -210,7 +208,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 			turboInst2->flags |= 0x1000080;
 
 			turboObj->fireVisibilityCooldown = 0x60;
-			driver->numTurbos++;
+			driver->numTurbos = (s16)CTR_MipsAddLo((u16)driver->numTurbos, 1);
 #if BUILD == JpnRetail
 			// the japanese version of the game keeps track of your highest turbo chain in a race
 			if (driver->numTurbosHighScore < driver->numTurbos && (gGT->gameMode1 & END_OF_RACE) == 0)
@@ -223,7 +221,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 		turboInst2->alphaScale = 0;
 
 		// player of any kind
-		if (*(s16 *)&driver->instSelf->thread->modelIndex == DYNAMIC_PLAYER)
+		if (driver->instSelf->thread->modelIndex == DYNAMIC_PLAYER)
 		{
 			if (
 			    // if racer is not getting an Outside turbo (turbo pad or powerup),
@@ -237,7 +235,8 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 		}
 	}
 
-	newFireSpeedCap = ((fireLevel * ((int)driver->const_SacredFireSpeed - (int)driver->const_SingleTurboSpeed)) >> 8) + (int)driver->const_SingleTurboSpeed;
+	newFireSpeedCap = CTR_MipsAddLo(CTR_MipsSra(CTR_MipsMulLo(fireLevel, CTR_MipsSubLo(driver->const_SacredFireSpeed, driver->const_SingleTurboSpeed)), 8),
+	                                driver->const_SingleTurboSpeed);
 
 	if (
 	    // any gain in boost,
@@ -246,7 +245,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 	        // Reserves are equal to zero
 	        // OR
 	        // speed cap has been raised
-	        (driver->reserves == 0) || (driver->fireSpeedCap < (s16)newFireSpeedCap)) ||
+	        (driver->reserves == 0) || (driver->fireSpeedCap < newFireSpeedCap)) ||
 
 	    // OR
 
@@ -264,7 +263,7 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 		if (turboObj != 0)
 		{
 			// modify, cap, and save the size of the fire
-			newFireSize = (fireLevel >> 6) + 5;
+			newFireSize = CTR_MipsAddLo(CTR_MipsSra(fireLevel, 6), 5);
 			if (newFireSize > 8)
 				newFireSize = 8;
 			turboObj->fireSize = (s16)newFireSize;
@@ -278,25 +277,8 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 		driver->actionsFlagSet |= 0x200;
 	}
 
-	// super engine
-	if (type & 0x10)
-	{
-		// set reserves to reserves parameter instead of incrementing
-		if (driver->reserves < reserves)
-		{
-			driver->reserves = reserves;
-		}
-	}
-
-	// startline, hang time, powerslide
-	else if (!(type & 1))
-	{
-		// increase reserves BY param2
-		driver->reserves += reserves;
-	}
-
 	// turbo pad, boost powerup
-	else
+	if (type & 1)
 	{
 		// this adds reserves on the first frame you touch the turbo pad,
 		// then prevent reserves from decreasing until the first frame
@@ -306,8 +288,26 @@ void VehFire_Increment(struct Driver *driver, int reserves, u32 type, int fireLe
 
 		if (oldOTT < reserves)
 		{
-			driver->reserves += (reserves - oldOTT);
-			driver->turbo_outsideTimer += (reserves - oldOTT);
+			int reserveDelta = CTR_MipsSubLo(reserves, (u16)driver->turbo_outsideTimer);
+			driver->reserves = (s16)CTR_MipsAddLo((u16)driver->reserves, reserveDelta);
+			driver->turbo_outsideTimer = (s16)reserves;
+		}
+	}
+
+	// startline, hang time, powerslide
+	else if ((type & 0x10) == 0)
+	{
+		// increase reserves BY param2
+		driver->reserves = (s16)CTR_MipsAddLo((u16)driver->reserves, reserves);
+	}
+
+	// super engine
+	else
+	{
+		// set reserves to reserves parameter instead of incrementing
+		if (driver->reserves < reserves)
+		{
+			driver->reserves = (s16)reserves;
 		}
 	}
 

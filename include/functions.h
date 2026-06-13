@@ -1262,7 +1262,7 @@ void VehPhysCrash_ConvertVecToSpeed(struct Driver *d, Vec3 *v);
 int VehPhysCrash_BounceSelf(s16 *normal, Vec3 *origin, Vec3 *vel, int boolOtherDriver);
 void VehPhysCrash_AI(struct Driver *bot, Vec3 *vel);
 int VehPhysCrash_Attack(struct Driver *driver1, struct Driver *driver2, int canPlayFeedback, int boolPlayBubblePop);
-void VehPhysCrash_AnyTwoCars(struct Thread *thread, u16 *searchWords, Vec3 *selfVel);
+void VehPhysCrash_AnyTwoCars(struct Thread *thread, struct DriverCollisionSearch *search, Vec3 *selfVel);
 void VehPhysForce_ConvertSpeedToVecOut(struct Driver *d, Vec3 *vel);
 void VehPhysForce_CollideDrivers(struct Thread *thread, struct Driver *driver);
 void VehPhysForce_TranslateMatrix(struct Thread *thread, struct Driver *driver);

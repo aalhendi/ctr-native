@@ -6,18 +6,7 @@ int VehPhysGeneral_GetBaseSpeed(struct Driver *driver)
 	int netSpeed;
 	int statAdditional;
 	int speedAdditional;
-	int netSpeedCap;
-
 	statAdditional = (int)driver->const_Speed_ClassStat;
-
-	netSpeedCap = (int)driver->const_SacredFireSpeed * 2 - (int)driver->const_SingleTurboSpeed;
-
-	netSpeedCap -= (int)driver->fireSpeedCap;
-
-	if (netSpeedCap < 0)
-	{
-		netSpeedCap = 0;
-	}
 
 	int netWumpaFruitCount = (int)driver->numWumpas;
 	if (netWumpaFruitCount > 9)
@@ -31,18 +20,28 @@ int VehPhysGeneral_GetBaseSpeed(struct Driver *driver)
 		turboMultiplier = 5;
 	}
 
-	int netSpeedStat = (((driver->const_AccelSpeed_ClassStat - driver->const_Speed_ClassStat) * 0x1000) / 5) - 1;
+	int netSpeedStat = CTR_MipsSubLo(CTR_MipsDiv(CTR_MipsSll(CTR_MipsSubLo(driver->const_AccelSpeed_ClassStat, driver->const_Speed_ClassStat), 0xc), 5), 1);
 
-	speedAdditional = (((netWumpaFruitCount * netSpeedStat) / 10) + (turboMultiplier * netSpeedStat)) >> 12;
+	speedAdditional =
+	    CTR_MipsSra(CTR_MipsAddLo(CTR_MipsDiv(CTR_MipsMulLo(netWumpaFruitCount, netSpeedStat), 10), CTR_MipsMulLo(turboMultiplier, netSpeedStat)), 0xc);
 
 	if ((driver->actionsFlagSet & 0x800000) != 0)
 	{
-		speedAdditional += driver->const_MaskSpeed;
+		speedAdditional = CTR_MipsAddLo(speedAdditional, driver->const_MaskSpeed);
 	}
 
 	if (driver->reserves != 0)
 	{
-		statAdditional += (int)driver->fireSpeedCap;
+		statAdditional = CTR_MipsAddLo(statAdditional, driver->fireSpeedCap);
+
+		int netSpeedCap = CTR_MipsSubLo(
+		    CTR_MipsAddLo(driver->const_SingleTurboSpeed, CTR_MipsSll(CTR_MipsSubLo(driver->const_SacredFireSpeed, driver->const_SingleTurboSpeed), 1)),
+		    driver->fireSpeedCap);
+		if (netSpeedCap < 0)
+		{
+			netSpeedCap = 0;
+		}
+
 		if (netSpeedCap < speedAdditional)
 		{
 			speedAdditional = netSpeedCap;
@@ -52,7 +51,7 @@ int VehPhysGeneral_GetBaseSpeed(struct Driver *driver)
 	int subtract = 0;
 
 	if (driver->instTntRecv != 0)
-		subtract = driver->const_DamagedSpeed / 2;
+		subtract = CTR_MipsSra(driver->const_DamagedSpeed, 1);
 
 	if (
 	    // burn, squish, or raincloud
@@ -64,13 +63,13 @@ int VehPhysGeneral_GetBaseSpeed(struct Driver *driver)
 	if (driver->clockReceive != 0)
 	{
 		// NOTE(aalhendi) Retail scales clock damage by rank: stronger near the front, still nonzero near the back.
-		int clockEffect = (driver->const_DamagedSpeed * (0x14 - driver->driverRank)) >> 4;
+		int clockEffect = CTR_MipsSra(CTR_MipsMulLo(driver->const_DamagedSpeed, CTR_MipsSubLo(0x14, driver->driverRank)), 4);
 
 		if (subtract < clockEffect)
 			subtract = clockEffect;
 	}
 
-	netSpeed = statAdditional + speedAdditional - subtract;
+	netSpeed = CTR_MipsSubLo(CTR_MipsAddLo(statAdditional, speedAdditional), subtract);
 
 	if (0x6400 < netSpeed)
 	{

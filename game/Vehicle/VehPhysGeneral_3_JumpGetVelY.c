@@ -8,7 +8,7 @@ int VehPhysGeneral_JumpGetVelY(s16 *normalVec, Vec3 *speedXYZ)
 
 	if (absNormalY < 0)
 	{
-		absNormalY = -absNormalY;
+		absNormalY = CTR_MipsNegLo(absNormalY);
 	}
 
 	if (absNormalY < 0x15)
@@ -16,7 +16,7 @@ int VehPhysGeneral_JumpGetVelY(s16 *normalVec, Vec3 *speedXYZ)
 		return 0;
 	}
 
-	int dot = (speedXYZ->x * normalVec[0]) + (speedXYZ->z * normalVec[2]);
+	int dot = CTR_MipsAddLo(CTR_MipsMulLo(speedXYZ->x, normalVec[0]), CTR_MipsMulLo(speedXYZ->z, normalVec[2]));
 
-	return dot / normalY;
+	return CTR_MipsDiv(dot, normalY);
 }

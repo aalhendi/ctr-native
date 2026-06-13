@@ -18,22 +18,29 @@ void VehBirth_SetConsts(struct Driver *driver)
 
 		metaPhysSize = metaPhys->size;
 
-		void *src = &metaPhys->value[engineID];
-		void *dst = &d[metaPhys->offset];
+		u32 rawValue = (u32)metaPhys->value[engineID];
+		u8 *dst = &d[metaPhys->offset];
 
 		if (metaPhysSize == 1)
 		{
-			*(char *)dst = *(char *)src;
+			dst[0] = (u8)rawValue;
 			continue;
 		}
 
 		if (metaPhysSize == 2)
 		{
-			*(s16 *)dst = *(s16 *)src;
+			dst[0] = (u8)rawValue;
+			dst[1] = (u8)(rawValue >> 8);
 			continue;
 		}
 
-		*(int *)dst = *(int *)src;
+		if (metaPhysSize == 4)
+		{
+			dst[0] = (u8)rawValue;
+			dst[1] = (u8)(rawValue >> 8);
+			dst[2] = (u8)(rawValue >> 16);
+			dst[3] = (u8)(rawValue >> 24);
+		}
 	}
 
 	return;

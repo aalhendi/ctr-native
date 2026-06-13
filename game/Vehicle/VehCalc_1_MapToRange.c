@@ -9,12 +9,10 @@ int VehCalc_MapToRange(int val, int oldMin, int oldMax, int newMin, int newMax)
 	if (val >= oldMax)
 		return newMax;
 
-	return (newMin + (
-	                     // distFromBottom * newRange
-	                     (val - oldMin) * (newMax - newMin))
+	int distFromBottom = CTR_MipsSubLo(val, oldMin);
+	int newRange = CTR_MipsSubLo(newMax, newMin);
+	int oldRange = CTR_MipsSubLo(oldMax, oldMin);
+	int scaledDistance = CTR_MipsDiv(CTR_MipsMulLo(distFromBottom, newRange), oldRange);
 
-	                     // divide by oldRange
-	                     / (oldMax - oldMin)
-
-	);
+	return CTR_MipsAddLo(newMin, scaledDistance);
 }

@@ -2,22 +2,22 @@
 
 static int VehPhysGeneral_Jump_Abs(int value)
 {
-	return value < 0 ? -value : value;
+	return value < 0 ? CTR_MipsNegLo(value) : value;
 }
 
 static int VehPhysGeneral_Jump_Div2TowardZero(int value)
 {
-	return (value + ((u32)value >> 31)) >> 1;
+	return CTR_MipsSra(CTR_MipsAddLo(value, (u32)value >> 31), 1);
 }
 
 static int VehPhysGeneral_Jump_Div4TowardZero(int value)
 {
 	if (value < 0)
 	{
-		value += 3;
+		value = CTR_MipsAddLo(value, 3);
 	}
 
-	return value >> 2;
+	return CTR_MipsSra(value, 2);
 }
 
 static u32 VehPhysGeneral_Jump_PackS16Pair(s32 lo, s32 hi)
@@ -25,13 +25,10 @@ static u32 VehPhysGeneral_Jump_PackS16Pair(s32 lo, s32 hi)
 	return ((u32)(u16)lo) | ((u32)(u16)hi << 16);
 }
 
-static Vec3 VehPhysGeneral_Jump_RotateVector(const MATRIX *m, s16 vx, s16 vy, s16 vz)
+static Vec3 VehPhysGeneral_Jump_RotateLoadedVector(s16 vx, s16 vy, s16 vz)
 {
 	Vec3 out;
 
-	// NOTE(aalhendi): Retail loads matrixMovingDir into CP2 rotation regs at
-	// function entry and uses opcode 0x486012 for jump/friction impulses.
-	gte_SetRotMatrix(m);
 	MTC2(VehPhysGeneral_Jump_PackS16Pair(vx, vy), 0);
 	MTC2((u32)(u16)vz, 1);
 	gte_mvmva(1, 0, 0, 3, 0);
@@ -47,34 +44,31 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *t, struct Driver *d)
 {
 	(void)t;
 
+	// Retail loads matrixMovingDir once, then reuses the same CP2 rotation regs
+	// for every jump/friction impulse in this function.
+	gte_SetRotMatrix(&d->matrixMovingDir);
+
 	if ((d->kartState != KS_DRIFTING) && ((d->actionsFlagSet & 0x800000) == 0) && (d->reserves == 0))
 	{
-		int ampTurn = (s16)d->ampTurnState >> 8;
-		if (ampTurn < 0)
-		{
-			ampTurn = -ampTurn;
-		}
+		int ampTurn = VehPhysGeneral_Jump_Abs(CTR_MipsSra((s16)d->ampTurnState, 8));
 
 		int turnDecrease = VehCalc_MapToRange(ampTurn, 0, (u8)d->const_BackwardTurnRate, 0, (int)d->const_TurnDecreaseRate);
 		int baseSpeed = d->baseSpeed;
-		int absBaseSpeed = baseSpeed;
-		if (absBaseSpeed < 0)
-		{
-			absBaseSpeed = -absBaseSpeed;
-		}
+		int absBaseSpeed = VehPhysGeneral_Jump_Abs(baseSpeed);
 
 		if (absBaseSpeed < turnDecrease)
 		{
 			turnDecrease = absBaseSpeed;
 		}
 
-		s16 speedDelta = -(s16)turnDecrease;
 		if (baseSpeed < 0)
 		{
-			speedDelta = (s16)turnDecrease;
+			d->baseSpeed = (s16)CTR_MipsAddLo((u16)d->baseSpeed, turnDecrease);
 		}
-
-		d->baseSpeed += speedDelta;
+		else
+		{
+			d->baseSpeed = (s16)CTR_MipsSubLo((u16)d->baseSpeed, turnDecrease);
+		}
 	}
 
 	if (d->set_0xF0_OnWallRub != 0)
@@ -84,9 +78,9 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *t, struct Driver *d)
 			d->baseSpeed = d->scrubMeta8;
 		}
 
-		if (d->baseSpeed < -d->scrubMeta8)
+		if (d->baseSpeed < CTR_MipsNegLo(d->scrubMeta8))
 		{
-			d->baseSpeed = -d->scrubMeta8;
+			d->baseSpeed = (s16)CTR_MipsNegLo(d->scrubMeta8);
 		}
 	}
 
@@ -117,7 +111,7 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *t, struct Driver *d)
 			}
 		}
 
-		acceleration = (int)d->const_Accel_ClassStat + (((int)d->accelConst << 5) / 5);
+		acceleration = CTR_MipsAddLo(d->const_Accel_ClassStat, CTR_MipsSll((s8)d->accelConst, 5) / 5);
 
 		if ((d->stepFlagSet & 3) == 0)
 		{
@@ -129,7 +123,7 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *t, struct Driver *d)
 			int slowUntilSpeed = d->terrainMeta1->slowUntilSpeed;
 			if ((slowUntilSpeed != 0x100) && ((d->actionsFlagSet & 0x800000) == 0))
 			{
-				acceleration = (slowUntilSpeed * acceleration) >> 8;
+				acceleration = CTR_MipsSra(CTR_MipsMulLo(slowUntilSpeed, acceleration), 8);
 			}
 		}
 		else if (d->baseSpeed > 0)
@@ -140,36 +134,37 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *t, struct Driver *d)
 
 PROCESS_ACCEL:
 {
-	int forwardImpulse = (acceleration * sdata->gGT->elapsedTimeMS) >> 5;
-	Vec3 rotated = VehPhysGeneral_Jump_RotateVector(&d->matrixMovingDir, 0, 0, (s16)forwardImpulse);
+	int forwardImpulse = CTR_MipsSra(CTR_MipsMulLo(acceleration, sdata->gGT->elapsedTimeMS), 5);
+	Vec3 rotated = VehPhysGeneral_Jump_RotateLoadedVector(0, 0, (s16)forwardImpulse);
 
 	if (d->baseSpeed < 0)
 	{
-		d->unk_offset3B2 = -(s16)forwardImpulse;
+		d->unk_offset3B2 = (s16)CTR_MipsNegLo(forwardImpulse);
 
-		movement.x -= rotated.x;
-		movement.y -= rotated.y;
-		movement.z -= rotated.z;
+		movement.x = CTR_MipsSubLo(movement.x, rotated.x);
+		movement.y = CTR_MipsSubLo(movement.y, rotated.y);
+		movement.z = CTR_MipsSubLo(movement.z, rotated.z);
 
-		d->unkVectorX = -(s16)rotated.x;
-		d->unkVectorY = -(s16)rotated.y;
-		d->unkVectorZ = -(s16)rotated.z;
+		d->unkVectorX = (s16)CTR_MipsNegLo(rotated.x);
+		d->unkVectorY = (s16)CTR_MipsNegLo(rotated.y);
+		d->unkVectorZ = (s16)CTR_MipsNegLo(rotated.z);
 	}
 	else
 	{
 		d->unk_offset3B2 = (s16)forwardImpulse;
 
-		movement.x += rotated.x;
-		movement.y += rotated.y;
-		movement.z += rotated.z;
+		movement.x = CTR_MipsAddLo(movement.x, rotated.x);
+		movement.y = CTR_MipsAddLo(movement.y, rotated.y);
+		movement.z = CTR_MipsAddLo(movement.z, rotated.z);
 
 		d->unkVectorX = (s16)rotated.x;
 		d->unkVectorY = (s16)rotated.y;
 		d->unkVectorZ = (s16)rotated.z;
 	}
 
-	speedLoss =
-	    (int)(VehCalc_FastSqrt(movement.x * movement.x + movement.y * movement.y + movement.z * movement.z, 0x10) >> 8) - VehPhysGeneral_Jump_Abs(d->baseSpeed);
+	u32 movementLengthSq =
+	    (u32)CTR_MipsAddLo(CTR_MipsAddLo(CTR_MipsMulLo(movement.x, movement.x), CTR_MipsMulLo(movement.y, movement.y)), CTR_MipsMulLo(movement.z, movement.z));
+	speedLoss = CTR_MipsSubLo((s32)(VehCalc_FastSqrt(movementLengthSq, 0x10) >> 8), VehPhysGeneral_Jump_Abs(d->baseSpeed));
 
 	bool clampToForwardImpulse = forwardImpulse < speedLoss;
 	if (speedLoss < 0)
@@ -210,7 +205,7 @@ CHECK_FOR_ANY_JUMP:
 		{
 			d->jump_ForcedMS = 0xa0;
 
-			int jumpForce = d->const_JumpForce * 9;
+			int jumpForce = CTR_MipsAddLo(CTR_MipsSll(d->const_JumpForce, 3), d->const_JumpForce);
 			d->jump_InitialVelY = (s16)VehPhysGeneral_Jump_Div4TowardZero(jumpForce);
 
 			OtherFX_Play_Echo(9, 1, (d->actionsFlagSet >> 16) & 1);
@@ -233,15 +228,15 @@ CHECK_FOR_ANY_JUMP:
 					int speedApprox = d->speedApprox;
 					if (speedApprox < 0)
 					{
-						speedApprox = -speedApprox;
+						speedApprox = VehPhysGeneral_Jump_Abs(speedApprox);
 					}
 
-					s16 antiGravVelY = (s16)((d->underDriver->mulNormVecY * speedApprox) >> 8);
-					Vec3 rotated = VehPhysGeneral_Jump_RotateVector(&d->matrixMovingDir, 0, antiGravVelY, 0);
+					s16 antiGravVelY = (s16)CTR_MipsSra(CTR_MipsMulLo(d->underDriver->mulNormVecY, speedApprox), 8);
+					Vec3 rotated = VehPhysGeneral_Jump_RotateLoadedVector(0, antiGravVelY, 0);
 
-					movement.x += rotated.x;
-					movement.y += rotated.y;
-					movement.z += rotated.z;
+					movement.x = CTR_MipsAddLo(movement.x, rotated.x);
+					movement.y = CTR_MipsAddLo(movement.y, rotated.y);
+					movement.z = CTR_MipsAddLo(movement.z, rotated.z);
 				}
 			}
 
@@ -249,7 +244,7 @@ CHECK_FOR_ANY_JUMP:
 		}
 
 		d->jump_ForcedMS = 0xa0;
-		d->numberOfJumps++;
+		d->numberOfJumps = (s16)CTR_MipsAddLo((u16)d->numberOfJumps, 1);
 		d->jump_InitialVelY = d->const_JumpForce;
 
 		OtherFX_Play_Echo(8, 1, (d->actionsFlagSet >> 16) & 1);
@@ -263,7 +258,7 @@ CHECK_FOR_ANY_JUMP:
 
 		d->jump_ForcedMS = 0xa0;
 
-		int jumpForce = d->const_JumpForce * 3;
+		int jumpForce = CTR_MipsAddLo(CTR_MipsSll(d->const_JumpForce, 1), d->const_JumpForce);
 		if (d->forcedJump_trampoline == 2)
 		{
 			d->jump_unknown = 0x180;
@@ -297,14 +292,14 @@ PROCESS_JUMP:
 
 	jumpVelY = VehPhysGeneral_JumpGetVelY(normalVec, &movement);
 
-	int jumpVelYSquared = bestJumpVelY * bestJumpVelY;
+	int jumpVelYSquared = CTR_MipsMulLo(bestJumpVelY, bestJumpVelY);
 	if (VehPhysGeneral_Jump_Abs(bestJumpVelY) < VehPhysGeneral_Jump_Abs(jumpVelY))
 	{
-		jumpVelYSquared = jumpVelY * jumpVelY;
+		jumpVelYSquared = CTR_MipsMulLo(jumpVelY, jumpVelY);
 		bestJumpVelY = jumpVelY;
 	}
 
-	int verticalSpeed = VehCalc_FastSqrt((jumpVelYSquared + (int)d->jump_InitialVelY * (int)d->jump_InitialVelY) >> 8, 8);
+	int verticalSpeed = VehCalc_FastSqrt((u32)CTR_MipsSra(CTR_MipsAddLo(jumpVelYSquared, CTR_MipsMulLo(d->jump_InitialVelY, d->jump_InitialVelY)), 8), 8);
 
 	int maxVerticalSpeed = ((u8)sdata->gGT->level1->unk_18C) << 8;
 	if (maxVerticalSpeed == 0)
@@ -316,7 +311,7 @@ PROCESS_JUMP:
 		maxVerticalSpeed = 0x5000;
 	}
 
-	verticalSpeed -= bestJumpVelY;
+	verticalSpeed = CTR_MipsSubLo(verticalSpeed, bestJumpVelY);
 	if (maxVerticalSpeed < verticalSpeed)
 	{
 		verticalSpeed = maxVerticalSpeed;
@@ -330,7 +325,7 @@ PROCESS_JUMP:
 NOT_JUMPING:
 	VehPhysCrash_ConvertVecToSpeed(d, &movement);
 
-	int speed = (u16)d->speed - speedLoss;
+	int speed = CTR_MipsSubLo((u16)d->speed, speedLoss);
 	d->speed = (s16)speed;
 	if (d->speed < 0)
 	{
@@ -340,19 +335,19 @@ NOT_JUMPING:
 	int speedApprox = d->speedApprox;
 	if (speedApprox < 0)
 	{
-		speedApprox = -speedApprox;
+		speedApprox = VehPhysGeneral_Jump_Abs(speedApprox);
 
 		if (speedApprox < 0x100)
 		{
-			d->unk36E = (s16)((u16)d->unk36E - (d->unk36E >> 3));
+			d->unk36E = (s16)CTR_MipsSubLo((u16)d->unk36E, CTR_MipsSra(d->unk36E, 3));
 		}
 		else
 		{
-			d->unk36E = (s16)(((u32)((int)d->unk36E * 0xd + (sdata->gGT->timer & 7) * 0x300)) >> 4);
+			d->unk36E = (s16)((u32)CTR_MipsAddLo(CTR_MipsMulLo(d->unk36E, 0xd), CTR_MipsMulLo(sdata->gGT->timer & 7, 0x300)) >> 4);
 		}
 	}
 	else
 	{
-		d->unk36E = (s16)(((int)d->unk36E * 0xd + speedApprox * 3) >> 4);
+		d->unk36E = (s16)CTR_MipsSra(CTR_MipsAddLo(CTR_MipsMulLo(d->unk36E, 0xd), CTR_MipsMulLo(speedApprox, 3)), 4);
 	}
 }

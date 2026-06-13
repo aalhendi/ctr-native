@@ -119,6 +119,52 @@ static inline int FP_Mult(int x, int y)
 	return (x * y) >> FRACTIONAL_BITS;
 }
 
+// MIPS R3000 integer operations used in ASM-audited code paths. These keep
+// overflow, shifts, multiply-low, divide traps, and truncation points explicit.
+static inline s32 CTR_MipsSll(s32 value, u32 shift)
+{
+	return (s32)((u32)value << (shift & 0x1f));
+}
+
+static inline s32 CTR_MipsSra(s32 value, u32 shift)
+{
+	shift &= 0x1f;
+
+	return (s32)(((u32)value >> shift) | ((value < 0) ? ~(0xffffffffu >> shift) : 0));
+}
+
+static inline s32 CTR_MipsMulLo(s32 lhs, s32 rhs)
+{
+	return (s32)((u32)lhs * (u32)rhs);
+}
+
+static inline s32 CTR_MipsAddLo(s32 lhs, s32 rhs)
+{
+	return (s32)((u32)lhs + (u32)rhs);
+}
+
+static inline s32 CTR_MipsSubLo(s32 lhs, s32 rhs)
+{
+	return (s32)((u32)lhs - (u32)rhs);
+}
+
+static inline s32 CTR_MipsNegLo(s32 value)
+{
+	return CTR_MipsSubLo(0, value);
+}
+
+static inline s32 CTR_MipsDiv(s32 dividend, s32 divisor)
+{
+	const s32 minS32 = (-2147483647 - 1);
+
+	if ((divisor == 0) || ((divisor == -1) && (dividend == minS32)))
+	{
+		__builtin_trap();
+	}
+
+	return dividend / divisor;
+}
+
 // misc //
 
 #ifndef CTR_NATIVE

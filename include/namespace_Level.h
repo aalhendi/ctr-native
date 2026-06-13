@@ -196,7 +196,7 @@ struct QuadBlock
 	struct BoundingBox bbox;
 
 	// 0x38
-	char terrain_type;
+	u8 terrain_type;
 	char weather_intensity;
 	char weather_vanishRate;
 	s8 mulNormVecY; // -127 for AntiGrav Sewer

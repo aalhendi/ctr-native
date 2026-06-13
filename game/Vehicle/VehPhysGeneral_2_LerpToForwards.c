@@ -12,9 +12,9 @@ int VehPhysGeneral_LerpToForwards(struct Driver *d, int param_2, int param_3, in
 	if ((param_4 < 0) || ((param_4 == 0 && (param_2 < 0))))
 	{
 		bVar1 = true;
-		param_2 = -param_2;
-		param_3 = -param_3;
-		param_4 = -param_4;
+		param_2 = CTR_MipsNegLo(param_2);
+		param_3 = CTR_MipsNegLo(param_3);
+		param_4 = CTR_MipsNegLo(param_4);
 	}
 	iVar3 = 0;
 
@@ -24,14 +24,14 @@ int VehPhysGeneral_LerpToForwards(struct Driver *d, int param_2, int param_3, in
 		{
 			if (d->const_modelRotVelMax < param_2)
 			{
-				uVar2 = d->unk458 * 0xf;
+				uVar2 = CTR_MipsSubLo(CTR_MipsSll((u8)d->unk458, 4), (u8)d->unk458);
 			}
 			else
 			{
-				uVar2 = d->unk458;
+				uVar2 = (u8)d->unk458;
 			}
-			iVar3 = VehPhysGeneral_LerpQuarterStrength(uVar2, param_2 - param_4);
-			iVar3 = -iVar3;
+			iVar3 = VehPhysGeneral_LerpQuarterStrength(uVar2, CTR_MipsSubLo(param_2, param_4));
+			iVar3 = CTR_MipsNegLo(iVar3);
 		}
 		else
 		{
@@ -39,11 +39,11 @@ int VehPhysGeneral_LerpToForwards(struct Driver *d, int param_2, int param_3, in
 			{
 				if (param_2 < 0)
 				{
-					iVar3 = VehPhysGeneral_LerpQuarterStrength(d->unk459, param_4 - param_2);
+					iVar3 = VehPhysGeneral_LerpQuarterStrength((u8)d->unk459, CTR_MipsSubLo(param_4, param_2));
 				}
 				else
 				{
-					iVar3 = VehPhysGeneral_LerpQuarterStrength(d->angleMaxCounterSteer, param_4 - param_2);
+					iVar3 = VehPhysGeneral_LerpQuarterStrength((u8)d->angleMaxCounterSteer, CTR_MipsSubLo(param_4, param_2));
 					d->unk3CA = (s16)param_4;
 				}
 			}
@@ -54,7 +54,7 @@ int VehPhysGeneral_LerpToForwards(struct Driver *d, int param_2, int param_3, in
 	iVar3 = VehCalc_InterpBySpeed(param_3, d->unk45a, iVar3);
 	if (bVar1)
 	{
-		iVar3 = -iVar3;
+		iVar3 = CTR_MipsNegLo(iVar3);
 	}
 	return iVar3;
 }

@@ -6,7 +6,7 @@ u32 VehCalc_FastSqrt(u32 n, u32 shift)
 	u32 result = 0;
 	u32 rootBitIndex = 1;
 	u32 lastApproximation = 0;
-	u32 testBit = 1 << (shift & 0x1f);
+	u32 testBit = (u32)1 << (shift & 0x1f);
 
 	while ((testBit < n) && ((testBit << 2) != 0))
 	{
@@ -14,7 +14,7 @@ u32 VehCalc_FastSqrt(u32 n, u32 shift)
 		testBit <<= 2;
 	}
 
-	u32 addBit = 1 << ((rootBitIndex + (shift - 1)) & 0x1f);
+	u32 addBit = (u32)1 << ((rootBitIndex + CTR_MipsSubLo(shift, 1)) & 0x1f);
 
 	while (testBit != 0)
 	{
@@ -22,7 +22,7 @@ u32 VehCalc_FastSqrt(u32 n, u32 shift)
 
 		if ((s32)rootBitIndex < 0)
 		{
-			shiftedResult = result >> ((-rootBitIndex) & 0x1f);
+			shiftedResult = result >> (CTR_MipsNegLo(rootBitIndex) & 0x1f);
 		}
 
 		u32 approximation = shiftedResult + lastApproximation + testBit;

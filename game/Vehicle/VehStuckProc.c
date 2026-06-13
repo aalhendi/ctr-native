@@ -3,10 +3,10 @@
 static void VehStuckProc_MaskGrab_SearchBsp(struct Driver *d, struct ScratchpadStruct *sps)
 {
 	struct GameTracker *gGT = sdata->gGT;
-	s16 topX = d->posCurr.x >> 8;
-	s16 topY = d->posCurr.y >> 8;
-	s16 topZ = d->posCurr.z >> 8;
-	s16 bottomY = topY - 0x100;
+	s16 topX = (s16)CTR_MipsSra(d->posCurr.x, 8);
+	s16 topY = (s16)CTR_MipsSra(d->posCurr.y, 8);
+	s16 topZ = (s16)CTR_MipsSra(d->posCurr.z, 8);
+	s16 bottomY = (s16)CTR_MipsSubLo(topY, 0x100);
 
 	sps->Input1.pos[0] = topX;
 	sps->Input1.pos[1] = bottomY;
@@ -25,7 +25,10 @@ static void VehStuckProc_MaskGrab_SearchBsp(struct Driver *d, struct ScratchpadS
 	sps->boolDidTouchQuadblock = 0;
 	sps->unk3C = 0;
 	sps->countByOne_ForWhatReason = 0x1000;
-	*(u32 *)&sps->dataOutput[0] = 0;
+	sps->dataOutput[0] = 0;
+	sps->dataOutput[1] = 0;
+	sps->dataOutput[2] = 0;
+	sps->dataOutput[3] = 0;
 
 	sps->bbox.min[0] = topX;
 	sps->bbox.max[0] = topX;
@@ -54,9 +57,9 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 		struct LevVertex *v0 = &verts[quad->index[0]];
 		struct LevVertex *v3 = &verts[quad->index[3]];
 
-		d->posCurr.x = (v0->pos[0] + v3->pos[0]) * 0x80;
-		d->posCurr.y = (v0->pos[1] + v3->pos[1] + 0x80) * 0x80;
-		d->posCurr.z = (v0->pos[2] + v3->pos[2]) * 0x80;
+		d->posCurr.x = CTR_MipsSll(CTR_MipsAddLo(v0->pos[0], v3->pos[0]), 7);
+		d->posCurr.y = CTR_MipsSll(CTR_MipsAddLo(CTR_MipsAddLo(v0->pos[1], v3->pos[1]), 0x80), 7);
+		d->posCurr.z = CTR_MipsSll(CTR_MipsAddLo(v0->pos[2], v3->pos[2]), 7);
 	}
 	else
 	{
@@ -76,21 +79,25 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 
 		do
 		{
+			u32 dataOutputFlags;
+
 			do
 			{
 				nextRespawn = &level->ptr_restart_points[respawn->nextIndex_forward];
 
-				d->posCurr.x = respawn->pos[0] << 8;
-				d->posCurr.y = (respawn->pos[1] + 0x80) << 8;
-				d->posCurr.z = respawn->pos[2] << 8;
+				d->posCurr.x = CTR_MipsSll(respawn->pos[0], 8);
+				d->posCurr.y = CTR_MipsSll(CTR_MipsAddLo(respawn->pos[1], 0x80), 8);
+				d->posCurr.z = CTR_MipsSll(respawn->pos[2], 8);
 
 				d->rotCurr.x = 0;
-				d->rotCurr.y = ratan2(nextRespawn->pos[0] - respawn->pos[0], nextRespawn->pos[2] - respawn->pos[2]);
+				d->rotCurr.y = ratan2(CTR_MipsSubLo(nextRespawn->pos[0], respawn->pos[0]), CTR_MipsSubLo(nextRespawn->pos[2], respawn->pos[2]));
 				d->rotCurr.z = 0;
 
 				VehStuckProc_MaskGrab_SearchBsp(d, sps);
 				respawn = nextRespawn;
-			} while ((sps->boolDidTouchQuadblock == 0) || ((*(u32 *)&sps->dataOutput[0] & 0x4000) != 0));
+				dataOutputFlags = ((u32)(u8)sps->dataOutput[0]) | ((u32)(u8)sps->dataOutput[1] << 8) | ((u32)(u8)sps->dataOutput[2] << 16) |
+				                  ((u32)(u8)sps->dataOutput[3] << 24);
+			} while ((sps->boolDidTouchQuadblock == 0) || ((dataOutputFlags & 0x4000) != 0));
 
 			struct Thread *playerThread = gGT->threadBuckets[PLAYER].thread;
 			while (playerThread != NULL)
@@ -99,17 +106,17 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 
 				if (other != d)
 				{
-					int diffX = d->posCurr.x - other->posCurr.x;
-					int diffZ = d->posCurr.z - other->posCurr.z;
+					int diffX = CTR_MipsSubLo(d->posCurr.x, other->posCurr.x);
+					int diffZ = CTR_MipsSubLo(d->posCurr.z, other->posCurr.z);
 
 					if (diffX < 0)
-						diffX = -diffX;
+						diffX = CTR_MipsNegLo(diffX);
 
 					if (diffX < 0x2000)
 						break;
 
 					if (diffZ < 0)
-						diffZ = -diffZ;
+						diffZ = CTR_MipsNegLo(diffZ);
 
 					if (diffZ < 0x2000)
 						break;
@@ -141,9 +148,9 @@ void VehStuckProc_MaskGrab_Particles(struct Driver *d)
 			return;
 
 		// position variables
-		p->axis[0].startVal += d->posCurr.x;
-		p->axis[1].startVal += d->posCurr.y;
-		p->axis[2].startVal += d->posCurr.z;
+		p->axis[0].startVal = CTR_MipsAddLo(p->axis[0].startVal, d->posCurr.x);
+		p->axis[1].startVal = CTR_MipsAddLo(p->axis[1].startVal, d->posCurr.y);
+		p->axis[2].startVal = CTR_MipsAddLo(p->axis[2].startVal, d->posCurr.z);
 	}
 }
 
@@ -153,7 +160,7 @@ void VehStuckProc_MaskGrab_Update(struct Thread *t, struct Driver *d)
 {
 	struct GameTracker *gGT = sdata->gGT;
 
-	d->NoInputTimer -= gGT->elapsedTimeMS;
+	d->NoInputTimer = (s16)CTR_MipsSubLo((u16)d->NoInputTimer, (u16)gGT->elapsedTimeMS);
 
 	if (d->NoInputTimer < 0)
 		d->NoInputTimer = 0;
@@ -295,7 +302,7 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 
 			if (d->NoInputTimer < 0x3c1)
 			{
-				d->jumpSquishStretch -= 800;
+				d->jumpSquishStretch = (s16)CTR_MipsSubLo((u16)d->jumpSquishStretch, 800);
 				if (d->jumpSquishStretch < 0)
 					d->jumpSquishStretch = 0;
 			}
@@ -310,7 +317,7 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 					d->KartStates.MaskGrab.boolParticlesSpawned = true;
 				}
 
-				d->jumpSquishStretch += 0x2d0;
+				d->jumpSquishStretch = (s16)CTR_MipsAddLo((u16)d->jumpSquishStretch, 0x2d0);
 				if (d->jumpSquishStretch > 8000)
 					d->jumpSquishStretch = 8000;
 			}
@@ -351,7 +358,7 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 	if (d->KartStates.MaskGrab.boolLiftingPlayer == false)
 	{
 		// decrease mask posY by elapsed time
-		mask->pos[1] -= gGT->elapsedTimeMS;
+		mask->pos[1] = (s16)CTR_MipsSubLo((u16)mask->pos[1], (u16)gGT->elapsedTimeMS);
 	}
 
 	// if lifting player (if driver isn't falling infinitely)
@@ -360,21 +367,21 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 		d->speed = 0;
 
 		// increase driver height, both posCurr and posPrev
-		d->posCurr.y += (gGT->elapsedTimeMS * 0x80);
+		d->posCurr.y = CTR_MipsAddLo(d->posCurr.y, CTR_MipsSll(gGT->elapsedTimeMS, 7));
 		d->posPrev.y = d->posCurr.y;
 	}
 
 	// maskPosX = driverPosX
-	mask->pos[0] = (s16)(d->posCurr.x >> 8);
+	mask->pos[0] = (s16)CTR_MipsSra(d->posCurr.x, 8);
 
 	// set mask posZ
-	mask->pos[2] = (s16)(d->posCurr.z >> 8);
+	mask->pos[2] = (s16)CTR_MipsSra(d->posCurr.z, 8);
 
 	// if mask posY < driver posY
-	if (mask->pos[1] < (s16)(d->posCurr.y >> 8))
+	if (mask->pos[1] < (s16)CTR_MipsSra(d->posCurr.y, 8))
 	{
 		// mask posY = driver posY
-		mask->pos[1] = (s16)(d->posCurr.y >> 8);
+		mask->pos[1] = (s16)CTR_MipsSra(d->posCurr.y, 8);
 
 		d->KartStates.MaskGrab.boolLiftingPlayer = true;
 	}
@@ -390,7 +397,7 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 	else
 	{
 		// interpolate scale
-		mask->scale = (s16)(((960 - d->NoInputTimer) * 0x1000) / 0xf0);
+		mask->scale = (s16)(CTR_MipsSll(CTR_MipsSubLo(960, d->NoInputTimer), 0xc) / 0xf0);
 	}
 }
 
@@ -407,7 +414,10 @@ void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d)
 
 	d->KartStates.MaskGrab.animFrame = 0;
 
-	*(int *)&d->KartStates.MaskGrab.boolParticlesSpawned = 0;
+	d->KartStates.MaskGrab.boolParticlesSpawned = false;
+	d->KartStates.MaskGrab.boolStillFalling = false;
+	d->KartStates.MaskGrab.boolLiftingPlayer = false;
+	d->KartStates.MaskGrab.boolWhistle = false;
 
 	d->KartStates.MaskGrab.maskObj = VehPickupItem_MaskUseWeapon(d, 1);
 
@@ -427,7 +437,7 @@ void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d)
 		RB_Player_ModifyWumpa(d, -2);
 	}
 
-	if (d->quadBlockHeight + 0x8000 < d->posCurr.y)
+	if (CTR_MipsAddLo(d->quadBlockHeight, 0x8000) < d->posCurr.y)
 	{
 		d->numTimesMaskGrab++;
 
@@ -460,9 +470,9 @@ void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d)
 		d->KartStates.MaskGrab.AngleAxis_NormalVec[2] = d->AxisAngle2_normalVec[2];
 	}
 
-	d->posCurr.x = inst->matrix.t[0] << 8;
-	d->posCurr.y = inst->matrix.t[1] << 8;
-	d->posCurr.z = inst->matrix.t[2] << 8;
+	d->posCurr.x = CTR_MipsSll(inst->matrix.t[0], 8);
+	d->posCurr.y = CTR_MipsSll(inst->matrix.t[1], 8);
+	d->posCurr.z = CTR_MipsSll(inst->matrix.t[2], 8);
 
 	d->posPrev.x = d->posCurr.x;
 	d->posPrev.y = d->posCurr.y;
@@ -479,9 +489,9 @@ void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d)
 
 	mask->rot[2] |= 1;
 
-	mask->pos[0] = d->posCurr.x >> 8;
-	mask->pos[1] = (d->posCurr.y >> 8) + 0x140;
-	mask->pos[2] = d->posCurr.z >> 8;
+	mask->pos[0] = (s16)CTR_MipsSra(d->posCurr.x, 8);
+	mask->pos[1] = (s16)CTR_MipsAddLo(CTR_MipsSra(d->posCurr.y, 8), 0x140);
+	mask->pos[2] = (s16)CTR_MipsSra(d->posCurr.z, 8);
 }
 
 
@@ -503,7 +513,7 @@ void *PlayerMaskGrabFuncTable[13] = {NULL,
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8006749c-0x80067554.
 void VehStuckProc_PlantEaten_Update(struct Thread *t, struct Driver *d)
 {
-	d->NoInputTimer -= sdata->gGT->elapsedTimeMS;
+	d->NoInputTimer = (s16)CTR_MipsSubLo((u16)d->NoInputTimer, (u16)sdata->gGT->elapsedTimeMS);
 
 	if (d->NoInputTimer <= 0)
 	{
@@ -542,7 +552,7 @@ void VehStuckProc_PlantEaten_PhysLinear(struct Thread *t, struct Driver *d)
 	d->actionsFlagSet &= ~(0x20024);
 	d->actionsFlagSet |= 8;
 
-	d->timeSpentEaten += sdata->gGT->elapsedTimeMS;
+	d->timeSpentEaten = CTR_MipsAddLo(d->timeSpentEaten, sdata->gGT->elapsedTimeMS);
 }
 
 
@@ -717,7 +727,7 @@ void VehStuckProc_RevEngine_Update(struct Thread *t, struct Driver *d)
 	{
 		// If mask grab has not lowered you close
 		// enough to the track to let you go
-		if (d->quadBlockHeight + 0x4000 <= d->posCurr.y)
+		if (CTR_MipsAddLo(d->quadBlockHeight, 0x4000) <= d->posCurr.y)
 		{
 			// Dont continue with the function,
 			// let your kart stay in a revving state
@@ -735,7 +745,7 @@ void VehStuckProc_RevEngine_Update(struct Thread *t, struct Driver *d)
 	if ((d->const_AccelSpeed_ClassStat < d->KartStates.RevEngine.fireLevel) && (d->KartStates.RevEngine.unk[1] & 3) == 0)
 	{
 		// While not moving, if you rev'd your engine less than...
-		if (d->KartStates.RevEngine.boostMeter < (d->const_AccelSpeed_ClassStat + d->const_SacredFireSpeed))
+		if (d->KartStates.RevEngine.boostMeter < CTR_MipsAddLo(d->const_AccelSpeed_ClassStat, d->const_SacredFireSpeed))
 		{
 			// You get a small boost
 			revFireLevel = 0x20;
@@ -768,13 +778,13 @@ void VehStuckProc_RevEngine_PhysLinear(struct Thread *t, struct Driver *d)
 	struct GameTracker *gGT = sdata->gGT;
 
 	unkTimer = (u16)d->KartStates.RevEngine.unk58e;
-	unkTimer -= (u16)gGT->elapsedTimeMS;
+	unkTimer = CTR_MipsSubLo(unkTimer, (u16)gGT->elapsedTimeMS);
 	if ((unkTimer & 0x8000) != 0)
 		unkTimer = 0;
 	d->KartStates.RevEngine.unk58e = (s16)unkTimer;
 
 	unkTimer = (u16)d->KartStates.RevEngine.unk590;
-	unkTimer -= (u16)gGT->elapsedTimeMS;
+	unkTimer = CTR_MipsSubLo(unkTimer, (u16)gGT->elapsedTimeMS);
 	if ((unkTimer & 0x8000) != 0)
 		unkTimer = 0;
 	d->KartStates.RevEngine.unk590 = (s16)unkTimer;
@@ -784,7 +794,7 @@ void VehStuckProc_RevEngine_PhysLinear(struct Thread *t, struct Driver *d)
 	if (d->KartStates.RevEngine.boolMaskGrab == 0)
 		return;
 
-	d->posCurr.y -= 0x200;
+	d->posCurr.y = CTR_MipsSubLo(d->posCurr.y, 0x200);
 
 	// if maskObj exists
 	if (d->KartStates.RevEngine.maskObj != 0)
@@ -799,7 +809,7 @@ void VehStuckProc_RevEngine_PhysLinear(struct Thread *t, struct Driver *d)
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x80067b7c-0x80067f4c.
 void VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 {
-	char bVar1;
+	u8 bVar1;
 	u8 bVar2;
 	s16 uVar3;
 	int iVar4;
@@ -815,15 +825,15 @@ void VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 	if ((d->fireSpeed > 0) && (d->KartStates.RevEngine.unk58e == 0) && ((d->KartStates.RevEngine.unk[1] & 3) == 0))
 	{
 		// Curr revving meter - Max revving meter
-		iVar4 = d->KartStates.RevEngine.fireLevel - d->KartStates.RevEngine.boostMeter;
+		iVar4 = CTR_MipsSubLo(d->KartStates.RevEngine.fireLevel, d->KartStates.RevEngine.boostMeter);
 
 		// absolute value
 		if (iVar4 < 0)
 		{
-			iVar4 = -iVar4;
+			iVar4 = CTR_MipsNegLo(iVar4);
 		}
 
-		iVar4 = iVar4 >> 1;
+		iVar4 = CTR_MipsSra(iVar4, 1);
 
 		iVar7 = iVar4;
 
@@ -856,7 +866,7 @@ void VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 		else
 		{
 			// elapsed milliseconds per frame, ~32
-			sVar5 = d->KartStates.RevEngine.timeMS + sdata->gGT->elapsedTimeMS;
+			sVar5 = (s16)CTR_MipsAddLo((u16)d->KartStates.RevEngine.timeMS, (u16)sdata->gGT->elapsedTimeMS);
 			d->KartStates.RevEngine.timeMS = sVar5;
 
 			// if more than 0.192s
@@ -889,8 +899,8 @@ void VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 	{
 		d->KartStates.RevEngine.unk[0] = 0;
 
-		uVar6 = VehCalc_InterpBySpeed(d->KartStates.RevEngine.boostMeter, d->const_SacredFireSpeed / 3 + 3,
-		                              d->const_SacredFireSpeed + d->const_AccelSpeed_ClassStat);
+		uVar6 = VehCalc_InterpBySpeed(d->KartStates.RevEngine.boostMeter, CTR_MipsAddLo(d->const_SacredFireSpeed / 3, 3),
+		                              CTR_MipsAddLo(d->const_SacredFireSpeed, d->const_AccelSpeed_ClassStat));
 
 		d->KartStates.RevEngine.boostMeter = uVar6;
 	}
@@ -901,14 +911,14 @@ void VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 		d->KartStates.RevEngine.unk[1] &= ~(2);
 
 		// max rev = ???
-		d->KartStates.RevEngine.boostMeter = d->const_AccelSpeed_ClassStat + d->const_SacredFireSpeed / 3;
+		d->KartStates.RevEngine.boostMeter = CTR_MipsAddLo(d->const_AccelSpeed_ClassStat, d->const_SacredFireSpeed / 3);
 	}
 
 	// if curr rev >= 1
 	else
 	{
 		// rev deacceleration rate = curr rev / 2
-		uVar8 = d->KartStates.RevEngine.fireLevel >> 1;
+		uVar8 = CTR_MipsSra(d->KartStates.RevEngine.fireLevel, 1);
 
 		if ((d->KartStates.RevEngine.unk[1] & 2) == 0)
 		{
@@ -943,7 +953,7 @@ void VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 		}
 
 		// new rev = curr rev - rev deacceleration rate
-		iVar4 = d->KartStates.RevEngine.fireLevel - uVar8;
+		iVar4 = CTR_MipsSubLo(d->KartStates.RevEngine.fireLevel, uVar8);
 
 		// curr rev = new rev
 		d->KartStates.RevEngine.fireLevel = iVar4;
@@ -964,7 +974,8 @@ void VehStuckProc_RevEngine_Animate(struct Thread *t, struct Driver *d)
 
 LAB_80067dec:
 
-	if ((*(u32 *)&d->KartStates.RevEngine.unk590 & 0x200ffff) == 0)
+	u32 revEngineFlags = ((u32)(u16)d->KartStates.RevEngine.unk590) | ((u32)d->KartStates.RevEngine.unk[0] << 16) | ((u32)d->KartStates.RevEngine.unk[1] << 24);
+	if ((revEngineFlags & 0x200ffff) == 0)
 	{
 		// if curr rev < ???
 		if (d->KartStates.RevEngine.fireLevel < d->const_AccelSpeed_ClassStat)
@@ -997,7 +1008,7 @@ LAB_80067dec:
 		bVar1 = d->const_turboMaxRoom;
 
 		// 477 changes when meter turns red
-		local_18 = d->const_turboLowRoomWarning * 0x20 + 1;
+		local_18 = CTR_MipsAddLo(CTR_MipsSll((u8)d->const_turboLowRoomWarning, 5), 1);
 
 		// min, max
 		iVar7 = 0;
@@ -1012,15 +1023,15 @@ LAB_80067dec:
 
 		// min, max
 		iVar7 = iVar4;
-		iVar9 = iVar4 + d->const_SacredFireSpeed;
+		iVar9 = CTR_MipsAddLo(iVar4, d->const_SacredFireSpeed);
 	}
 
-	uVar3 = VehCalc_MapToRange(d->KartStates.RevEngine.fireLevel, iVar7, iVar9, (u32)bVar1 << 5, local_18);
+	uVar3 = VehCalc_MapToRange(d->KartStates.RevEngine.fireLevel, iVar7, iVar9, CTR_MipsSll(bVar1, 5), local_18);
 
 	d->turbo_MeterRoomLeft = uVar3;
 
 	d->distanceDrivenBackwards = 0;
-	iVar4 = d->unk36E >> 6;
+	iVar4 = CTR_MipsSra((s16)d->unk36E, 6);
 
 	if (iVar4 < 0x401)
 	{
@@ -1038,9 +1049,9 @@ LAB_80067dec:
 	// this is a basic "squash and stretch" concept of animation, before motion
 
 	// Reduce height a little
-	inst->scale[1] = 3276 - iVar4;
-	inst->scale[0] = (s16)((iVar4 * 6) / 10) + 3276;
-	inst->scale[2] = (s16)((iVar4 * 6) / 10) + 3276;
+	inst->scale[1] = (s16)CTR_MipsSubLo(3276, iVar4);
+	inst->scale[0] = (s16)CTR_MipsAddLo(CTR_MipsMulLo(iVar4, 6) / 10, 3276);
+	inst->scale[2] = (s16)CTR_MipsAddLo(CTR_MipsMulLo(iVar4, 6) / 10, 3276);
 
 	d->jumpSquishStretch = iVar4;
 }
@@ -1063,7 +1074,7 @@ void VehStuckProc_RevEngine_Init(struct Thread *t, struct Driver *d)
 	d->KartStates.RevEngine.fireLevel = 0;
 
 	// if this is a mask grab
-	if (d->quadBlockHeight + 0x1000 < d->posCurr.y)
+	if (CTR_MipsAddLo(d->quadBlockHeight, 0x1000) < d->posCurr.y)
 	{
 		// assume reason for revving is: mask grab
 		d->KartStates.RevEngine.boolMaskGrab = true;
@@ -1089,7 +1100,7 @@ void VehStuckProc_RevEngine_Init(struct Thread *t, struct Driver *d)
 	d->KartStates.RevEngine.unk[0] = 0;
 	d->KartStates.RevEngine.unk[1] = 0;
 
-	d->KartStates.RevEngine.boostMeter = d->const_AccelSpeed_ClassStat + d->const_AccelSpeed_ClassStat / 3;
+	d->KartStates.RevEngine.boostMeter = CTR_MipsAddLo(d->const_AccelSpeed_ClassStat, d->const_AccelSpeed_ClassStat / 3);
 }
 
 void *PlayerRevEngineFuncTable[13] = {
@@ -1113,7 +1124,7 @@ void VehStuckProc_Tumble_Update(struct Thread *thread, struct Driver *driver)
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x800680d0-0x80068150.
 void VehStuckProc_Tumble_PhysLinear(struct Thread *thread, struct Driver *driver)
 {
-	driver->NoInputTimer -= sdata->gGT->elapsedTimeMS;
+	driver->NoInputTimer = (s16)CTR_MipsSubLo((u16)driver->NoInputTimer, (u16)sdata->gGT->elapsedTimeMS);
 
 	if (driver->NoInputTimer < 0)
 		driver->NoInputTimer = 0;
@@ -1124,7 +1135,7 @@ void VehStuckProc_Tumble_PhysLinear(struct Thread *thread, struct Driver *driver
 	driver->baseSpeed = 0;
 	driver->fireSpeed = 0;
 	driver->actionsFlagSet |= 0x5808;
-	driver->jump_InitialVelY = driver->NoInputTimer * 2 + 6000;
+	driver->jump_InitialVelY = (s16)CTR_MipsAddLo(CTR_MipsSll((u16)driver->NoInputTimer, 1), 6000);
 }
 
 
@@ -1135,23 +1146,19 @@ void VehStuckProc_Tumble_PhysAngular(struct Thread *thread, struct Driver *drive
 
 	driver->numFramesSpentSteering = 10000;
 
-	driver->unk3D4[0] -= (driver->unk3D4[0] >> 3);
-	driver->rotationSpinRate -= (driver->rotationSpinRate >> 3);
-	driver->unk_LerpToForwards -= (driver->unk_LerpToForwards >> 3);
+	driver->unk3D4[0] = (s16)CTR_MipsSubLo((u16)driver->unk3D4[0], CTR_MipsSra(driver->unk3D4[0], 3));
+	driver->rotationSpinRate = (s16)CTR_MipsSubLo((u16)driver->rotationSpinRate, CTR_MipsSra(driver->rotationSpinRate, 3));
+	driver->unk_LerpToForwards = (s16)CTR_MipsSubLo((u16)driver->unk_LerpToForwards, CTR_MipsSra(driver->unk_LerpToForwards, 3));
 
 	driver->ampTurnState = driver->rotationSpinRate;
 
-	driver->turnAngleCurr += driver->unk_LerpToForwards;
-	driver->turnAngleCurr += 0x800;
-	driver->turnAngleCurr &= 0xfff;
-	driver->turnAngleCurr -= 0x800;
+	driver->turnAngleCurr = (s16)CTR_MipsSubLo(CTR_MipsAddLo(CTR_MipsAddLo((u16)driver->turnAngleCurr, (u16)driver->unk_LerpToForwards), 0x800) & 0xfff, 0x800);
 
-	driver->angle += (s16)(((int)driver->rotationSpinRate * elapsedTimeMS) >> 0xd);
-	driver->angle &= 0xfff;
+	driver->angle = (s16)(CTR_MipsAddLo((u16)driver->angle, CTR_MipsSra(CTR_MipsMulLo(driver->rotationSpinRate, elapsedTimeMS), 0xd)) & 0xfff);
 
-	(driver->rotCurr).y = driver->unk3D4[0] + driver->angle + driver->turnAngleCurr;
+	(driver->rotCurr).y = (s16)CTR_MipsAddLo(CTR_MipsAddLo((u16)driver->unk3D4[0], (u16)driver->angle), (u16)driver->turnAngleCurr);
 
-	(driver->rotCurr).w = VehCalc_InterpBySpeed((int)(driver->rotCurr).w, (elapsedTimeMS << 5) >> 5, 0);
+	(driver->rotCurr).w = VehCalc_InterpBySpeed((int)(driver->rotCurr).w, CTR_MipsSra(CTR_MipsSll(elapsedTimeMS, 5), 5), 0);
 
 	VehPhysForce_RotAxisAngle(&driver->matrixMovingDir, (s16 *)&driver->AxisAngle1_normalVec, driver->angle);
 }
@@ -1162,19 +1169,21 @@ void VehStuckProc_Tumble_Animate(struct Thread *thread, struct Driver *driver)
 {
 	int matrixIndex;
 	int arrLength;
+	int quotient;
 
 	driver->matrixArray = 6;
 	arrLength = data.bakedGteMath[6].numEntries;
 
 	// divide by 32ms to get frame index
-	matrixIndex = driver->NoInputTimer >> 5;
+	matrixIndex = CTR_MipsSra(driver->NoInputTimer, 5);
 
 	// modulus to wrap repeat animation
-	matrixIndex %= arrLength;
+	quotient = CTR_MipsDiv(matrixIndex, arrLength);
+	matrixIndex = CTR_MipsSubLo(matrixIndex, CTR_MipsMulLo(quotient, arrLength));
 
 	if (driver->KartStates.Blasted.boolPlayBackwards != 0)
 	{
-		matrixIndex = arrLength - (matrixIndex + 1);
+		matrixIndex = CTR_MipsSubLo(arrLength, CTR_MipsAddLo(matrixIndex, 1));
 	}
 
 	driver->matrixIndex = matrixIndex;
@@ -1201,7 +1210,7 @@ void VehStuckProc_Tumble_Init(struct Thread *thread, struct Driver *driver)
 	int i;
 	int iVar2;
 	char bVar3;
-	char simpTurnState;
+	s8 simpTurnState;
 
 	driver->kartState = KS_BLASTED;
 	driver->turbo_MeterRoomLeft = 0;
@@ -1243,31 +1252,31 @@ void VehStuckProc_Tumble_Init(struct Thread *thread, struct Driver *driver)
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x800683f4-0x800685b0.
 void VehStuckProc_Warp_MoveDustPuff(s16 *points, int span, int radius, s16 *jitterScale)
 {
-	int radiusHalf = radius >> 1;
+	int radiusHalf = CTR_MipsSra(radius, 1);
 
-	int jitterX = ((MixRNG_Scramble() & 0xfff) * radius) >> 0xc;
+	int jitterX = CTR_MipsSra(CTR_MipsMulLo(MixRNG_Scramble() & 0xfff, radius), 0xc);
 	if (jitterX < radiusHalf)
-		jitterX -= radius;
+		jitterX = CTR_MipsSubLo(jitterX, radius);
 
-	int jitterY = ((MixRNG_Scramble() & 0xfff) * radius) >> 0xc;
+	int jitterY = CTR_MipsSra(CTR_MipsMulLo(MixRNG_Scramble() & 0xfff, radius), 0xc);
 	if (jitterY < radiusHalf)
-		jitterY -= radius;
+		jitterY = CTR_MipsSubLo(jitterY, radius);
 
-	int jitterZ = ((MixRNG_Scramble() & 0xfff) * radius) >> 0xc;
+	int jitterZ = CTR_MipsSra(CTR_MipsMulLo(MixRNG_Scramble() & 0xfff, radius), 0xc);
 	if (jitterZ < radiusHalf)
-		jitterZ -= radius;
+		jitterZ = CTR_MipsSubLo(jitterZ, radius);
 
 	s16 *end = points + span * 4;
-	int halfSpan = span >> 1;
+	int halfSpan = CTR_MipsSra(span, 1);
 	s16 *mid = points + halfSpan * 4;
 
-	mid[0] = (s16)((points[0] + end[0]) >> 1) + (s16)((jitterScale[0] * jitterX) >> 0xc);
-	mid[1] = (s16)((points[1] + end[1]) >> 1) + (s16)((jitterScale[1] * jitterY) >> 0xc);
-	mid[2] = (s16)((points[2] + end[2]) >> 1) + (s16)((jitterScale[2] * jitterZ) >> 0xc);
+	mid[0] = (s16)CTR_MipsAddLo(CTR_MipsSra(CTR_MipsAddLo(points[0], end[0]), 1), CTR_MipsSra(CTR_MipsMulLo(jitterScale[0], jitterX), 0xc));
+	mid[1] = (s16)CTR_MipsAddLo(CTR_MipsSra(CTR_MipsAddLo(points[1], end[1]), 1), CTR_MipsSra(CTR_MipsMulLo(jitterScale[1], jitterY), 0xc));
+	mid[2] = (s16)CTR_MipsAddLo(CTR_MipsSra(CTR_MipsAddLo(points[2], end[2]), 1), CTR_MipsSra(CTR_MipsMulLo(jitterScale[2], jitterZ), 0xc));
 
 	if (span > 2)
 	{
-		int nextRadius = (radius * 0xc00) >> 0xc;
+		int nextRadius = CTR_MipsSra(CTR_MipsMulLo(radius, 0xc00), 0xc);
 		VehStuckProc_Warp_MoveDustPuff(points, halfSpan, nextRadius, jitterScale);
 		VehStuckProc_Warp_MoveDustPuff(mid, halfSpan, nextRadius, jitterScale);
 	}
@@ -1290,7 +1299,7 @@ void VehStuckProc_Warp_AddDustPuff1(struct ScratchpadStruct *sps)
 
 	// position variables
 	for (char i = 0; i < 3; i++)
-		p->axis[i].startVal += sps->Input1.pos[i];
+		p->axis[i].startVal = CTR_MipsAddLo(p->axis[i].startVal, CTR_MipsSll(sps->Input1.pos[i], 8));
 }
 
 
@@ -1306,7 +1315,7 @@ struct VehWarpDustProjected
 
 static s16 VehWarpDust_AddHalf(s16 value, int delta)
 {
-	return (s16)((u16)value + delta);
+	return (s16)CTR_MipsAddLo((u16)value, delta);
 }
 
 static u32 VehWarpDust_Ptr24(const void *ptr)
@@ -1323,9 +1332,9 @@ static void VehWarpDust_Project(SVECTOR *point, int offsetX, int offsetY, int of
 	left->vy = VehWarpDust_AddHalf(point->vy, offsetY);
 	left->vz = VehWarpDust_AddHalf(point->vz, offsetZ);
 
-	right->vx = VehWarpDust_AddHalf(point->vx, -offsetX);
-	right->vy = VehWarpDust_AddHalf(point->vy, -offsetY);
-	right->vz = VehWarpDust_AddHalf(point->vz, -offsetZ);
+	right->vx = VehWarpDust_AddHalf(point->vx, CTR_MipsNegLo(offsetX));
+	right->vy = VehWarpDust_AddHalf(point->vy, CTR_MipsNegLo(offsetY));
+	right->vz = VehWarpDust_AddHalf(point->vz, CTR_MipsNegLo(offsetZ));
 
 	gte_ldv3(left, point, right);
 	gte_rtpt_b();
@@ -1339,7 +1348,7 @@ static void VehWarpDust_Project(SVECTOR *point, int offsetX, int offsetY, int of
 static void VehWarpDust_EmitSegment(u32 **primCursor, struct PushBuffer *pb, const struct VehWarpDustProjected *prev, const struct VehWarpDustProjected *curr)
 {
 	u32 *prim = *primCursor;
-	u_long *ot = pb->ptrOT + ((s32)curr->depth >> 6);
+	u_long *ot = pb->ptrOT + CTR_MipsSra((s32)curr->depth, 6);
 
 	prim[1] = 0xe1000a20;
 	prim[2] = 0x3a000000;
@@ -1381,42 +1390,42 @@ void VehStuckProc_Warp_AddDustPuff2(struct Driver *d, int *warp)
 	gte_SetRotMatrix(&pb->matrix_ViewProj);
 	gte_SetTransMatrix(&pb->matrix_ViewProj);
 
-	jitterScale[0] = (pb->matrix_CameraTranspose.m[0][0] + pb->matrix_CameraTranspose.m[0][1]) >> 5;
-	jitterScale[1] = (pb->matrix_CameraTranspose.m[1][0] + pb->matrix_CameraTranspose.m[1][1]) >> 5;
-	jitterScale[2] = (pb->matrix_CameraTranspose.m[2][0] + pb->matrix_CameraTranspose.m[2][1]) >> 5;
+	jitterScale[0] = (s16)CTR_MipsSra(CTR_MipsAddLo(pb->matrix_CameraTranspose.m[0][0], pb->matrix_CameraTranspose.m[0][1]), 5);
+	jitterScale[1] = (s16)CTR_MipsSra(CTR_MipsAddLo(pb->matrix_CameraTranspose.m[1][0], pb->matrix_CameraTranspose.m[1][1]), 5);
+	jitterScale[2] = (s16)CTR_MipsSra(CTR_MipsAddLo(pb->matrix_CameraTranspose.m[2][0], pb->matrix_CameraTranspose.m[2][1]), 5);
 
-	offsetX = pb->matrix_CameraTranspose.m[0][0] >> 10;
-	offsetY = pb->matrix_CameraTranspose.m[1][0] >> 10;
-	offsetZ = pb->matrix_CameraTranspose.m[2][0] >> 10;
+	offsetX = CTR_MipsSra(pb->matrix_CameraTranspose.m[0][0], 10);
+	offsetY = CTR_MipsSra(pb->matrix_CameraTranspose.m[1][0], 10);
+	offsetZ = CTR_MipsSra(pb->matrix_CameraTranspose.m[2][0], 10);
 
 	if ((d->instSelf->flags & HIDE_MODEL) != 0)
 	{
-		endpoint->vx = d->posCurr.x >> 8;
-		endpoint->vy = warp[4] >> 8;
-		endpoint->vz = d->posCurr.z >> 8;
+		endpoint->vx = (s16)CTR_MipsSra(d->posCurr.x, 8);
+		endpoint->vy = (s16)CTR_MipsSra(warp[4], 8);
+		endpoint->vz = (s16)CTR_MipsSra(d->posCurr.z, 8);
 		VehStuckProc_Warp_AddDustPuff1((struct ScratchpadStruct *)endpoint);
 	}
 
 	for (int ring = 0; ring < 6; ring++)
 	{
-		int baseAngle = ((ring << 12) / 6) + warp[3];
+		int baseAngle = CTR_MipsAddLo((CTR_MipsSll(ring, 12) / 6), warp[3]);
 		struct VehWarpDustProjected *prev = CTR_SCRATCHPAD_PTR(struct VehWarpDustProjected, 0x1a0);
 		struct VehWarpDustProjected *curr = CTR_SCRATCHPAD_PTR(struct VehWarpDustProjected, 0x1b0);
 
-		points[0].vx = (d->posCurr.x >> 8) - (MATH_Sin(baseAngle) >> 5);
-		points[0].vy = warp[2] >> 8;
-		points[0].vz = (d->posCurr.z >> 8) - (MATH_Cos(baseAngle) >> 5);
+		points[0].vx = (s16)CTR_MipsSubLo(CTR_MipsSra(d->posCurr.x, 8), CTR_MipsSra(MATH_Sin(baseAngle), 5));
+		points[0].vy = (s16)CTR_MipsSra(warp[2], 8);
+		points[0].vz = (s16)CTR_MipsSubLo(CTR_MipsSra(d->posCurr.z, 8), CTR_MipsSra(MATH_Cos(baseAngle), 5));
 
-		endpoint->vx = d->posCurr.x >> 8;
-		endpoint->vy = warp[4] >> 8;
-		endpoint->vz = d->posCurr.z >> 8;
+		endpoint->vx = (s16)CTR_MipsSra(d->posCurr.x, 8);
+		endpoint->vy = (s16)CTR_MipsSra(warp[4], 8);
+		endpoint->vz = (s16)CTR_MipsSra(d->posCurr.z, 8);
 
 		if ((d->instSelf->flags & HIDE_MODEL) == 0)
 		{
-			points[0].vx = VehWarpDust_AddHalf(points[0].vx, -(MATH_Sin(baseAngle) >> 6));
-			points[0].vz = VehWarpDust_AddHalf(points[0].vz, -(MATH_Cos(baseAngle) >> 6));
-			endpoint->vx = VehWarpDust_AddHalf(endpoint->vx, MATH_Sin(baseAngle) >> 8);
-			endpoint->vz = VehWarpDust_AddHalf(endpoint->vz, MATH_Cos(baseAngle) >> 8);
+			points[0].vx = VehWarpDust_AddHalf(points[0].vx, CTR_MipsNegLo(CTR_MipsSra(MATH_Sin(baseAngle), 6)));
+			points[0].vz = VehWarpDust_AddHalf(points[0].vz, CTR_MipsNegLo(CTR_MipsSra(MATH_Cos(baseAngle), 6)));
+			endpoint->vx = VehWarpDust_AddHalf(endpoint->vx, CTR_MipsSra(MATH_Sin(baseAngle), 8));
+			endpoint->vz = VehWarpDust_AddHalf(endpoint->vz, CTR_MipsSra(MATH_Cos(baseAngle), 8));
 		}
 		else
 		{
@@ -1426,7 +1435,7 @@ void VehStuckProc_Warp_AddDustPuff2(struct Driver *d, int *warp)
 		VehStuckProc_Warp_MoveDustPuff((s16 *)points, VEH_WARP_DUST_SEGMENTS, 0x100, jitterScale);
 
 		for (int i = 1; i < VEH_WARP_DUST_SEGMENTS; i++)
-			points[i].vy = VehWarpDust_AddHalf(points[i].vy, MATH_Sin(i << 7) >> 7);
+			points[i].vy = VehWarpDust_AddHalf(points[i].vy, CTR_MipsSra(MATH_Sin(CTR_MipsSll(i, 7)), 7));
 
 		VehWarpDust_Project(&points[0], offsetX, offsetY, offsetZ, prev);
 
@@ -1462,21 +1471,21 @@ void VehStuckProc_Warp_PhysAngular(struct Thread *th, struct Driver *d)
 	if ((inst->flags & HIDE_MODEL) == 0)
 	{
 		// height + 0x100
-		iVar3 = d->posCurr.y + 0x100;
+		iVar3 = CTR_MipsAddLo(d->posCurr.y, 0x100);
 
 		if (iVar3 < d->KartStates.Warp.quadHeight)
 			iVar3 = d->KartStates.Warp.quadHeight;
 
 		d->KartStates.Warp.beamHeight = iVar3;
 
-		d->KartStates.Warp.numParticle -= 100;
+		d->KartStates.Warp.numParticle = CTR_MipsSubLo(d->KartStates.Warp.numParticle, 100);
 
 		// add dust puff
 		VehStuckProc_Warp_AddDustPuff2(d, &d->KartStates.Warp.timer);
 	}
 
 	timer = d->KartStates.Warp.timer;
-	timer += 26;
+	timer = CTR_MipsAddLo(timer, 26);
 
 	if (timer <= 800)
 	{
@@ -1486,8 +1495,8 @@ void VehStuckProc_Warp_PhysAngular(struct Thread *th, struct Driver *d)
 		for (char i = 0; i < 3; i++)
 			inst->scale[i] = VehCalc_InterpBySpeed(inst->scale[i], 120, 4800 >> (i & 1));
 
-		if (d->posCurr.y < d->quadBlockHeight + 0x8000)
-			d->posCurr.y += 0x800;
+		if (d->posCurr.y < CTR_MipsAddLo(d->quadBlockHeight, 0x8000))
+			d->posCurr.y = CTR_MipsAddLo(d->posCurr.y, 0x800);
 	}
 	else
 	{
@@ -1509,9 +1518,9 @@ void VehStuckProc_Warp_PhysAngular(struct Thread *th, struct Driver *d)
 			if ((inst->flags & HIDE_MODEL) == 0)
 			{
 				// position above kart
-				pos[0] = (s16)(d->posCurr.x >> 8);
-				pos[1] = (s16)(d->KartStates.Warp.quadHeight >> 8) + 0x40;
-				pos[2] = (s16)(d->posCurr.z >> 8);
+				pos[0] = (s16)CTR_MipsSra(d->posCurr.x, 8);
+				pos[1] = (s16)CTR_MipsAddLo(CTR_MipsSra(d->KartStates.Warp.quadHeight, 8), 0x40);
+				pos[2] = (s16)CTR_MipsSra(d->posCurr.z, 8);
 
 				FLARE_Init((s16 *)&pos);
 			}
@@ -1522,17 +1531,17 @@ void VehStuckProc_Warp_PhysAngular(struct Thread *th, struct Driver *d)
 
 		else
 		{
-			d->KartStates.Warp.heightOffset -= 0x1800;
-			d->posCurr.y += d->KartStates.Warp.heightOffset;
+			d->KartStates.Warp.heightOffset = CTR_MipsSubLo(d->KartStates.Warp.heightOffset, 0x1800);
+			d->posCurr.y = CTR_MipsAddLo(d->posCurr.y, d->KartStates.Warp.heightOffset);
 		}
 	}
 
 	// drift angle = ((drift angle + warp timer + 0x800) & 0xfff) - 0x800
-	sVar2 = (d->turnAngleCurr + (s16)(timer) + 0x800U & 0xfff) - 0x800;
+	sVar2 = (s16)CTR_MipsSubLo(CTR_MipsAddLo(CTR_MipsAddLo((u16)d->turnAngleCurr, (u16)timer), 0x800) & 0xfff, 0x800);
 	d->turnAngleCurr = sVar2;
 
 	// cameraRotY = ??? + kart angle + drift angle
-	d->rotCurr.y = d->unk3D4[0] + d->angle + sVar2;
+	d->rotCurr.y = (s16)CTR_MipsAddLo(CTR_MipsAddLo((u16)d->unk3D4[0], (u16)d->angle), (u16)sVar2);
 
 	// driver is warping
 	d->actionsFlagSet |= 0x4000;
@@ -1579,7 +1588,7 @@ void VehStuckProc_Warp_Init(struct Thread *th, struct Driver *d)
 	inst->flags |= 0x4000;
 
 	// vertical line for split or reflection
-	inst->vertSplit = (s16)(d->quadBlockHeight >> 8);
+	inst->vertSplit = (s16)CTR_MipsSra(d->quadBlockHeight, 8);
 
 	// you are now in a warp pad
 	d->kartState = KS_WARP_PAD;

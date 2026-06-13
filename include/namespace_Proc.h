@@ -154,6 +154,15 @@ struct BucketSearchParams
 	s16 padding;
 };
 
+struct DriverCollisionSearch
+{
+	struct BucketSearchParams bucket;
+	s16 hitDir[4];
+};
+
+_Static_assert(offsetof(struct DriverCollisionSearch, bucket) == 0);
+_Static_assert(offsetof(struct DriverCollisionSearch, hitDir) == sizeof(struct BucketSearchParams));
+
 // These are used to recursively
 // search threads with unidirectional
 // links (next = curr + 0x10)

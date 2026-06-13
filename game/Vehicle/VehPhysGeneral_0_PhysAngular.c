@@ -26,7 +26,7 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 	char char_wInterpLessThan0;
 	s16 forwardDir;
 	int rotCurrW_interp;
-	char simpTurnState;
+	s8 simpTurnState;
 	s16 driftAngleCurr_og;
 
 	PhysLerpRot(driver, 0);
@@ -36,7 +36,7 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 	forwardDir = driver->forwardDir;
 	simpTurnState = driver->simpTurnState;
 	speedApprox = (int)driver->speedApprox;
-	rotCurrW_interp = simpTurnState * 0x100;
+	rotCurrW_interp = CTR_MipsSll(simpTurnState, 8);
 	if (speedApprox < 1)
 	{
 		if (driver->baseSpeed < 0)
@@ -58,12 +58,12 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 	}
 	if (forwardDir < 0)
 	{
-		rotCurrW_interp = simpTurnState * -0x100;
+		rotCurrW_interp = CTR_MipsNegLo(CTR_MipsSll(simpTurnState, 8));
 		actionsFlagSet = actionsFlagSet ^ 0x10;
 	}
 	if (speedApprox < 0)
 	{
-		speedApprox = -speedApprox;
+		speedApprox = CTR_MipsNegLo(speedApprox);
 	}
 	if (((actionsFlagSet & 1) != 0) && ((driver->stepFlagSet & 3) == 0))
 	{
@@ -73,7 +73,7 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 	rotCurrW_original = (int)driver->rotationSpinRate;
 	if (rotCurrW_interp == 0)
 	{
-		int rate = ((int)driver->const_TurnInputDelay + driver->turnConst * 0x32) * terrain->friction >> 8;
+		int rate = CTR_MipsSra(CTR_MipsMulLo(CTR_MipsAddLo(driver->const_TurnInputDelay, CTR_MipsMulLo((s8)driver->turnConst, 0x32)), terrain->friction), 8);
 
 		rotCurrW_interp = VehCalc_InterpBySpeed(rotCurrW_original, rate, 0);
 
@@ -84,12 +84,13 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		char_wInterpLessThan0 = rotCurrW_interp < 0;
 		if (char_wInterpLessThan0)
 		{
-			rotCurrW_interp = -rotCurrW_interp;
-			rotCurrW_original = -rotCurrW_original;
+			rotCurrW_interp = CTR_MipsNegLo(rotCurrW_interp);
+			rotCurrW_original = CTR_MipsNegLo(rotCurrW_original);
 		}
 		if (rotCurrW_original < rotCurrW_interp)
 		{
-			rotCurrW_original += ((int)driver->const_TurnInputDelay + driver->turnConst * 100) * terrain->friction >> 8;
+			int rate = CTR_MipsSra(CTR_MipsMulLo(CTR_MipsAddLo(driver->const_TurnInputDelay, CTR_MipsMulLo((s8)driver->turnConst, 100)), terrain->friction), 8);
+			rotCurrW_original = CTR_MipsAddLo(rotCurrW_original, rate);
 
 			char_interpLessThanOG = rotCurrW_interp < rotCurrW_original;
 		LAB_8005fee4:
@@ -100,7 +101,8 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		}
 		else if (rotCurrW_interp < rotCurrW_original)
 		{
-			rotCurrW_original -= ((int)driver->const_TurnInputDelay + driver->turnConst * 50) * terrain->friction >> 8;
+			int rate = CTR_MipsSra(CTR_MipsMulLo(CTR_MipsAddLo(driver->const_TurnInputDelay, CTR_MipsMulLo((s8)driver->turnConst, 50)), terrain->friction), 8);
+			rotCurrW_original = CTR_MipsSubLo(rotCurrW_original, rate);
 
 			char_interpLessThanOG = rotCurrW_original < rotCurrW_interp;
 			goto LAB_8005fee4;
@@ -108,7 +110,7 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		forwardDir = (s16)rotCurrW_original;
 		if (char_wInterpLessThan0)
 		{
-			forwardDir = -forwardDir;
+			forwardDir = (s16)CTR_MipsNegLo(forwardDir);
 		}
 	}
 
@@ -118,9 +120,9 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 	rotCurrW_interp = (int)driver->timeUntilDriftSpinout;
 	if (rotCurrW_interp != 0)
 	{
-		classSpeed_halved = rotCurrW_interp - elapsedTimeMS;
+		classSpeed_halved = CTR_MipsSubLo(rotCurrW_interp, elapsedTimeMS);
 		rotCurrW_interp = VehCalc_MapToRange(rotCurrW_interp, 0, 0x140, 0, (int)driver->previousFrameMultDrift);
-		rotCurrW_original += rotCurrW_interp;
+		rotCurrW_original = CTR_MipsAddLo(rotCurrW_original, rotCurrW_interp);
 		if (classSpeed_halved < 0)
 		{
 			classSpeed_halved = 0;
@@ -128,25 +130,25 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		driver->timeUntilDriftSpinout = (s16)classSpeed_halved;
 	}
 
-	classSpeed_halved = (u32)(u16)driver->const_Speed_ClassStat << 0x10;
-	classSpeed_original = classSpeed_halved >> 0x10;
-	turnResistMax = (u32)(u8)driver->const_turnResistMax * classSpeed_original;
-	turnResistMin = (u32)(u8)driver->const_turnResistMin * classSpeed_original;
+	classSpeed_halved = CTR_MipsSll((u16)driver->const_Speed_ClassStat, 0x10);
+	classSpeed_original = CTR_MipsSra(classSpeed_halved, 0x10);
+	turnResistMax = CTR_MipsMulLo((u8)driver->const_turnResistMax, classSpeed_original);
+	turnResistMin = CTR_MipsMulLo((u8)driver->const_turnResistMin, classSpeed_original);
 	forwardDir = driver->unk_LerpToForwards;
 	rotCurrW_interp = (int)driver->const_modelRotVelMax;
-	turnResistMaxBitshift = turnResistMax >> 8;
-	turnResistMinBitshift = turnResistMin >> 8;
+	turnResistMaxBitshift = CTR_MipsSra(turnResistMax, 8);
+	turnResistMinBitshift = CTR_MipsSra(turnResistMin, 8);
 
 	// gas and brake together
 	if ((actionsFlagSet & 0x20) != 0)
 	{
-		turnResistMaxBitshift = turnResistMax >> 9;
+		turnResistMaxBitshift = CTR_MipsSra(turnResistMax, 9);
 		if (0x300 < speedApprox)
 		{
 			// driver is leaving skids
 			driver->actionsFlagSet = driver->actionsFlagSet | 0x800;
 		}
-		turnResistMinBitshift = turnResistMin >> 9;
+		turnResistMinBitshift = CTR_MipsSra(turnResistMin, 9);
 		if (driver->baseSpeed == 0)
 		{
 			rotCurrW_interp = (int)driver->const_modelRotVelMin;
@@ -156,21 +158,22 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 			turnResistMax = (int)driver->speed;
 			if (turnResistMax < 0)
 			{
-				turnResistMax = -turnResistMax;
+				turnResistMax = CTR_MipsNegLo(turnResistMax);
 			}
 			// Rotating the model to exaggerate the steering animation
 			// only do this if driver speed is more than 0x300
-			rotCurrW_interp = VehCalc_MapToRange(turnResistMax, 0x300, classSpeed_halved >> 0x11, (int)driver->const_modelRotVelMin, rotCurrW_interp);
+			rotCurrW_interp =
+			    VehCalc_MapToRange(turnResistMax, 0x300, CTR_MipsSra(classSpeed_halved, 0x11), (int)driver->const_modelRotVelMin, rotCurrW_interp);
 		}
 	}
 	driverSpeed = (int)driver->speed;
 	if (driverSpeed < 0)
 	{
-		driverSpeed = -driverSpeed;
+		driverSpeed = CTR_MipsNegLo(driverSpeed);
 	}
 
 	// this prevents you from steering sharp at low speeds
-	turnResistMin = ((u32)(u8)driver->const_TurnRate + ((int)driver->turnConst << 1) / 5) * 0x100;
+	turnResistMin = CTR_MipsSll(CTR_MipsAddLo((u8)driver->const_TurnRate, CTR_MipsSll((s8)driver->turnConst, 1) / 5), 8);
 	turnResistMax = VehCalc_MapToRange(driverSpeed, turnResistMinBitshift, turnResistMaxBitshift, turnResistMin, 0);
 
 	classSpeed_halved = 0;
@@ -179,20 +182,20 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		iVar1 = rotCurrW_original;
 		if (rotCurrW_original < 0)
 		{
-			iVar1 = -rotCurrW_original;
+			iVar1 = CTR_MipsNegLo(rotCurrW_original);
 		}
 		if (turnResistMax < iVar1)
 		{
 			classSpeed_halved = (int)driver->fireSpeed;
 			if (classSpeed_halved < 0)
 			{
-				classSpeed_halved = -classSpeed_halved;
+				classSpeed_halved = CTR_MipsNegLo(classSpeed_halved);
 			}
 			classSpeed_halved = VehCalc_MapToRange(classSpeed_halved, turnResistMinBitshift, turnResistMaxBitshift, 0, rotCurrW_interp);
 			classSpeed_halved = VehCalc_MapToRange(iVar1, turnResistMax, turnResistMin, 0, classSpeed_halved);
 			if (rotCurrW_original < 0)
 			{
-				classSpeed_halved = -classSpeed_halved;
+				classSpeed_halved = CTR_MipsNegLo(classSpeed_halved);
 			}
 		}
 	}
@@ -207,9 +210,9 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 
 	if (terrain->unk_0x20[1] != 0x100)
 	{
-		classSpeed_halved = terrain->unk_0x20[1] * classSpeed_halved >> 8;
+		classSpeed_halved = CTR_MipsSra(CTR_MipsMulLo(terrain->unk_0x20[1], classSpeed_halved), 8);
 	}
-	driftAngleCurr_Final = (int)driftAngleCurr_og + ((classSpeed_halved * elapsedTimeMS) >> 5);
+	driftAngleCurr_Final = CTR_MipsAddLo(driftAngleCurr_og, CTR_MipsSra(CTR_MipsMulLo(classSpeed_halved, elapsedTimeMS), 5));
 	driver->turnAngleCurr = (s16)driftAngleCurr_Final;
 	turnResistMinBitshift = rotCurrW_original;
 	if ((0x2ff < speedApprox) && ((actionsFlagSet & 1) != 0))
@@ -219,13 +222,13 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		                                           (int)driver->const_SteerAccel_Stage1_MinSteer, (int)driver->const_SteerAccel_Stage1_MaxSteer);
 		if (rotCurrW_original < 0)
 		{
-			turnResistMinBitshift = -rotCurrW_original;
+			turnResistMinBitshift = CTR_MipsNegLo(rotCurrW_original);
 		}
 
 		// driver->unk44e is const val 0x80
-		turnResistMinBitshift = driver->unk44e * turnResistMinBitshift >> 8;
+		turnResistMinBitshift = CTR_MipsSra(CTR_MipsMulLo(driver->unk44e, turnResistMinBitshift), 8);
 
-		driver->numFramesSpentSteering++;
+		driver->numFramesSpentSteering = (s16)CTR_MipsAddLo((u16)driver->numFramesSpentSteering, 1);
 
 		// the higher the value of turnResistMaxBitshift the more steering is "locked up"
 		// try setting mov r3, xxxx at 80060170 for proof
@@ -237,25 +240,26 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		// steering left or right
 		if ((actionsFlagSet & 0x10) != 0)
 		{
-			turnResistMaxBitshift = -turnResistMaxBitshift;
+			turnResistMaxBitshift = CTR_MipsNegLo(turnResistMaxBitshift);
 		}
 
 		// driver->unk450 = constant value zero, for all classes
 		turnResistMax = (int)driver->unk450;
 
-		if ((rotCurrW_original < 1) || (turnResistMinBitshift = -turnResistMax, turnResistMinBitshift <= rotCurrW_original + turnResistMaxBitshift))
+		if ((rotCurrW_original < 1) ||
+		    (turnResistMinBitshift = CTR_MipsNegLo(turnResistMax), turnResistMinBitshift <= CTR_MipsAddLo(rotCurrW_original, turnResistMaxBitshift)))
 		{
 			if (rotCurrW_original < 0)
 			{
-				turnResistMinBitshift = rotCurrW_original + turnResistMaxBitshift;
-				if (turnResistMax < rotCurrW_original + turnResistMaxBitshift)
+				turnResistMinBitshift = CTR_MipsAddLo(rotCurrW_original, turnResistMaxBitshift);
+				if (turnResistMax < CTR_MipsAddLo(rotCurrW_original, turnResistMaxBitshift))
 				{
 					turnResistMinBitshift = turnResistMax;
 				}
 			}
 			else
 			{
-				turnResistMinBitshift = rotCurrW_original + turnResistMaxBitshift;
+				turnResistMinBitshift = CTR_MipsAddLo(rotCurrW_original, turnResistMaxBitshift);
 			}
 		}
 	}
@@ -267,21 +271,21 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driver)
 		turnResistMin = driftAngleCurr_Final;
 		if (driftAngleCurr_Final < 0)
 		{
-			turnResistMin = -driftAngleCurr_Final;
+			turnResistMin = CTR_MipsNegLo(driftAngleCurr_Final);
 		}
-		if (rotCurrW_interp * 3 >> 2 < turnResistMin)
+		if (CTR_MipsSra(CTR_MipsAddLo(CTR_MipsSll(rotCurrW_interp, 1), rotCurrW_interp), 2) < turnResistMin)
 		{
 			rotCurrW_interp = classSpeed_halved;
 			if (classSpeed_halved < 0)
 			{
-				rotCurrW_interp = -classSpeed_halved;
+				rotCurrW_interp = CTR_MipsNegLo(classSpeed_halved);
 			}
 			if (rotCurrW_interp < 3)
 			{
 				rotCurrW_interp = turnResistMax;
 				if (turnResistMax < 0)
 				{
-					rotCurrW_interp = -turnResistMax;
+					rotCurrW_interp = CTR_MipsNegLo(turnResistMax);
 				}
 				if (rotCurrW_interp < 10)
 				{
@@ -301,7 +305,7 @@ LAB_80060284:
 	rotCurrW_interp = turnResistMax;
 	if (turnResistMax < 0)
 	{
-		rotCurrW_interp = -turnResistMax;
+		rotCurrW_interp = CTR_MipsNegLo(turnResistMax);
 	}
 	if (0x32 < rotCurrW_interp)
 	{
@@ -312,58 +316,56 @@ LAB_80060284:
 		rotCurrW_original = 10;
 		if (0 < turnResistMax)
 		{
-			rotCurrW_original = -10;
+			rotCurrW_original = CTR_MipsNegLo(10);
 		}
 		rotCurrW_interp = rotCurrW_original;
 		if (rotCurrW_original < 0)
 		{
-			rotCurrW_interp = -rotCurrW_original;
+			rotCurrW_interp = CTR_MipsNegLo(rotCurrW_original);
 		}
 		rotCurrW_interp = VehCalc_InterpBySpeed(turnResistMax, rotCurrW_interp, 0);
 		forwardDir = (s16)rotCurrW_interp;
 	}
 	else
 	{
-		turnResistMaxBitshift = turnResistMaxBitshift + -1;
-		forwardDir = driver->unk3D4[0] + (s16)rotCurrW_original;
+		turnResistMaxBitshift = CTR_MipsSubLo(turnResistMaxBitshift, 1);
+		forwardDir = (s16)CTR_MipsAddLo(driver->unk3D4[0], rotCurrW_original);
 	}
 	angle = driver->angle;
 	driver->unk3D4[2] = (s16)turnResistMaxBitshift;
 	driver->unk3D4[0] = forwardDir;
 	driver->unk3D4[1] = (s16)rotCurrW_original;
 	rotCurrW_interp = VehCalc_MapToRange(speedApprox, 0, 0x600, classSpeed_halved, 0);
-	rotCurrW_original = (rotCurrW_interp * elapsedTimeMS) >> 5;
+	rotCurrW_original = CTR_MipsSra(CTR_MipsMulLo(rotCurrW_interp, elapsedTimeMS), 5);
 	rotCurrW_interp = rotCurrW_original;
 	if (rotCurrW_original < 0)
 	{
-		rotCurrW_interp = -rotCurrW_original;
+		rotCurrW_interp = CTR_MipsNegLo(rotCurrW_original);
 	}
 	if (1 < rotCurrW_interp)
 	{
-		angle = angle - (s16)rotCurrW_original & 0xfff;
+		angle = (u16)(CTR_MipsSubLo(angle, rotCurrW_original) & 0xfff);
 	}
 	driver->ampTurnState = (s16)turnResistMinBitshift;
 
-	angle += (s16)((turnResistMinBitshift * elapsedTimeMS) >> 0xd);
-	angle &= 0xfff;
+	angle = (u16)(CTR_MipsAddLo(angle, CTR_MipsSra(CTR_MipsMulLo(turnResistMinBitshift, elapsedTimeMS), 0xd)) & 0xfff);
 	driver->angle = angle;
 
-	(driver->rotCurr).y = angle + (s16)driftAngleCurr_Final + forwardDir;
+	(driver->rotCurr).y = (s16)CTR_MipsAddLo(CTR_MipsAddLo(angle, (s16)driftAngleCurr_Final), forwardDir);
 
 	if (((actionsFlagSet & 8) == 0) && (driver->mashXUnknown < 7))
 	{
 		if (terrain->unk14 != 0x100)
 		{
-			turnResistMinBitshift = (turnResistMinBitshift * terrain->unk14) >> 8;
+			turnResistMinBitshift = CTR_MipsSra(CTR_MipsMulLo(turnResistMinBitshift, terrain->unk14), 8);
 		}
 	}
 	else
 	{
-		turnResistMinBitshift = (turnResistMinBitshift * 10) >> 8;
+		turnResistMinBitshift = CTR_MipsSra(CTR_MipsMulLo(turnResistMinBitshift, 10), 8);
 	}
 
-	driver->axisRotationX += (s16)((turnResistMinBitshift * elapsedTimeMS) >> 0xd);
-	driver->axisRotationX &= 0xfff;
+	driver->axisRotationX = (s16)(CTR_MipsAddLo((u16)driver->axisRotationX, CTR_MipsSra(CTR_MipsMulLo(turnResistMinBitshift, elapsedTimeMS), 0xd)) & 0xfff);
 
 	PhysTerrainSlope(driver);
 }

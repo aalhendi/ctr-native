@@ -5,7 +5,7 @@ int VehCalc_InterpBySpeed(int val, int speed, int desired)
 {
 	if (val > desired)
 	{
-		val -= speed;
+		val = CTR_MipsSubLo(val, speed);
 
 		if (val < desired)
 			return desired;
@@ -13,7 +13,7 @@ int VehCalc_InterpBySpeed(int val, int speed, int desired)
 
 	else
 	{
-		val += speed;
+		val = CTR_MipsAddLo(val, speed);
 
 		if (val > desired)
 			return desired;

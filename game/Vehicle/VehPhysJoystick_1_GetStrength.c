@@ -18,23 +18,28 @@ int VehPhysJoystick_GetStrength(int val, int max, struct RacingWheelData *rwd)
 	{
 		dead = rwd->deadZone;
 		range = rwd->range;
-		dist = range - dead;
+		dist = CTR_MipsSubLo(range, dead);
 	}
 
 	if (val < dead)
 		return 0;
 
-	dead = val - dead;
+	dead = CTR_MipsSubLo(val, dead);
 
 	if (range <= val)
 		return max;
 
-	if ((dist / 2) <= dead)
+	int halfDist = CTR_MipsSra(CTR_MipsAddLo(dist, (u32)dist >> 31), 1);
+	int maxFifth = max / 5;
+
+	if (halfDist <= dead)
 	{
-		dead = (dead - dist / 2) * (max - max / 5) * 2;
-		return (dead / dist) + (max / 5);
+		dead = CTR_MipsSubLo(dead, halfDist);
+		dead = CTR_MipsMulLo(dead, CTR_MipsSubLo(max, maxFifth));
+		dead = CTR_MipsSll(dead, 1);
+		return CTR_MipsAddLo(CTR_MipsDiv(dead, dist), maxFifth);
 	}
 
-	dead *= (max / 5) * 2;
-	return dead / dist;
+	dead = CTR_MipsMulLo(dead, CTR_MipsSll(maxFifth, 1));
+	return CTR_MipsDiv(dead, dist);
 }

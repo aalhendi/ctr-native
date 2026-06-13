@@ -8,45 +8,48 @@ enum ItemSet
 	ITEMSET_Race4,
 	ITEMSET_BattleDefault,
 	ITEMSET_BattleCustom,
-
-	// these two swapped,
-	// for the sake of array
-	ITEMSET_BossRace,
-	ITEMSET_CrystalChallenge
+	ITEMSET_CrystalChallenge,
+	ITEMSET_BossRace
 };
 
 // all except CrystalChallenge
-extern char *charPtr[7];
-extern char numWeapons[7];
+extern u8 *charPtr[8];
+extern u8 numWeapons[8];
 
 // Itemset infographic (outdated):
 // https://discord.com/channels/330945093416779787/550106151887568906/734368526294450267
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x80060f0c-0x80061488.
 void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 {
-	u32 rng;
+	s32 rng;
 	int itemSet;
-	char item;
-	char bossFails;
+	u8 item;
+	s8 bossFails;
 	struct GameTracker *gGT;
 
 	gGT = sdata->gGT;
 
-	// 6th Itemset (Battle Mode Custom Itemset)
-	itemSet = ITEMSET_BattleCustom;
+	itemSet = -1;
 
-	// 5th Itemset (Battle Mode Default Itemset, 0x34de)
-	if (gGT->battleSetup.enabledWeapons == 0x34de)
-		itemSet = ITEMSET_BattleDefault;
+	if ((gGT->gameMode1 & BATTLE_MODE) != 0)
+	{
+		// 6th Itemset (Battle Mode Custom Itemset)
+		itemSet = ITEMSET_BattleCustom;
+
+		// 5th Itemset (Battle Mode Default Itemset, 0x34de)
+		if (gGT->battleSetup.enabledWeapons == 0x34de)
+			itemSet = ITEMSET_BattleDefault;
+	}
 
 	// Not in Battle Mode
-	if ((gGT->gameMode1 & BATTLE_MODE) == 0)
+	else
 	{
-		// 7th Itemset (Crystal Challenge)
-		itemSet = ITEMSET_CrystalChallenge;
-
-		// Not in Crystal Challenge
-		if ((gGT->gameMode1 & CRYSTAL_CHALLENGE) == 0)
+		if ((gGT->gameMode1 & CRYSTAL_CHALLENGE) != 0)
+		{
+			// 7th Itemset (Crystal Challenge)
+			itemSet = ITEMSET_CrystalChallenge;
+		}
+		else
 		{
 			// Choose Itemset based on number of Drivers
 			int mode = gGT->numPlyrCurrGame + gGT->numBotsNextGame;
@@ -128,7 +131,7 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 				// 2,3 = 1 (itemset2)
 				// 4,5 = 2 (itemset3)
 				// 6,7 = 3 (itemset4)
-				itemSet = driver->driverRank >> 1;
+				itemSet = CTR_MipsSra(CTR_MipsAddLo(driver->driverRank, (u32)driver->driverRank >> 31), 1);
 
 				// if in 2nd place, get itemSet2
 				if (itemSet == 1)
@@ -146,7 +149,8 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 	}
 
 	// Decide item for Driver
-	rng = (MixRNG_Scramble() >> 0x3) % 0xc8;
+	rng = CTR_MipsSra(MixRNG_Scramble(), 0x3);
+	rng = CTR_MipsSubLo(rng, CTR_MipsMulLo(CTR_MipsDiv(rng, 0xc8), 0xc8));
 
 	switch (itemSet)
 	{
@@ -177,7 +181,7 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 	// "-1st place": Undecided rank
 	default:
 		rng = MixRNG_Scramble();
-		item = (char)rng + -0xc * ((char)(rng / 6 + (rng >> 0x1f) >> 1) - (char)(rng >> 0x1f));
+		item = (u8)CTR_MipsSubLo(rng, CTR_MipsMulLo(CTR_MipsDiv(rng, 0xc), 0xc));
 	SetItem:
 		driver->heldItemID = item;
 	}
@@ -254,8 +258,13 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 	return;
 }
 
-char *charPtr[7] = {&data.RNG_itemSetRace1[0],   &data.RNG_itemSetRace2[0],         &data.RNG_itemSetRace3[0],
-                    &data.RNG_itemSetRace4[0],   &data.RNG_itemSetBattleDefault[0], (char *)&sdata_static.gameTracker.battleSetup.RNG_itemSetCustom[0],
-                    &data.RNG_itemSetBossrace[0]};
+u8 *charPtr[8] = {(u8 *)&data.RNG_itemSetRace1[0],
+                  (u8 *)&data.RNG_itemSetRace2[0],
+                  (u8 *)&data.RNG_itemSetRace3[0],
+                  (u8 *)&data.RNG_itemSetRace4[0],
+                  (u8 *)&data.RNG_itemSetBattleDefault[0],
+                  (u8 *)&sdata_static.gameTracker.battleSetup.RNG_itemSetCustom[0],
+                  NULL,
+                  (u8 *)&data.RNG_itemSetBossrace[0]};
 
-char numWeapons[7] = {0x14, 0x34, 0x14, 0x13, 0x14, -1, 0x14};
+u8 numWeapons[8] = {0x14, 0x34, 0x14, 0x13, 0x14, 0, 0, 0x14};
