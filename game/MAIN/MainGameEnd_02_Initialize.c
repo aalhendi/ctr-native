@@ -138,9 +138,37 @@ static void MainGameEnd_UpdateBattlePointLimit(struct GameTracker *gGT)
 	MainGameEnd_UpdateBattleWinners_PointLimit(gGT);
 }
 
+static int MainGameEnd_BattleLifeSlotNumLives(struct GameTracker *gGT, int slot)
+{
+	struct Driver *driver = gGT->drivers[slot];
+
+#if defined(CTR_NATIVE)
+	// NOTE(aalhendi): Retail NULL slots read low mirrored RAM instead of
+	// faulting. Native preserves the unused-slot zero-lives effect directly.
+	if (driver == NULL)
+		return 0;
+#endif
+
+	return driver->BattleHUD.numLives;
+}
+
+static int MainGameEnd_BattleLifeSlotTeam(struct GameTracker *gGT, int slot)
+{
+	struct Driver *driver = gGT->drivers[slot];
+
+#if defined(CTR_NATIVE)
+	// NOTE(aalhendi): Preserve the same low-RAM NULL-slot quirk for retail's
+	// later team read without changing the mixed teamID/slot algorithm.
+	if (driver == NULL)
+		return 0;
+#endif
+
+	return driver->BattleHUD.teamID;
+}
+
 static void MainGameEnd_MarkBattleTeamSlotsUsed(struct GameTracker *gGT, int representativeSlot, u8 *usedSlots)
 {
-	int team = gGT->drivers[representativeSlot]->BattleHUD.teamID;
+	int team = MainGameEnd_BattleLifeSlotTeam(gGT, representativeSlot);
 
 	for (int i = 0; i < gGT->numPlyrCurrGame; i++)
 	{
@@ -163,12 +191,12 @@ static void MainGameEnd_UpdateBattleLifeLimit(struct GameTracker *gGT)
 
 		for (int slot = 3; slot >= 0; slot--)
 		{
-			struct Driver *driver = gGT->drivers[slot];
+			int lives = MainGameEnd_BattleLifeSlotNumLives(gGT, slot);
 
-			if (driver->BattleHUD.numLives == 0)
+			if (lives == 0)
 				continue;
 
-			if (driver->BattleHUD.numLives == bestLives)
+			if (lives == bestLives)
 			{
 				if ((usedSlots & (1u << slot)) != 0)
 					continue;
@@ -179,7 +207,7 @@ static void MainGameEnd_UpdateBattleLifeLimit(struct GameTracker *gGT)
 				continue;
 			}
 
-			if (driver->BattleHUD.numLives < bestLives)
+			if (lives < bestLives)
 				continue;
 
 			if ((usedSlots & (1u << slot)) != 0)
@@ -193,10 +221,10 @@ static void MainGameEnd_UpdateBattleLifeLimit(struct GameTracker *gGT)
 					usedSlots &= ~(1u << oldSlot);
 			}
 
-			bestLives = driver->BattleHUD.numLives;
+			bestLives = lives;
 			numTies = 0;
-			tiedSlots[0] = driver->BattleHUD.teamID;
-			usedSlots |= 1u << driver->BattleHUD.teamID;
+			tiedSlots[0] = MainGameEnd_BattleLifeSlotTeam(gGT, slot);
+			usedSlots |= 1u << tiedSlots[0];
 		}
 
 		if (tiedSlots[0] == -1)
@@ -209,11 +237,11 @@ static void MainGameEnd_UpdateBattleLifeLimit(struct GameTracker *gGT)
 		{
 			int representativeSlot = tiedSlots[i];
 			struct Driver *driver = gGT->drivers[representativeSlot];
-			int team = driver->BattleHUD.teamID;
+			int team = MainGameEnd_BattleLifeSlotTeam(gGT, representativeSlot);
 
 			gGT->standingsPoints[team * 3 + rank]++;
 
-			if (rank == 0)
+			if ((rank == 0) && (driver != NULL))
 			{
 				MainGameEnd_AddBattleWinner(gGT, driver);
 			}
