@@ -417,3 +417,285 @@ void VehBirth_TeleportSelf(struct Driver *d, u8 spawnFlag, int spawnPosY)
 	if ((gameMode2 & CHEAT_ENGINE) != 0)
 		d->superEngineTimer = 0x2d00;
 }
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058898-0x80058948.
+void VehBirth_TeleportAll(struct GameTracker *gGT, u32 spawnFlags)
+{
+	struct Driver *d;
+
+	for (int i = 0; i < 8; i++)
+	{
+		d = gGT->drivers[i];
+
+		if (d == NULL)
+			continue;
+
+		if (d->instSelf->thread->modelIndex == DYNAMIC_ROBOT_CAR)
+		{
+			BOTS_GotoStartingLine(d);
+		}
+
+		else
+		{
+			VehBirth_TeleportSelf(d, spawnFlags | 1, 0);
+		}
+	}
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058948-0x80058a60.
+struct Model *VehBirth_GetModelByName(char *searchName)
+{
+	struct Model *m;
+	struct Model **models;
+	int i;
+
+	// array to character models loaded,
+	// maximum of 4, used in VS mode
+	models = (struct Model **)&data.driverModelExtras[0];
+
+#define NUM_CHECK 3 // OG game: 3 drivers in VS mode
+
+	for (i = 0; i < NUM_CHECK; i++)
+	{
+		m = models[i];
+
+		// 12/16 bytes is enough
+		if ((m != NULL) && (*(u32 *)&m->name[0] == *(u32 *)&searchName[0]) && (*(u32 *)&m->name[4] == *(u32 *)&searchName[4]) &&
+		    (*(u32 *)&m->name[8] == *(u32 *)&searchName[8]) && (*(u32 *)&m->name[12] == *(u32 *)&searchName[12]))
+		{
+			// character found, return pointer
+			return m;
+		}
+	}
+
+	models = (struct Model **)sdata->PLYROBJECTLIST;
+
+	if (
+	    // list is valid, and first element is valid
+	    (models != NULL) && (models[0] != NULL))
+	{
+		// loop until all strings are checked (until current is not nullptr)
+		for (i = 0, m = models[i]; m != NULL; i++, m = models[i])
+		{
+			// 12/16 bytes is enough
+			if ((*(u32 *)&m->name[0] == *(u32 *)&searchName[0]) && (*(u32 *)&m->name[4] == *(u32 *)&searchName[4]) &&
+			    (*(u32 *)&m->name[8] == *(u32 *)&searchName[8]) && (*(u32 *)&m->name[12] == *(u32 *)&searchName[12]))
+			{
+				// character found, return pointer
+				return m;
+			}
+		}
+	}
+	return NULL;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058a60-0x80058ba4.
+void VehBirth_SetConsts(struct Driver *driver)
+{
+	u32 metaPhysSize;
+	u32 i;
+	struct MetaPhys *metaPhys;
+	u8 *d;
+
+	d = (u8 *)driver;
+
+	int engineID = data.MetaDataCharacters[data.characterIDs[driver->driverID]].engineID;
+
+	for (i = 0; i < 65; i++)
+	{
+		metaPhys = &data.metaPhys[i];
+
+		metaPhysSize = metaPhys->size;
+
+		u32 rawValue = (u32)metaPhys->value[engineID];
+		u8 *dst = &d[metaPhys->offset];
+
+		if (metaPhysSize == 1)
+		{
+			dst[0] = (u8)rawValue;
+			continue;
+		}
+
+		if (metaPhysSize == 2)
+		{
+			dst[0] = (u8)rawValue;
+			dst[1] = (u8)(rawValue >> 8);
+			continue;
+		}
+
+		if (metaPhysSize == 4)
+		{
+			dst[0] = (u8)rawValue;
+			dst[1] = (u8)(rawValue >> 8);
+			dst[2] = (u8)(rawValue >> 16);
+			dst[3] = (u8)(rawValue >> 24);
+		}
+	}
+
+	return;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058ba4-0x80058c44.
+void VehBirth_EngineAudio_AllPlayers(void)
+{
+	struct Thread *th;
+	struct GameTracker *gGT;
+	gGT = sdata->gGT;
+
+	for (th = gGT->threadBuckets[PLAYER].thread; th != 0; th = th->siblingThread)
+	{
+		struct Driver *d = th->object;
+
+		u8 driverID = d->driverID;
+
+		int engine = data.MetaDataCharacters[data.characterIDs[driverID]].engineID;
+
+		EngineAudio_InitOnce((engine * 4) + driverID, 0x8080);
+	}
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058c44-0x80058c4c.
+void VehBirth_NullThread(struct Thread *t)
+{
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058c4c-0x80058d2c.
+void VehBirth_TireSprites(struct Thread *t)
+{
+	struct GameTracker *gGT = sdata->gGT;
+	struct Driver *d = t->object;
+	struct IconGroup *tireAnim = gGT->iconGroup[0];
+	int driverID = d->driverID;
+
+	struct Icon **tire = ICONGROUP_GETICONS(tireAnim);
+	d->wheelSprites = tire;
+
+	d->wheelSize = 0xccc;
+
+	// compiler might reuse these registers in the IF,
+	// first set item to "none" and driverID, then
+	// check for Oxide in characterIDs
+
+	d->heldItemID = 0xf;
+	d->BattleHUD.teamID = driverID;
+
+	if (
+	    // if character ID is oxide
+	    (data.characterIDs[driverID] == NITROS_OXIDE) && (gGT->levelID != MAIN_MENU_LEVEL))
+	{
+		d->wheelSize = 0;
+	}
+
+	d->tireColor = 0x2e808080;
+	d->unkSpeedValue1 = 0xa00;
+
+	// unused by decomp, but if this function is combined
+	// with retail code, the variable must be set to 2
+	d->unk47B = 2;
+
+	d->AxisAngle1_normalVec.y = 0x1000;
+	d->AxisAngle2_normalVec[1] = 0x1000;
+	d->unk412 = 0x600;
+	d->numFramesSpentSteering = 10000;
+
+	d->terrainMeta1 = VehAfterColl_GetTerrain(TERRAIN_NONE);
+
+	d->BattleHUD.numLives = gGT->battleLifeLimit;
+
+	d->quip1 = 0xffff;
+	d->quip3 = 0xffff;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058d2c-0x80058ec0.
+void VehBirth_NonGhost(struct Thread *t, int index)
+{
+	// model index = DYNAMIC_PLAYER,
+	// AI will override this right after
+	// the end of the function
+	t->modelIndex = DYNAMIC_PLAYER;
+
+	t->driver_HitRadius = 0x40;
+	t->driver_unk1 = 0x1000;
+	t->driver_unk3E = 0x40;
+	t->driver_unk2 = 0;
+	t->driver_unk3 = 0;
+
+	struct Driver *d = t->object;
+	struct GameTracker *gGT = sdata->gGT;
+
+	int id = data.characterIDs[0];
+	if ((gGT->gameMode1 & 0x2000) == 0)
+	{
+		id = data.characterIDs[index];
+	}
+
+	struct Model *m = VehBirth_GetModelByName(data.MetaDataCharacters[id].name_Debug);
+
+	struct Instance *inst = INSTANCE_Birth3D(m, m->name, t);
+
+	t->inst = inst;
+
+	// Wake
+	m = gGT->modelPtr[STATIC_WAKE];
+	if (m != 0)
+	{
+		inst = INSTANCE_Birth3D(m, m->name, 0);
+		d->wakeInst = inst;
+
+		if (inst != 0)
+		{
+			// invisible, anim #1
+			inst->flags |= 0x90;
+		}
+
+		// sep 3
+		// else
+		// player %d wake create failed
+	}
+
+	/*
+	sep 3
+	else
+	printf("wake not in level\n");
+	*/
+
+	inst = t->inst;
+	if (index < gGT->numPlyrCurrGame)
+		inst->flags |= 0x4000000;
+
+	d->driverID = index;
+	d->instSelf = inst;
+
+	VehBirth_TireSprites(t);
+#ifdef CTR_NATIVE
+	// NOTE(aalhendi): Retail leaves terrainMeta2 unset until COLL_FIXED;
+	// native cannot dereference the PS1 low-memory null-space before then.
+	d->terrainMeta2 = d->terrainMeta1;
+#endif
+	VehBirth_SetConsts(d);
+
+	// if you are in cutscene or in main menu
+	if ((gGT->gameMode1 & 0x20002000) != 0)
+	{
+		// dont update, make invisible
+		t->funcThTick = VehBirth_NullThread;
+		inst->flags |= 0x80;
+	}
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80058ec0-0x80058f54.
+struct Driver *VehBirth_Player(int index)
+{
+	struct Thread *t = PROC_BirthWithObject(0x62c0100, 0, sdata->s_player, 0);
+
+	struct Driver *d = t->object;
+	memset(d, 0, 0x62c);
+
+	VehBirth_NonGhost(t, index);
+
+	d->funcPtrs[0] = VehPhysProc_Driving_Init;
+
+	d->BattleHUD.teamID = sdata->gGT->battleSetup.teamOfEachPlayer[index];
+
+	return d;
+}

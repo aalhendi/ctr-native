@@ -1,5 +1,286 @@
 #include <common.h>
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80064be4-0x80064c38.
+int VehPickupItem_MaskBoolGoodGuy(struct Driver *d)
+{
+	int charID;
+	charID = data.characterIDs[d->driverID];
+
+	// Crash, Coco, Pura, Polar, Penta
+	u32 maskBits = 0x20c9;
+
+	return (maskBits >> charID) & 1;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80064c38-0x80064f94.
+// boolPlaySound only gates sound when refreshing an existing mask object.
+struct MaskHeadWeapon *VehPickupItem_MaskUseWeapon(struct Driver *driver, int boolPlaySound)
+
+{
+	struct Thread *currThread;
+	struct MaskHeadWeapon *maskObj;
+	struct Model *modelPtr;
+	struct Thread *t;
+	struct GameTracker *gGT;
+	struct Instance *instance;
+	int soundID;
+
+	gGT = sdata->gGT;
+
+	if ((LOAD_IsOpen_RacingOrBattle() == 0) || ((gGT->gameMode1 & ADVENTURE_ARENA) != 0))
+	{
+		// no mask object in adv arena
+		maskObj = NULL;
+		return maskObj;
+	}
+
+	t = driver->instSelf->thread;
+
+	// check for existing mask
+	for (currThread = t->childThread; currThread != 0; currThread = currThread->siblingThread)
+	{
+		// if thread->modelIndex is NOT Aku or Uka
+		if ((u32)(currThread->modelIndex - STATIC_AKUAKU) >= 2)
+			continue;
+
+		currThread->funcThTick = RB_MaskWeapon_ThTick;
+
+		maskObj = currThread->object;
+		maskObj->duration = (driver->numWumpas < 10) ? 0x1e00 : 0x2d00;
+
+		if (
+		    // If this is human and not AI
+		    ((driver->actionsFlagSet & 0x100000) == 0) &&
+
+		    (boolPlaySound != 0))
+		{
+			// 0x3a: uka model
+			// 0x39: aku model
+
+			// 0x54: uka sound
+			// 0x53: aku model
+
+			soundID = currThread->modelIndex + 0x1A;
+			OtherFX_Play_Echo(soundID, 1, driver->actionsFlagSet & 0x10000);
+		}
+
+		// un-kill thread
+		currThread->flags &= ~(0x800);
+
+		// return object attached to thread
+		return (struct MaskHeadWeapon *)currThread->object;
+	}
+
+	int boolGoodGuy = VehPickupItem_MaskBoolGoodGuy(driver);
+
+	int modelID = STATIC_UKAUKA - boolGoodGuy;
+
+	// 0x3a: uka head model idx in modelPtr array
+	instance = INSTANCE_BirthWithThread(modelID, sdata->s_doctor1, SMALL, OTHER, RB_MaskWeapon_ThTick, sizeof(struct MaskHeadWeapon), t);
+
+	soundID = modelID + 0x1A;
+
+
+	if (
+	    // If this is human and not AI
+	    ((driver->actionsFlagSet & 0x100000) == 0) &&
+
+	    (OtherFX_Play_Echo(soundID, 1, driver->actionsFlagSet & 0x10000),
+
+	     1 < (u32)(driver->kartState - 4)))
+	{
+		if (boolGoodGuy == 0)
+		{
+			gGT->gameMode1 &= ~(AKU_SONG);
+			gGT->gameMode1 |= UKA_SONG;
+		}
+
+		else
+		{
+			gGT->gameMode1 &= ~(UKA_SONG);
+			gGT->gameMode1 |= AKU_SONG;
+		}
+	}
+
+	// 0x3a: uka model
+	// 0x39: aku model
+
+	// 0x40: uka beam
+	// 0x3E: aku beam
+
+	modelPtr = gGT->modelPtr[STATIC_AKUBEAM + ((modelID - STATIC_AKUAKU) * 2)];
+
+	t = instance->thread;
+
+	maskObj = (struct MaskHeadWeapon *)t->object;
+
+// NOTE(aalhendi): Native keeps this model lookup string host-side; PS1 uses
+// the retail RDATA symbol.
+#ifdef CTR_NATIVE
+	maskObj->maskBeamInst = INSTANCE_Birth3D(modelPtr, "akubeam1", t);
+#else
+	maskObj->maskBeamInst = INSTANCE_Birth3D(modelPtr, rdata.s_akubeam1, t);
+#endif
+
+	t->funcThDestroy = PROC_DestroyInstance;
+
+	t->flags |= 0x1000;                   // disable collision
+	instance->flags |= 0x80;              // make mask head invisible
+	maskObj->maskBeamInst->flags |= 0x80; // make mask beam invisible
+	maskObj->duration = (driver->numWumpas > 9) ? 0x2d00 : 0x1e00;
+	maskObj->rot[0] = 0x40;  // rotX
+	maskObj->rot[1] = 0;     // rotY
+	maskObj->rot[2] = 0;     // rotZ
+	maskObj->scale = 0x1000; // scale
+
+	return maskObj;
+}
+
+static struct PushBuffer *VehPickupItem_GetDriverPushBuffer(struct GameTracker *gGT, u8 driverID)
+{
+	return (struct PushBuffer *)((u8 *)&gGT->pushBuffer[0] + (driverID * sizeof(struct PushBuffer)));
+}
+
+static void VehPickupItem_MissileLoadPlayerView(struct GameTracker *gGT, struct Driver *driver)
+{
+	struct PushBuffer *pb = VehPickupItem_GetDriverPushBuffer(gGT, driver->driverID);
+
+	SetRotMatrix(&pb->matrix_ViewProj);
+	SetTransMatrix(&pb->matrix_ViewProj);
+}
+
+static void VehPickupItem_MissileLoadAiView(struct Driver *driver)
+{
+	SVECTOR rot = {driver->rotCurr.x, driver->rotCurr.y, driver->rotCurr.z, 0};
+	MATRIX matrix;
+	MATRIX unusedInverse;
+
+	RotMatrix(&rot, &matrix);
+	matrix.t[0] = driver->posCurr.x >> 8;
+	matrix.t[1] = driver->posCurr.y >> 8;
+	matrix.t[2] = driver->posCurr.z >> 8;
+
+	MATH_HitboxMatrix(&unusedInverse, &matrix);
+
+	SetRotMatrix(&matrix);
+	SetTransMatrix(&matrix);
+}
+
+static int VehPickupItem_MissileCandidateVisible(struct PushBuffer *pb, struct Driver *candidate)
+{
+	struct Instance *inst = candidate->instSelf;
+	u32 sxy;
+	s32 gteFlag;
+	s16 screenX;
+	s16 screenY;
+
+	MTC2(((u32)(u16)inst->matrix.t[0]) | ((u32)(u16)inst->matrix.t[1] << 16), 0);
+	MTC2((s32)(s16)inst->matrix.t[2], 1);
+	gte_rtps();
+
+	sxy = MFC2(14);
+	gteFlag = CFC2(31);
+	if ((gteFlag & 0x40000) != 0)
+		return 0;
+
+	screenX = (s16)sxy;
+	if (screenX < 0x1f)
+		return 0;
+	if (screenX >= pb->rect.w - 0x1e)
+		return 0;
+
+	screenY = (s16)(sxy >> 16);
+	if (screenY < 0x15)
+		return 0;
+	if (screenY >= pb->rect.h - 0x14)
+		return 0;
+
+	return 1;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80064f94-0x800652c8.
+struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
+{
+	struct GameTracker *gGT = sdata->gGT;
+	struct Driver *target = NULL;
+	s32 closestDistance = 0x7fffffff;
+	struct PushBuffer *pb = VehPickupItem_GetDriverPushBuffer(gGT, driver->driverID);
+
+	if (driver->instSelf->thread->modelIndex == DYNAMIC_PLAYER)
+	{
+		VehPickupItem_MissileLoadPlayerView(gGT, driver);
+	}
+	else
+	{
+		VehPickupItem_MissileLoadAiView(driver);
+	}
+
+	for (int i = 0; i < 8; i++)
+	{
+		struct Driver *candidate = gGT->drivers[i];
+
+		if (candidate == NULL)
+			continue;
+		if (candidate == driver)
+			continue;
+		if (candidate->kartState == KS_MASK_GRABBED)
+			continue;
+
+		if (((gGT->gameMode1 & BATTLE_MODE) != 0) && (candidate->BattleHUD.teamID == driver->BattleHUD.teamID))
+			continue;
+
+		if (candidate->invisibleTimer != 0)
+			continue;
+
+		if (!VehPickupItem_MissileCandidateVisible(pb, candidate))
+			continue;
+
+		s32 dx = (candidate->posCurr.x - driver->posCurr.x) >> 8;
+		s32 dz = (candidate->posCurr.z - driver->posCurr.z) >> 8;
+		s32 distance = (dx * dx) + (dz * dz);
+		if (distance < closestDistance)
+		{
+			closestDistance = distance;
+			target = candidate;
+		}
+	}
+
+	return target;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800652c8-0x8006540c.
+u32 VehPickupItem_PotionThrow(struct MineWeapon *mine, struct Instance *inst, u32 flags)
+{
+	s32 throwVelocity;
+
+	if ((flags & 4) == 0)
+	{
+		if ((flags & 2) == 0)
+		{
+			if ((flags & 1) == 0)
+				return 0;
+
+			throwVelocity = (MixRNG_Scramble() & 0x1f) - 0x10;
+		}
+		else
+		{
+			throwVelocity = -0x78;
+		}
+	}
+	else
+	{
+		throwVelocity = 0x78;
+	}
+
+	mine->velocity[0] = (inst->matrix.m[0][2] * throwVelocity) >> 12;
+	mine->velocity[1] = 0x30;
+	mine->velocity[2] = (inst->matrix.m[2][2] * throwVelocity) >> 12;
+	mine->crateInst = NULL;
+	mine->extraFlags |= 2;
+
+	return 1;
+}
+
 void VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 {
 	// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8006540c-0x800666e4.
@@ -689,4 +970,33 @@ void VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 	}
 	break;
 	}
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800666e4-0x8006677c.
+void VehPickupItem_ShootOnCirclePress(struct Driver *d)
+{
+	u8 weapon;
+
+	if (d->ChangeState_param2 != 0)
+	{
+		VehPickState_NewState(d, d->ChangeState_param2, (struct Driver *)d->ChangeState_param3, d->ChangeState_param4);
+	}
+
+	// If you want to fire a weapon
+	if ((d->actionsFlagSet & 0x8000) == 0)
+		return;
+
+	// Remove the request to fire a weapon, since we will fire it now
+	d->actionsFlagSet &= ~(0x8000);
+
+	weapon = d->heldItemID;
+
+	// Missiles and Bombs share code,
+	// Change Bomb1x, Bomb3x, Missile3x, to Missile1x
+	if ((weapon == 1) || (weapon == 10) || (weapon == 11))
+	{
+		weapon = 2;
+	}
+
+	VehPickupItem_ShootNow(d, (int)weapon, 0);
 }

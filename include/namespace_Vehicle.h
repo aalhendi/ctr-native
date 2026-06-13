@@ -771,7 +771,7 @@ struct Driver
 
 	// 0x300
 	// 0x300 = Kart skidmarks sound
-	// 0x304 = No sound yet defined* (VehEmitter_DriverMain.c: Line#290)
+	// 0x304 = No sound yet defined* (VehEmitter.c: VehEmitter_DriverMain)
 	// 0x308 = Kart "kirb_dirt" sound
 	// 0x30C = Kart "engine_jet" sound
 	void *driverAudioPtrs[4];

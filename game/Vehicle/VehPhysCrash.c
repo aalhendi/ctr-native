@@ -1,5 +1,203 @@
 #include <common.h>
 
+static u32 VehPhysCrash_LengthSq2(s32 x, s32 z)
+{
+	return (u32)CTR_MipsAddLo(CTR_MipsMulLo(x, x), CTR_MipsMulLo(z, z));
+}
+
+static u32 VehPhysCrash_LengthSq3(s32 x, s32 y, s32 z)
+{
+	return (u32)CTR_MipsAddLo(CTR_MipsAddLo(CTR_MipsMulLo(x, x), CTR_MipsMulLo(y, y)), CTR_MipsMulLo(z, z));
+}
+
+static s32 VehPhysCrash_Dot3(s32 ax, s32 ay, s32 az, s32 bx, s32 by, s32 bz)
+{
+	return CTR_MipsAddLo(CTR_MipsAddLo(CTR_MipsMulLo(ax, bx), CTR_MipsMulLo(ay, by)), CTR_MipsMulLo(az, bz));
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005cd1c-0x8005cf64.
+void VehPhysCrash_ConvertVecToSpeed(struct Driver *d, Vec3 *vel)
+{
+	int speed2D = VehCalc_FastSqrt(VehPhysCrash_LengthSq2(vel->x, vel->z), 0x10);
+	s16 speed3D = (s16)(VehCalc_FastSqrt(VehPhysCrash_LengthSq3(vel->x, vel->y, vel->z), 0x10) >> 8);
+
+	d->speed = speed3D;
+	d->axisRotationY = (s16)ratan2(CTR_MipsSll(vel->y, 8), speed2D);
+	d->axisRotationX = (s16)ratan2(vel->x, vel->z);
+
+	int projOnMovingDirAxis =
+	    CTR_MipsSra(VehPhysCrash_Dot3(vel->x, vel->y, vel->z, d->matrixMovingDir.m[0][1], d->matrixMovingDir.m[1][1], d->matrixMovingDir.m[2][1]), 0xc);
+
+	int projX = CTR_MipsSra(CTR_MipsMulLo(d->matrixMovingDir.m[0][1], projOnMovingDirAxis), 0xc);
+	int projY = CTR_MipsSra(CTR_MipsMulLo(d->matrixMovingDir.m[1][1], projOnMovingDirAxis), 0xc);
+	int projZ = CTR_MipsSra(CTR_MipsMulLo(d->matrixMovingDir.m[2][1], projOnMovingDirAxis), 0xc);
+
+	speed3D = (s16)(VehCalc_FastSqrt(VehPhysCrash_LengthSq3(projX, projY, projZ), 0x10) >> 8);
+
+	d->jumpHeightCurr = speed3D;
+	if (projOnMovingDirAxis < 0)
+	{
+		d->jumpHeightCurr = (s16)CTR_MipsNegLo(speed3D);
+	}
+
+	projX = CTR_MipsSubLo(vel->x, projX);
+	projY = CTR_MipsSubLo(vel->y, projY);
+	projZ = CTR_MipsSubLo(vel->z, projZ);
+
+	speed3D = (s16)(VehCalc_FastSqrt(VehPhysCrash_LengthSq3(projX, projY, projZ), 0x10) >> 8);
+
+	d->speedApprox = speed3D;
+
+	if (VehPhysCrash_Dot3(projX, projY, projZ, d->matrixMovingDir.m[0][2], d->matrixMovingDir.m[1][2], d->matrixMovingDir.m[2][2]) < 0)
+	{
+		d->speedApprox = (s16)CTR_MipsNegLo(speed3D);
+	}
+}
+
+static int VehPhysCrash_BounceSelf_Div6Shift9(int value)
+{
+	s64 product = (s64)value * 0x2aaaaaab;
+	int high = (s32)((u64)product >> 32);
+
+	return CTR_MipsSubLo(CTR_MipsSra(high, 9), CTR_MipsSra(value, 31));
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005cf64-0x8005d0d0.
+int VehPhysCrash_BounceSelf(s16 *normal, Vec3 *origin, Vec3 *vel, int boolOtherDriver)
+{
+	int diffX = CTR_MipsSubLo(vel->x, origin->x);
+	int diffY = CTR_MipsSubLo(vel->y, origin->y);
+	int diffZ = CTR_MipsSubLo(vel->z, origin->z);
+	int dot = CTR_MipsSra(CTR_MipsAddLo(CTR_MipsAddLo(CTR_MipsMulLo(diffX, normal[0]), CTR_MipsMulLo(diffY, normal[1])), CTR_MipsMulLo(diffZ, normal[2])), 0xc);
+
+	if (boolOtherDriver == 0)
+	{
+		if (dot >= 0)
+		{
+			return 0;
+		}
+	}
+	else if (dot <= 0)
+	{
+		return 0;
+	}
+
+	int absDot = dot;
+	if (absDot < 0)
+	{
+		absDot = CTR_MipsNegLo(absDot);
+	}
+
+	if (sdata->unk_8008d9f4[0] < absDot)
+	{
+		sdata->unk_8008d9f4[0] = absDot;
+	}
+
+	diffX = CTR_MipsSubLo(diffX, VehPhysCrash_BounceSelf_Div6Shift9(CTR_MipsMulLo(dot, normal[0])));
+	diffY = CTR_MipsSubLo(diffY, VehPhysCrash_BounceSelf_Div6Shift9(CTR_MipsMulLo(dot, normal[1])));
+	diffZ = CTR_MipsSubLo(diffZ, VehPhysCrash_BounceSelf_Div6Shift9(CTR_MipsMulLo(dot, normal[2])));
+
+	vel->x = CTR_MipsAddLo(diffX, origin->x);
+
+	int oldY = vel->y;
+	int newY = CTR_MipsAddLo(diffY, origin->y);
+	if ((oldY < newY) && (newY > 0x3200))
+	{
+		newY = 0x3200;
+	}
+	vel->y = newY;
+	vel->z = CTR_MipsAddLo(diffZ, origin->z);
+
+	return 0;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005d0d0-0x8005d218.
+void VehPhysCrash_AI(struct Driver *bot, Vec3 *vel)
+{
+	sdata->unk_rot[0] = (s16)CTR_MipsSll(bot->botData.botNavFrame->rot[0], 4);
+	sdata->unk_rot[1] = (s16)CTR_MipsSll(bot->botData.botNavFrame->rot[1], 4);
+	sdata->unk_rot[2] = (s16)CTR_MipsSll(bot->botData.botNavFrame->rot[2], 4);
+
+	// NOTE(aalhendi): Retail uses globals at 0x8009ae28 and 0x8009ae38.
+	// `dataLibFiller` covers that exact EXE data range in ctr-native.
+	int *forward = (int *)&sdata->dataLibFiller[0];
+	MATRIX *matrix = (MATRIX *)&sdata->dataLibFiller[0x10];
+
+	ConvertRotToMatrix(matrix, &sdata->unk_rot[0]);
+
+	forward[0] = CTR_MipsSra(matrix->m[0][2], 4);
+	forward[1] = CTR_MipsSra(matrix->m[1][2], 4);
+	forward[2] = CTR_MipsSra(matrix->m[2][2], 4);
+
+	int botSpeed =
+	    CTR_MipsSra(CTR_MipsAddLo(CTR_MipsAddLo(CTR_MipsMulLo(forward[0], vel->x), CTR_MipsMulLo(forward[1], vel->y)), CTR_MipsMulLo(forward[2], vel->z)), 8);
+
+	bot->botData.unk5bc.ai_speedLinear = botSpeed;
+	bot->botData.unk5bc.ai_accelAxis[0] = CTR_MipsSubLo(vel->x, CTR_MipsSra(CTR_MipsMulLo(forward[0], botSpeed), 8));
+	bot->botData.botFlags |= 8;
+	bot->botData.unk5bc.ai_accelAxis[2] = CTR_MipsSubLo(vel->z, CTR_MipsSra(CTR_MipsMulLo(forward[2], botSpeed), 8));
+}
+
+static void VehPhysCrash_Attack_SetReason(struct Driver *driver, u8 reason)
+{
+	*(u8 *)&driver->ChangeState_param4 = reason;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005d218-0x8005d404.
+int VehPhysCrash_Attack(struct Driver *driver1, struct Driver *driver2, int canPlayFeedback, int boolPlayBubblePop)
+{
+	if ((driver1->actionsFlagSet & 0x800000) == 0)
+	{
+		if ((driver2->actionsFlagSet & 0x800000) != 0)
+		{
+			driver1->ChangeState_param2 = 2;
+			VehPhysCrash_Attack_SetReason(driver1, 6);
+			driver1->ChangeState_param3 = (int)driver2;
+
+			if ((canPlayFeedback != 0) && (driver1->kartState != KS_BLASTED) && (driver1->invincibleTimer == 0))
+			{
+				OtherFX_DriverCrashing((driver1->actionsFlagSet >> 0x10) & 1, 0xff);
+				Voiceline_RequestPlay(1, data.characterIDs[driver1->driverID], 0x10);
+			}
+		}
+
+		if ((driver2->instBubbleHold != NULL) && (driver1->instBubbleHold == NULL))
+		{
+			struct Shield *bubble = driver2->instBubbleHold->thread->object;
+
+			bubble->flags |= 8;
+			driver2->instBubbleHold = NULL;
+
+			driver1->ChangeState_param2 = 2;
+			VehPhysCrash_Attack_SetReason(driver1, 0);
+			driver1->ChangeState_param3 = (int)driver2;
+
+			if ((canPlayFeedback != 0) && (driver1->kartState != KS_BLASTED) && (driver1->invincibleTimer == 0))
+			{
+				OtherFX_DriverCrashing((driver1->actionsFlagSet >> 0x10) & 1, 0xff);
+
+				if (boolPlayBubblePop != 0)
+				{
+					OtherFX_Play(0x4f, 1);
+				}
+
+				Voiceline_RequestPlay(1, data.characterIDs[driver1->driverID], 0x10);
+			}
+		}
+
+		if ((sdata->unk_8008d9f4[0] > 0xa00) && (driver2->reserves != 0) && ((driver2->actionsFlagSet & 0x200) != 0) && (driver1->reserves == 0))
+		{
+			driver2->forcedJump_trampoline = 2;
+
+			driver1->ChangeState_param2 = 3;
+			VehPhysCrash_Attack_SetReason(driver1, 5);
+			driver1->ChangeState_param3 = (int)driver2;
+		}
+	}
+
+	return canPlayFeedback;
+}
+
 // NOTE(aalhendi): These static helpers factor repeated retail blocks; they
 // are not separate retail symbols.
 static s32 VehPhysCrash_WeightedAverage(s32 lhs, s16 lhsWeight, s32 rhs, s16 rhsWeight)

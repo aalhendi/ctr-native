@@ -1,5 +1,49 @@
 #include <common.h>
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005b0c4-0x8005b0f4.
+int VehFrameInst_GetStartFrame(int animIndex, int numFrames)
+{
+	switch (animIndex)
+	{
+	// midpoint
+	case 0:
+		return numFrames >> 1;
+
+	// end
+	case 4:
+		return (numFrames - 1);
+
+	// start
+	default:
+		return 0;
+	}
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005b0f4-0x8005b178.
+u32 VehFrameInst_GetNumAnimFrames(struct Instance *inst, int animIndex)
+{
+	if (inst->model == NULL)
+		return 0;
+	if (inst->model->numHeaders <= 0)
+		return 0;
+	if (inst->model->headers == NULL)
+		return 0;
+
+	struct ModelHeader *mh = inst->model->headers;
+
+	if ((u32)animIndex >= mh->numAnimations)
+		return 0;
+	if (mh->ptrAnimations == NULL)
+		return 0;
+
+	struct ModelAnim *anim = mh->ptrAnimations[animIndex];
+
+	if (anim == NULL)
+		return 0;
+
+	return anim->numFrames & 0x7fff;
+}
+
 static void VehFrameProc_Driving_SpawnBurnSmoke(struct Driver *d)
 {
 	struct Particle *p = Particle_Init(0, sdata->gGT->iconGroup[1], &data.emSet_BurnSmoke[0]);
@@ -164,4 +208,90 @@ void VehFrameProc_Driving(struct Thread *t, struct Driver *d)
 	}
 
 	inst->animFrame = VehCalc_InterpBySpeed(inst->animFrame, 1, numFrames - 1);
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005b510-0x8005b5fc.
+void VehFrameProc_Spinning(struct Thread *t, struct Driver *d)
+{
+	struct Instance *inst = t->inst;
+	int numFrames = VehFrameInst_GetNumAnimFrames(inst, inst->animIndex);
+	int targetFrame;
+
+	if (numFrames <= 0)
+	{
+		return;
+	}
+
+	if (inst->animIndex != 0)
+	{
+		targetFrame = VehFrameInst_GetStartFrame(inst->animIndex, numFrames);
+
+		if ((u32)(inst->animIndex - 2) < 2)
+		{
+			d->matrixArray = 0;
+			d->matrixIndex = 0;
+		}
+
+		if (inst->animFrame == targetFrame)
+		{
+			numFrames = VehFrameInst_GetNumAnimFrames(inst, 0);
+			if (numFrames <= 0)
+			{
+				return;
+			}
+
+			inst->animIndex = 0;
+		}
+
+		if (inst->animIndex != 0)
+		{
+			inst->animFrame = VehCalc_InterpBySpeed(inst->animFrame, 4, targetFrame);
+			return;
+		}
+	}
+
+	targetFrame = 0;
+	if (d->KartStates.Spinning.spinDir >= 0)
+	{
+		targetFrame = numFrames - 1;
+	}
+
+	inst->animFrame = VehCalc_InterpBySpeed(inst->animFrame, 4, targetFrame);
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005b5fc-0x8005b6b8.
+void VehFrameProc_LastSpin(struct Thread *t, struct Driver *d)
+{
+	struct Instance *inst = t->inst;
+	int targetFrame;
+	int numFrames;
+
+	if (inst->animIndex != 0)
+	{
+		VehFrameProc_Spinning(t, d);
+		return;
+	}
+
+	numFrames = VehFrameInst_GetNumAnimFrames(inst, 0);
+	if (numFrames <= 0)
+	{
+		return;
+	}
+
+	targetFrame = inst->animFrame;
+
+	if (d->turnAngleCurr > 0)
+	{
+		if (d->unk_LerpToForwards < 0)
+		{
+			targetFrame = numFrames - 1;
+		}
+	}
+
+	if ((d->turnAngleCurr < 0) && (d->unk_LerpToForwards > 0))
+	{
+		targetFrame = 0;
+	}
+
+	inst->animFrame = VehCalc_InterpBySpeed(inst->animFrame, 3, targetFrame);
 }

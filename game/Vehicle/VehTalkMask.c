@@ -115,3 +115,50 @@ SkipLerp:
 		t->flags |= 0x800;
 	}
 }
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80069178-0x800691e4.
+struct Instance *VehTalkMask_Init()
+{
+	sdata->boolIsMaskThreadAlive = 1;
+	sdata->talkMask_boolDead = 0;
+
+	struct Instance *mhInst = INSTANCE_BirthWithThread(0x39, sdata->s_head, SMALL, AKUAKU, VehTalkMask_ThTick, 6, 0);
+
+	struct Thread *mhTh = mhInst->thread;
+	mhTh->funcThDestroy = PROC_DestroyInstance;
+
+	((struct MaskHint *)mhTh->object)->scale = 0;
+
+	return mhInst;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x800691e4-0x8006924c.
+void VehTalkMask_PlayXA(struct Instance *i, int id)
+{
+	struct Driver *d = sdata->gGT->drivers[0];
+
+	if (d != 0)
+	{
+		int boolGoodGuy = VehPickupItem_MaskBoolGoodGuy(d);
+
+		if (boolGoodGuy == 0)
+			id += 0x1f;
+	}
+
+	CDSYS_XAPlay(CDSYS_XA_TYPE_EXTRA, id);
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8006924c-0x8006925c.
+int VehTalkMask_boolNoXA()
+{
+	return sdata->XA_State == 0;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8006925c-0x80069284.
+void VehTalkMask_End()
+{
+	CDSYS_XAPauseRequest();
+
+	sdata->boolIsMaskThreadAlive = 0;
+	sdata->talkMask_boolDead = 1;
+}

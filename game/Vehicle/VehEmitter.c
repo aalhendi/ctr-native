@@ -1,5 +1,342 @@
 #include <common.h>
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80059100-0x80059344.
+struct Particle *VehEmitter_Exhaust(struct Driver *d, VECTOR *param_2, VECTOR *param_3)
+{
+	int exhaustType;
+
+	struct ParticleEmitter *emSet;
+	struct Particle *p = NULL;
+	struct GameTracker *gGT = sdata->gGT;
+	struct Instance *dInst = d->instSelf;
+
+	if (d->invisibleTimer != 0)
+		return 0;
+
+	if ((dInst->flags & HIDE_MODEL) != 0)
+		return 0;
+
+	// low LOD exhaust (4p or ai car)
+	exhaustType = 1;
+	emSet = &data.emSet_Exhaust_Low[0];
+
+	char numPlyr = gGT->numPlyrCurrGame;
+
+	// equivalent of (d->driverID < numPlyr),
+	// because modelIndex is not set to DYNAMIC_ROBOT_CAR
+	// for human players after BOTS_Driver_Convert is called
+	if (dInst->thread->modelIndex != DYNAMIC_ROBOT_CAR)
+	{
+		switch (numPlyr)
+		{
+		case 1:
+			// 1P mode, high LOD exhaust
+			emSet = &data.emSet_Exhaust_High[0];
+			break;
+		case 2:
+			// 2P mode, med LOD exhaust
+			emSet = &data.emSet_Exhaust_Med[0];
+			break;
+		}
+	}
+
+	if (((dInst->flags & SPLIT_LINE) != 0) && ((param_2->vy - param_3->vy) + d->posCurr.y < 256))
+	{
+		// bubble texture
+		exhaustType = 7;
+		emSet = &data.emSet_Exhaust_Water[0];
+	}
+
+	p = Particle_Init(0, gGT->iconGroup[exhaustType], emSet);
+
+	if (p == NULL)
+		return p;
+
+	for (char i = 0; i < 3; i++)
+	{
+		p->axis[i].startVal += (((int *)param_2)[i] - ((int *)param_3)[i]);
+		p->axis[i].velocity = ((int *)param_3)[i];
+	}
+
+	p->driverInst = dInst;
+	p->unk18 = dInst->unk50;
+
+	if (exhaustType == 7)
+	{
+		p->funcPtr = Particle_FuncPtr_ExhaustUnderwater;
+	}
+
+	// if engine revving
+	if (d->kartState == KS_ENGINE_REVVING)
+	{
+		if (d->revEngineState != 1)
+		{
+			return p;
+		}
+	}
+
+	// if not engine revving
+	else
+	{
+		s16 meterLeft = d->turbo_MeterRoomLeft;
+		if ((meterLeft < 129) || (((d->const_turboLowRoomWarning + 2) * 32) < meterLeft))
+		{
+			return p;
+		}
+	}
+
+	p->flagsSetColor &= ~(0x60);
+	p->flagsSetColor |= 0x40;
+
+	return p;
+}
+
+static const s16 sparkGround_inX[4] = {0x1800, 0, 0, 0};
+static const s16 sparkGround_inZ[4] = {0, 0, -0x1800, 0};
+static const s16 sparkGround_inZ2[4] = {0, 0, -0x200, 0};
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80059344-0x80059558.
+void VehEmitter_Sparks_Ground(struct Driver *d, struct ParticleEmitter *emSet)
+{
+	struct GameTracker *gGT = sdata->gGT;
+
+	int outX[3];
+	int outZ[3];
+	int outZ2[3];
+
+	gte_ldv0(sparkGround_inX);
+	gte_rtv0();
+	gte_stlvnl(outX);
+
+	gte_ldv0(sparkGround_inZ);
+	gte_rtv0();
+	gte_stlvnl(outZ);
+
+	gte_ldv0(sparkGround_inZ2);
+	gte_rtv0();
+	gte_stlvnl(outZ2);
+
+	for (int i = 0; i < 10; i++)
+	{
+		// Create instance in particle pool
+		struct Particle *p = Particle_Init(0, gGT->iconGroup[0], emSet);
+
+		if (p == NULL)
+			continue;
+
+		u32 rng = (u32)(RngDeadCoed(&gGT->deadcoed_struct.unk1) & 0x7ff);
+
+		if ((rng & 1) != 0)
+		{
+			rng = -rng;
+		}
+
+		for (int j = 0; j < 3; j++)
+		{
+			p->axis[j].velocity += (s16)outZ2[j] + (s16)((rng * outX[j]) >> 12);
+			p->axis[j].startVal += (int)outZ[j] + p->axis[j].velocity;
+		}
+
+		p->driverInst = d->instSelf;
+		p->unk18 = d->instSelf->unk50;
+	}
+}
+
+static const s16 terrainEmitterPos[4][4] = {
+    {0x1E, 0xA, -0x14, 0},
+    {-0x1E, 0xA, -0x14, 0},
+    {0x1E, 0xA, 0x28, 0},
+    {-0x1E, 0xA, 0x28, 0},
+};
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80059558-0x80059780.
+void VehEmitter_Terrain_Ground(struct Driver *d, struct ParticleEmitter *emSet)
+{
+	int speed;
+	char numTires;
+	int pos[3];
+	int vel[3];
+
+	int flags = d->actionsFlagSet;
+
+	// not touching quadblock
+	if ((flags & 1) == 0)
+		return;
+
+	// in accel prevention (holding square)
+	if ((flags & 8) != 0)
+		return;
+
+	// abs fireSpeed < 0x300
+	speed = d->fireSpeed;
+	if (speed < 0)
+		speed = -speed;
+	if (speed < 0x300)
+	{
+		// abs speedApprox < 0x300
+		speed = d->speedApprox;
+		if (speed < 0)
+			speed = -speed;
+		if (speed < 0x300)
+			return;
+	}
+
+	// if sliding, spawn on 4 tires, otherwise just 2
+	numTires = (d->kartState == KS_DRIFTING) ? 4 : 2;
+
+	struct Instance *dInst = d->instSelf;
+	struct IconGroup *ig = sdata->gGT->iconGroup[0];
+
+	// spawn particles on wheels
+	for (; numTires != 0; numTires--)
+	{
+		gte_ldv0(&terrainEmitterPos[numTires - 1][0]);
+		gte_rtv0();
+		gte_stlvnl(&pos[0]);
+
+		struct Particle *p = Particle_Init(0, ig, emSet);
+
+		if (p == NULL)
+			continue;
+
+		s16 velInput[3] = {p->axis[0].velocity, p->axis[1].velocity, p->axis[2].velocity};
+
+		gte_ldv0(&velInput[0]);
+		gte_rtv0();
+		gte_stlvnl(&vel[0]);
+
+		for (int i = 0; i < 3; i++)
+		{
+			p->axis[i].startVal += pos[i] * 0x100;
+			p->axis[i].velocity = (s16)vel[i];
+		}
+
+		p->driverInst = dInst;
+		p->unk18 = dInst->unk50;
+	}
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80059780-0x80059a18.
+void VehEmitter_Sparks_Wall(struct Driver *d, struct ParticleEmitter *emSet)
+{
+	int speedAbs = d->speedApprox;
+	if (speedAbs < 0)
+		speedAbs = -speedAbs;
+
+	// must have speed, or gas pedal, for vibration
+	if (((d->fireSpeed != 0) || (speedAbs > 0x200)) && (d->frameAgainstWall < 450))
+	{
+		// both gamepad vibration
+		GAMEPAD_ShockFreq(d, 8, 0);
+		GAMEPAD_ShockForce1(d, 8, 0x7f);
+
+		d->frameAgainstWall++;
+	}
+	else
+	{
+		d->frameAgainstWall = 0;
+	}
+
+	// must reach minimum speed for sparks
+	if (speedAbs <= 0x200)
+		return;
+
+	s16 *matrix = CTR_SCRATCHPAD_ADDR_PTR(s16, CTR_SCRATCHPAD_ADDR);
+	int *TireLeftOutS32 = (int *)&matrix[0];
+	int *TireRightOutS32 = (int *)&matrix[6];
+	s16 *TireLeftOutS16 = &matrix[0];
+	s16 *TireRightOutS16 = &matrix[3];
+	s16 *distIn4 = &matrix[6];
+	int *distOut4 = (int *)&matrix[6];
+
+	// s16[3] array
+	*(int *)&TireLeftOutS32[0] = 0xa00de00;
+	*(int *)&TireRightOutS32[0] = 0xa002200;
+
+	int valZ = -0x1400;
+	if (d->speedApprox > 0)
+		valZ = 0x2800;
+
+	// s16[3] array
+	*(int *)&TireLeftOutS32[1] = valZ;
+	*(int *)&TireRightOutS32[1] = valZ;
+
+	gte_ldv0(&TireLeftOutS32[0]);
+	gte_rtv0();
+	gte_stlvnl(&TireLeftOutS32[0]);
+
+	gte_ldv0(&TireRightOutS32[0]);
+	gte_rtv0();
+	gte_stlvnl(&TireRightOutS32[0]);
+
+	// this compresses TireLeft and TireRight from int to s16,
+	// which then doubles in usage as a matrix (3x2)
+	for (int i = 0; i < 6; i++)
+		TireLeftOutS16[i] = (u16)TireLeftOutS32[i];
+
+#ifdef CTR_NATIVE
+
+#define gte_SetLightMatrix3x2(r0)              \
+	{                                          \
+		CTC2(*(uint *)((char *)(r0)), 8);      \
+		CTC2(*(uint *)((char *)(r0) + 4), 9);  \
+		CTC2(*(uint *)((char *)(r0) + 8), 10); \
+	}
+
+#else
+
+#define gte_SetLightMatrix3x2(r0)        \
+	__asm__ volatile("lw		$t0, 0( %0 );" \
+	                 "lw		$t1, 4( %0 );" \
+	                 "lw		$t2, 8( %0 );" \
+	                 "ctc2	$t0, $8;"     \
+	                 "ctc2	$t1, $9;"     \
+	                 "ctc2	$t2, $10;"    \
+	                 :                   \
+	                 : "r"(r0)           \
+	                 : "$t2")
+
+#endif
+
+	gte_SetLightMatrix3x2(&matrix[0]);
+
+	// dist4 is actual distance
+	distIn4[0] = (d->posWallColl[0] * 0x100) - d->posCurr.x;
+	distIn4[1] = (d->posWallColl[1] * 0x100) - d->posCurr.y;
+	distIn4[2] = (d->posWallColl[2] * 0x100) - d->posCurr.z;
+
+	gte_ldv0(&distIn4[0]);
+	gte_llv0();
+	gte_stlvnl(&distOut4[0]);
+	if (distOut4[0] < distOut4[1])
+	{
+		TireLeftOutS16 = TireRightOutS16;
+	}
+
+	// Create instance in particle pool
+	struct Particle *p = Particle_Init(0, sdata->gGT->iconGroup[0], emSet);
+
+	if (p == NULL)
+		return;
+
+	for (int i = 0; i < 3; i++)
+	{
+		p->axis[i].startVal += TireLeftOutS16[i];
+		distIn4[i] = p->axis[i].velocity;
+	}
+
+	// dist4 now determines velocity
+	gte_ldv0(&distIn4[0]);
+	gte_rtv0();
+	gte_stlvnl(&distOut4[0]);
+
+	p->axis[0].velocity = (s16)distOut4[0];
+	p->axis[1].velocity = (s16)distOut4[1];
+	p->axis[2].velocity = (s16)distOut4[2];
+
+	p->driverInst = d->instSelf;
+}
+
 struct VehEmitterSkidmark
 {
 	s16 x0;
