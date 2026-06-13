@@ -1,5 +1,138 @@
 #include <common.h>
 
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8004f9d8-0x8004fd34.
+// Draw arrows over the heads of players
+void UI_BattleDrawHeadArrows(struct Driver *player)
+{
+	typedef struct
+	{
+		u32 tag;
+		u32 tpage;
+		POLY_G3 g3;
+	} G3_SEMITRANS;
+
+	int playerDistance;
+	u16 currTeam;
+	s16 sVar1;
+	s16 sVar3;
+	s16 sVar4;
+	s16 sVar5;
+	int iVar6;
+	s16 outXY[2];
+	u32 flag;
+	u32 color;
+	MATRIX *m;
+	G3_SEMITRANS *p;
+	SVECTOR pos;
+
+	struct GameTracker *gGT = sdata->gGT;
+
+	u8 playerID = player->driverID;
+
+	// pushBuffer ViewProj
+	m = &gGT->pushBuffer[playerID].matrix_ViewProj;
+	gte_SetRotMatrix(m);
+	gte_SetTransMatrix(m);
+
+	u8 numPlyr = gGT->numPlyrCurrGame;
+
+	for (u8 i = 0; i < numPlyr; i++)
+	{
+		// something related to player structure address
+		struct Driver *currDriver = gGT->drivers[i];
+
+		if (
+		    // skip yourself, skip invisible, skip finished players
+		    (i == playerID) || (currDriver->invisibleTimer != 0) || ((currDriver->actionsFlagSet & 0x2000000) != 0))
+		{
+			continue;
+		}
+
+		// If 3 or 4 Players
+		sVar1 = 5;
+
+		// If numPlyrCurrGame is less than 3
+		if (numPlyr < 3)
+		{
+			sVar1 = 3;
+		}
+
+		struct Instance *currInst = currDriver->instSelf;
+		struct Instance *playerInst = player->instSelf;
+
+		// Get X distance and Z distance between two players
+		int xDistance = playerInst->matrix.t[0] - currInst->matrix.t[0];
+		int zDistance = playerInst->matrix.t[2] - currInst->matrix.t[2];
+		int playerDistance = ((xDistance * xDistance) + (zDistance * zDistance));
+
+		// sqrt(0x90000) is 768
+
+		// If currentDriver more than 768 units away from this player,
+		// don't draw that driver's arrow
+		if (0x90000 > playerDistance)
+			continue;
+
+		// load input vector
+		pos.vx = currInst->matrix.t[0];
+		pos.vy = currInst->matrix.t[1];
+		pos.vz = currInst->matrix.t[2];
+
+		gte_ldv0(&pos); // xyz
+
+		// perspective projection
+		gte_rtps();
+
+		// get output
+		gte_stsxy(&outXY[0]);
+		gte_stflg(&flag);
+
+		if ((flag & 0x40000) != 0)
+			continue;
+
+		struct PrimMem *primMem = &gGT->backBuffer->primMem;
+
+		p = primMem->curr;
+		if ((int)p > (int)primMem->endMin100)
+			return;
+
+		primMem->curr = p + 1;
+
+		p->tpage = 0xe1000a20;
+		p->g3.tag = 0;
+
+		p->g3.code = 0x32;
+
+		sVar4 = outXY[0];
+		sVar5 = outXY[1] + sVar1;
+		iVar6 = (0x1000 - ((playerDistance / 6 + (playerDistance >> 0x1f) >> 0xd) - (playerDistance >> 0x1f)));
+		sVar1 = (s16)(iVar6 * 3 >> 10);
+		sVar3 = (s16)(iVar6 * 7 >> 12) + 12;
+
+		p->g3.x0 = sVar4 - sVar1;
+		p->g3.y0 = sVar5 - sVar3;
+		p->g3.x1 = sVar4;
+		p->g3.y1 = sVar5 - 12;
+		p->g3.x2 = sVar4 + sVar1;
+		p->g3.y2 = sVar5 - sVar3;
+
+		// Battle Team of this driver
+		currTeam = currDriver->BattleHUD.teamID;
+
+		// color data
+		color = *(u32 *)data.ptrColor[PLAYER_BLUE + currTeam];
+
+		// it's all the same color
+		*(int *)&p->g3.r0 = (color & 0xffffff) | 0x30000000;
+		*(int *)&p->g3.r1 = color | 0x30000000;
+		*(int *)&p->g3.r2 = color | 0x30000000;
+
+		u_long *ot = gGT->pushBuffer[playerID].ptrOT;
+
+		*(int *)p = *ot | 0x8000000;
+		*ot = CtrGpu_PrimToOTLink24(p);
+	}
+}
+
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8004fd34-0x8005045c.
 void UI_TrackerSelf(struct Driver *d)
 {
@@ -310,4 +443,114 @@ LAB_8004fe8c:
 	    screenPosX - (x >> 7), screenPosY - ((y * 0xf) >> 0xb),
 
 	    &gGT->backBuffer->primMem, gGT->pushBuffer[driverid].ptrOT, 1, x, y, bgColor);
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005045c-0x80050528.
+void UI_DrawPosSuffix(s16 posX, s16 posY, struct Driver *d, s16 flags)
+{
+	int currRank;
+	struct GameTracker *gGT = sdata->gGT;
+
+	// If you're not in Battle Mode
+	if ((gGT->gameMode1 & BATTLE_MODE) == 0)
+		// Get the rank you're in (1st, 2nd, 3rd, etc)
+		currRank = d->driverRank;
+	else
+		// get the rank that the battle team is in
+		currRank = gGT->battleSetup.finishedRankOfEachTeam[d->BattleHUD.teamID];
+
+	// Draw the suffix of your current position
+	DecalFont_DrawLine(sdata->lngStrings[data.stringIndexSuffix[currRank]], posX, posY, FONT_BIG, flags);
+
+	// setting posZ changes which number draws
+	if (d->instBigNum != 0)
+		d->instBigNum->matrix.t[2] = (d->driverRank + 0x100);
+
+	return;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80050528-0x80050654
+void UI_DrawLapCount(s16 posX, int posY, int param_3, struct Driver *d)
+{
+	s16 type;
+	s16 currLap;
+	int numLaps;
+	int flags;
+	char message[24];
+	char *str;
+
+	struct GameTracker *gGT;
+	int numPlyrCurrGame;
+
+	gGT = sdata->gGT;
+	numLaps = gGT->numLaps;
+	numPlyrCurrGame = gGT->numPlyrCurrGame;
+
+	currLap = d->lapIndex + 1;
+
+	if (currLap > numLaps)
+		currLap = numLaps;
+
+	// 3P or 4P
+	type = FONT_SMALL;
+	flags = PERIWINKLE;
+
+	// 1P or 2P
+	if (numPlyrCurrGame < 3)
+	{
+		DecalFont_DrawLine(sdata->lngStrings[LNG_LAP], posX, posY, FONT_SMALL, (JUSTIFY_RIGHT | PERIWINKLE));
+
+		sprintf(&message[0], &sdata->s_intDividing[0], currLap, numLaps);
+		str = &message[0];
+		type = FONT_BIG;
+		flags = (JUSTIFY_RIGHT | PERIWINKLE);
+	}
+	else
+	{
+		str = &sdata->s_printDividing[0];
+		str[0] = currLap + '0';
+		str[2] = numLaps + '0';
+
+		type = FONT_SMALL;
+		flags = PERIWINKLE;
+	}
+
+	// draw string
+	DecalFont_DrawLine(str, posX, (posY + 8), type, flags);
+}
+
+// Draw how many points or lifes the player has in battle
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80050654-0x800507e0.
+void UI_DrawBattleScores(int posX, int posY, struct Driver *d)
+{
+	struct Icon *icon;
+	int value;
+	char string[32];
+	struct GameTracker *gGT = sdata->gGT;
+
+	if ((gGT->gameMode1 & POINT_LIMIT) == 0)
+	{
+		if ((gGT->gameMode1 & LIFE_LIMIT) == 0)
+			return;
+
+		// == Life Limit
+
+		value = d->BattleHUD.numLives;
+		icon = gGT->ptrIcons[0x84];
+	}
+
+	else
+	{
+		// == Point Limit ==
+
+		value = gGT->battleSetup.pointsPerTeam[d->BattleHUD.teamID];
+		icon = gGT->ptrIcons[0x85];
+	}
+
+	// add value to string
+	sprintf(string, (char *)&sdata->s_longInt, value);
+
+	DecalFont_DrawLine(string, (s16)(posX + 37), (s16)(posY + 4), FONT_SMALL, data.battleScoreColor[gGT->numPlyrCurrGame - 1][d->driverID]);
+
+	DecalHUD_DrawPolyFT4(icon, posX, posY, &gGT->backBuffer->primMem, gGT->pushBuffer_UI.ptrOT, 1, 0x1000);
 }

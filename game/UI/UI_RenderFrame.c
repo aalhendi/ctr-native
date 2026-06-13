@@ -903,3 +903,267 @@ void UI_RenderFrame_Racing()
 		gGT->gameMode1 &= ~ROLLING_ITEM;
 	}
 }
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80054298-0x8005435c.
+void UI_RenderFrame_AdvHub(void)
+{
+	struct UiElement2D *hudStructPtr;
+	struct GameTracker *gGT;
+
+	gGT = sdata->gGT;
+	hudStructPtr = data.hudStructPtr[gGT->numPlyrCurrGame - 1];
+
+	UI_DrawNumRelic(hudStructPtr[0xE].x + 0x10, hudStructPtr[0xE].y - 10);
+	UI_DrawNumKey(hudStructPtr[0xF].x + 0x10, hudStructPtr[0xF].y - 10);
+	UI_DrawNumTrophy(hudStructPtr[0x10].x + 0x10, hudStructPtr[0x10].y - 10);
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005435c-0x8005465c.
+void UI_RenderFrame_CrystChall(void)
+{
+	struct GameTracker *gGT = sdata->gGT;
+	struct Driver *player;
+	struct UiElement2D *hudStructPtr;
+	int iVar5;
+	SVec2 crystalPos;
+
+	player = gGT->drivers[0];
+	hudStructPtr = data.hudStructPtr[0];
+
+	// If game is not paused
+	if ((gGT->gameMode1 & PAUSE_ALL) == 0)
+	{
+		// execute Jump meter and landing boost processes
+		UI_JumpMeter_Update(player);
+	}
+
+	UI_DrawSpeedNeedle(hudStructPtr[9].x, hudStructPtr[9].y, player);
+
+	UI_JumpMeter_Draw(hudStructPtr[6].x, hudStructPtr[6].y, player);
+
+	UI_DrawSlideMeter(hudStructPtr[8].x, hudStructPtr[8].y, player);
+
+	UI_DrawSpeedBG();
+
+	UI_DrawNumCrystal(hudStructPtr[0x11].x + 0x10, hudStructPtr[0x11].y - 0x10, player);
+
+	// Draw weapon and number of wumpa fruit in HUD
+	UI_Weapon_DrawSelf(hudStructPtr[0].x, hudStructPtr[0].y, hudStructPtr[0].scale, player);
+
+	DecalFont_DrawLine(sdata->lngStrings[LNG_TIME], 0x14, 8, FONT_SMALL, ORANGE);
+
+	// "TIME" and the actual time are printed at the same
+	// X-coordinate, so we know 0x14 is the X, which only
+	// leaves the next parameter as the only possible value for
+	// the Y-coordinate.
+
+	// draw countdown clock
+	UI_DrawLimitClock(0x14, 0x10, 1);
+
+
+	// If game is paused
+	if ((gGT->gameMode1 & PAUSE_ALL) != 0)
+	{
+		return;
+	}
+
+	if ((player->PickupWumpaHUD.numCollected) == 0)
+	{
+		// make invisible
+		sdata->ptrHudCrystal->flags |= 0x80;
+		goto LAB_800545e8;
+	}
+	crystalPos.x = hudStructPtr[0x11].x;
+	crystalPos.y = hudStructPtr[0x11].y;
+
+	// make visible
+	sdata->ptrHudCrystal->flags &= 0xffffff7f;
+
+	// if cooldown between grabbing items is over,
+	// which also means item has moved to the hud icon
+	if ((player->PickupWumpaHUD.cooldown) == 0)
+	{
+		// add one to your crystal count
+		player->numCrystals++;
+
+		// deduct from number of queued items to pick up
+		player->PickupWumpaHUD.numCollected--;
+
+		// if you have enough crystals to win the race
+		if (gGT->numCrystalsInLEV <= player->numCrystals)
+		{
+			player->funcPtrs[0] = VehPhysProc_FreezeEndEvent_Init;
+
+			// turn on 26th bit of Actions Flag set (means racer finished the race)
+			player->actionsFlagSet |= 0x2000000;
+
+			MainGameEnd_Initialize();
+		}
+
+		// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80054550-0x80054558 for crystal pickup SFX.
+		OtherFX_Play(0x42, 1);
+
+		if (player->PickupWumpaHUD.numCollected != 0)
+			player->PickupWumpaHUD.cooldown = 5;
+	}
+
+	// if cooldown is not done
+	else
+	{
+		// interpolate position over course of 5 frames
+		UI_Lerp2D_HUD(crystalPos.v, (int)player->PickupWumpaHUD.startX, (int)player->PickupWumpaHUD.startY, (int)hudStructPtr[0x11].x,
+		              (int)hudStructPtr[0x11].y, player->PickupWumpaHUD.cooldown, 5);
+
+		// reduce cooldown between getting each wumpa (or crystal)
+		player->PickupWumpaHUD.cooldown--;
+	}
+
+	struct Instance *hudCrystal = sdata->ptrHudCrystal;
+
+	// ======= This is UI_ConvertX_2 and Y_2, but inlined =======
+
+	// posX
+	iVar5 = (crystalPos.x + -0x100) * hudStructPtr[0x11].z;
+	if (iVar5 < 0)
+	{
+		iVar5 = iVar5 + 0xff;
+	}
+	hudCrystal->matrix.t[0] = iVar5 >> 8;
+
+	// posY
+	iVar5 = (crystalPos.y + -0x6c) * hudStructPtr[0x11].z;
+	if (iVar5 < 0)
+	{
+		iVar5 = iVar5 + 0xff;
+	}
+	hudCrystal->matrix.t[1] = iVar5 >> 8;
+
+	// posZ
+	hudCrystal->matrix.t[2] = hudStructPtr[0x11].z;
+
+LAB_800545e8:
+
+	// quit if game is paused, or item is
+	// rolling, or not drawing roulette
+	if ((gGT->gameMode1 & PAUSE_ALL) != 0)
+		return;
+	if (player->itemRollTimer != 0)
+		return;
+	if ((gGT->gameMode1 & ROLLING_ITEM) == 0)
+		return;
+
+	// if not paused, item stopped rolling, and
+	// weapon roulette sound is playing, then
+	// stop the sound and remove flag
+	// NOTE(aalhendi): ASM-verified NTSC-U 926 0x80054618-0x80054628 for roulette SFX stop.
+	OtherFX_Stop2(0x5d);
+	gGT->gameMode1 &= ~(ROLLING_ITEM);
+
+	return;
+}
+
+// NOTE(aalhendi): ASM-verified NTSC-U 926 0x8005465c-0x80054a08.
+void UI_RenderFrame_Wumpa3D_2P3P4P(struct GameTracker *gGT)
+{
+	RECT viewport2P;
+	RECT viewport3P4P;
+	RECT *viewport;
+	struct PushBuffer *wumpaPushBuffer;
+	u32 packedRect;
+
+	// NOTE(aalhendi): Retail copies packed RECT halfwords; native unpacks them
+	// explicitly to avoid strict-aliasing UB from writing RECT fields as u32.
+	packedRect = sdata->multiplayerWumpaHudData[0];
+	viewport2P.x = (s16)packedRect;
+	viewport2P.y = (s16)(packedRect >> 16);
+	packedRect = sdata->multiplayerWumpaHudData[1];
+	viewport2P.w = (s16)packedRect;
+	viewport2P.h = (s16)(packedRect >> 16);
+	packedRect = sdata->multiplayerWumpaHudData[2];
+	viewport3P4P.x = (s16)packedRect;
+	viewport3P4P.y = (s16)(packedRect >> 16);
+	packedRect = sdata->multiplayerWumpaHudData[3];
+	viewport3P4P.w = (s16)packedRect;
+	viewport3P4P.h = (s16)(packedRect >> 16);
+
+	viewport = &viewport2P;
+	if (gGT->numPlyrCurrGame >= 3)
+		viewport = &viewport3P4P;
+
+	// NOTE(aalhendi): Retail reads the gp slot populated by UI_INSTANCE_InitAll
+	// with ptrPushBufferUI, not the adjacent ptrFruitDisp instance slot.
+	wumpaPushBuffer = (struct PushBuffer *)(uintptr_t)sdata->ptrPushBufferUI;
+
+	if (wumpaPushBuffer != NULL)
+	{
+		PushBuffer_SetDrawEnv_DecalMP(wumpaPushBuffer->renderBucketOTRangeEnd, gGT->backBuffer, viewport, viewport->x + (viewport->w >> 1) - 0x100,
+		                              viewport->y + (viewport->h >> 1) - 0x6c, 0, 0, 0, 0, 1);
+
+		u32 *textureStart = wumpaPushBuffer->ptrOT;
+		u32 *textureEnd = wumpaPushBuffer->renderBucketOTRangeEnd;
+
+		if (textureStart != NULL && textureEnd != NULL)
+		{
+			CTR_CycleTex_2p3p4pWumpaHUD((u32 *)&gGT->pushBuffer[0].ptrOT[0x3ff], textureStart, (int)(textureEnd - textureStart) + 1);
+		}
+	}
+
+	if (gGT->numPlyrCurrGame < 2)
+		return;
+
+	struct UiElement2D *hud = data.hudStructPtr[gGT->numPlyrCurrGame - 1];
+
+	for (int playerIndex = 0; playerIndex < gGT->numPlyrCurrGame; playerIndex++, hud += 0x14)
+	{
+		struct Driver *driver = gGT->drivers[playerIndex];
+
+		if ((driver->actionsFlagSet & ACTION_RACE_FINISHED) != 0)
+			continue;
+
+		if ((gGT->gameMode1 & END_OF_RACE) != 0)
+			continue;
+
+		s16 posX = hud[3].x + wumpaPushBuffer->rect.x - (viewport->w >> 1);
+		s16 posY = hud[3].y + wumpaPushBuffer->rect.y - (viewport->h >> 1);
+
+		u32 *prim = (u32 *)gGT->backBuffer->primMem.curr;
+
+		*(u8 *)((u8 *)prim + 3) = 9;
+		*(u8 *)((u8 *)prim + 7) = 0x2c;
+		*(u8 *)((u8 *)prim + 6) = 0x80;
+		*(u8 *)((u8 *)prim + 5) = 0x80;
+		*(u8 *)((u8 *)prim + 4) = 0x80;
+
+		*(s16 *)((u8 *)prim + 0x08) = posX;
+		*(s16 *)((u8 *)prim + 0x0a) = posY;
+		*(s16 *)((u8 *)prim + 0x12) = posY;
+		*(s16 *)((u8 *)prim + 0x18) = posX;
+		*(s16 *)((u8 *)prim + 0x10) = posX + viewport->w;
+		*(s16 *)((u8 *)prim + 0x1a) = posY + viewport->h;
+		*(s16 *)((u8 *)prim + 0x20) = posX + viewport->w;
+		*(s16 *)((u8 *)prim + 0x22) = posY + viewport->h;
+
+		*(u8 *)((u8 *)prim + 0x0c) = viewport->x & 0x3f;
+		*(u8 *)((u8 *)prim + 0x0d) = viewport->y;
+		*(u8 *)((u8 *)prim + 0x14) = *(u8 *)((u8 *)prim + 0x0c) + (u8)viewport->w;
+		*(u8 *)((u8 *)prim + 0x15) = *(u8 *)((u8 *)prim + 0x0d);
+		*(u8 *)((u8 *)prim + 0x1c) = *(u8 *)((u8 *)prim + 0x0c);
+		*(u8 *)((u8 *)prim + 0x1d) = *(u8 *)((u8 *)prim + 0x0d) + (u8)viewport->h;
+		*(u8 *)((u8 *)prim + 0x24) = *(u8 *)((u8 *)prim + 0x0c) + (u8)viewport->w;
+		*(u8 *)((u8 *)prim + 0x25) = *(u8 *)((u8 *)prim + 0x0d) + (u8)viewport->h;
+
+		u16 tpage = (u16)(((viewport->y & 0x100) >> 4) | ((viewport->x & 0x3ff) >> 6) | 0x100 | ((viewport->y & 0x200) << 2));
+		*(u16 *)((u8 *)prim + 0x16) = tpage;
+
+		if (driver->numWumpas >= 10)
+		{
+			u8 shineColor = sdata->wumpaShineColor1[0][0];
+			*(u8 *)((u8 *)prim + 6) = shineColor;
+			*(u8 *)((u8 *)prim + 5) = shineColor;
+			*(u8 *)((u8 *)prim + 4) = shineColor;
+		}
+
+		gGT->backBuffer->primMem.curr = prim + 10;
+		AddPrim(gGT->pushBuffer_UI.ptrOT, prim);
+	}
+}
