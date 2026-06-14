@@ -719,15 +719,12 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
                                               s32 normalZW);
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8001ef1c-0x8001ef50
-void COLL_FIXED_TRIANGL_UNUSED(void *sps, void *v1, void *v2, void *v3)
+void COLL_FIXED_TRIANGL_UNUSED(struct ScratchpadStruct *sps, struct BspSearchVertex *v1, struct BspSearchVertex *v2, struct BspSearchVertex *v3)
 {
-	struct ScratchpadStruct *scratchpad = (struct ScratchpadStruct *)sps;
-
 	// NOTE(aalhendi): Retail skips the TestPoint setup and jumps into the
 	// shared body with t2 preloaded from sps+0x58. Native makes a0-a3 and t2
 	// explicit.
-	COLL_FIXED_TRIANGL_TestPoint_Body(scratchpad, (struct BspSearchVertex *)v1, (struct BspSearchVertex *)v2, (struct BspSearchVertex *)v3,
-	                                  (s32)CollFixed_PackS16Pair(scratchpad->candidate.plane.normal.z, scratchpad->candidate.plane.halfDistance));
+	COLL_FIXED_TRIANGL_TestPoint_Body(sps, v1, v2, v3, (s32)CollFixed_PackS16Pair(sps->candidate.plane.normal.z, sps->candidate.plane.halfDistance));
 }
 
 
@@ -920,35 +917,30 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
 }
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8001ef50-0x8001f2dc
-void COLL_FIXED_TRIANGL_TestPoint(void *sps, void *v1, void *v2, void *v3)
+void COLL_FIXED_TRIANGL_TestPoint(struct ScratchpadStruct *sps, struct BspSearchVertex *v1, struct BspSearchVertex *v2, struct BspSearchVertex *v3)
 {
-	struct ScratchpadStruct *scratchpad = (struct ScratchpadStruct *)sps;
-	struct BspSearchVertex *vertex = (struct BspSearchVertex *)v1;
-	s32 normalZW = (s32)CollFixed_PackS16Pair(vertex->plane.normal.z, vertex->plane.halfDistance);
+	s32 normalZW = (s32)CollFixed_PackS16Pair(v1->plane.normal.z, v1->plane.halfDistance);
 
-	scratchpad->numTrianglesTested = (s16)((u16)scratchpad->numTrianglesTested + 1);
-	scratchpad->candidate.normalAxis = (CollNormalAxis)vertex->flags;
-	scratchpad->candidate.plane = vertex->plane;
+	sps->numTrianglesTested = (s16)((u16)sps->numTrianglesTested + 1);
+	sps->candidate.normalAxis = (CollNormalAxis)v1->flags;
+	sps->candidate.plane = v1->plane;
 
-	COLL_FIXED_TRIANGL_TestPoint_Body(scratchpad, vertex, (struct BspSearchVertex *)v2, (struct BspSearchVertex *)v3, normalZW);
+	COLL_FIXED_TRIANGL_TestPoint_Body(sps, v1, v2, v3, normalZW);
 }
 
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8001f2dc-0x8001f41c
-void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
+void COLL_FIXED_TRIANGL_GetNormVec(struct ScratchpadStruct *sps, struct BspSearchVertex *v1, struct BspSearchVertex *v2, struct BspSearchVertex *v3)
 {
-	struct ScratchpadStruct *scratchpad = (struct ScratchpadStruct *)sps;
-	struct BspSearchVertex *vertex = (struct BspSearchVertex *)v1;
-	u8 *v1Bytes = (u8 *)v1;
-	s32 v1x = CollFixed_ReadS16(v1Bytes, 0);
-	s32 v1y = CollFixed_ReadS16(v1Bytes, 2);
-	s32 v1z = CollFixed_ReadS16(v1Bytes, 4);
-	s32 edgeAX = CollFixed_ReadS16(v3, 0) - v1x;
-	s32 edgeAY = CollFixed_ReadS16(v3, 2) - v1y;
-	s32 edgeAZ = CollFixed_ReadS16(v3, 4) - v1z;
-	s32 edgeBX = CollFixed_ReadS16(v2, 0) - v1x;
-	s32 edgeBY = CollFixed_ReadS16(v2, 2) - v1y;
-	s32 edgeBZ = CollFixed_ReadS16(v2, 4) - v1z;
+	s32 v1x = v1->pos.x;
+	s32 v1y = v1->pos.y;
+	s32 v1z = v1->pos.z;
+	s32 edgeAX = v3->pos.x - v1x;
+	s32 edgeAY = v3->pos.y - v1y;
+	s32 edgeAZ = v3->pos.z - v1z;
+	s32 edgeBX = v2->pos.x - v1x;
+	s32 edgeBY = v2->pos.y - v1y;
+	s32 edgeBZ = v2->pos.z - v1z;
 	u32 lodShift;
 	u32 normalShift;
 	s32 scale;
@@ -966,9 +958,9 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 	CollFixed_GteLoadR33((u16)edgeAZ);
 	CollFixed_GteLoadIR(edgeBX, edgeBY, edgeBZ);
 
-	lodShift = scratchpad->collision.triNormalLodShift;
-	normalShift = scratchpad->collision.triNormalVecBitShift;
-	scale = scratchpad->collision.triNormalVecDividend;
+	lodShift = sps->collision.triNormalLodShift;
+	normalShift = sps->collision.triNormalVecBitShift;
+	scale = sps->collision.triNormalVecDividend;
 
 	CollFixed_GteOP0();
 
@@ -976,22 +968,22 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 	ny = CollFixed_GteReadMAC2();
 	nz = CollFixed_GteReadMAC3();
 
-	CollFixed_GteLoadR11R12(CollFixed_ReadU32(v1Bytes, 0));
-	CollFixed_GteLoadR13R21(CollFixed_ReadU16(v1Bytes, 4));
+	CollFixed_GteLoadR11R12(CollFixed_PackS16Pair(v1x, v1y));
+	CollFixed_GteLoadR13R21((u16)v1z);
 
 	nx = CTR_MipsMulLo(nx >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
 	ny = CTR_MipsMulLo(ny >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
 	nz = CTR_MipsMulLo(nz >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
 
 	CollFixed_GteLoadIR(nx, ny, nz);
-	vertex->plane.normal.x = (s16)nx;
-	vertex->plane.normal.y = (s16)ny;
+	v1->plane.normal.x = (s16)nx;
+	v1->plane.normal.y = (s16)ny;
 
 	CollFixed_GteRTIR();
 	plane = CollFixed_GteReadMAC1();
 
-	vertex->plane.normal.z = (s16)nz;
-	vertex->plane.halfDistance = (s16)(plane >> 1);
+	v1->plane.normal.z = (s16)nz;
+	v1->plane.halfDistance = (s16)(plane >> 1);
 
 	absX = Coll_MipsAbsS32(nx);
 	absY = Coll_MipsAbsS32(ny);
@@ -1010,7 +1002,7 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 		dominantAxis = COLL_NORMAL_AXIS_X;
 	}
 
-	vertex->flags = (u16)dominantAxis;
+	v1->flags = (u16)dominantAxis;
 }
 
 
