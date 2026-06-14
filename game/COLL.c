@@ -179,14 +179,9 @@ static u32 CollFixed_PackS16Pair(s32 lo, s32 hi)
 	return (u16)lo | ((u32)(u16)hi << 16);
 }
 
-static s32 CollFixed_Sll32(s32 value, u32 shift)
+static s32 Coll_MipsAbsS32(s32 value)
 {
-	return (s32)((u32)value << (shift & 0x1f));
-}
-
-static s32 CollFixed_MulLo(s32 a, s32 b)
-{
-	return (s32)(u32)((s64)a * (s64)b);
+	return (value < 0) ? CTR_MipsNegLo(value) : value;
 }
 
 static s16 CollFixed_ReadS16(const void *base, int offset)
@@ -357,7 +352,7 @@ void COLL_FIXED_TRIANGL_Barycentrics(s16 *out, s16 *v1, s16 *v2, s16 *point)
 		shift = 12;
 	}
 
-	pointDot = CollFixed_Sll32(pointDot, shift);
+	pointDot = CTR_MipsSll(pointDot, shift);
 
 	if (shift < 12)
 	{
@@ -500,7 +495,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	}
 
 	divisor = dotSegment >> (12 - shift);
-	dotCenter = CollFixed_Sll32(dotCenter, shift);
+	dotCenter = CTR_MipsSll(dotCenter, shift);
 
 	if (divisor < 0)
 		return 0;
@@ -512,13 +507,13 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	}
 	CollFixed_WriteS32(spsBytes, 0x1b4, factor);
 
-	projX = CollFixed_MulLo(factor, diffX) >> 12;
+	projX = CTR_MipsMulLo(factor, diffX) >> 12;
 	projY = 0;
 	if ((nodeBytes[0] & 0x40) != 0)
 	{
-		projY = CollFixed_MulLo(factor, diffY) >> 12;
+		projY = CTR_MipsMulLo(factor, diffY) >> 12;
 	}
-	projZ = CollFixed_MulLo(factor, diffZ) >> 12;
+	projZ = CTR_MipsMulLo(factor, diffZ) >> 12;
 
 	relX = projX - centerDiffX;
 	relY = projY - centerDiffY;
@@ -535,7 +530,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 
 	radius = CollFixed_ReadS16(nodeBytes, 0x16);
 	radiusSquared = CollFixed_ReadS16(spsBytes, 6) + radius;
-	radiusSquared = CollFixed_MulLo(radiusSquared, radiusSquared);
+	radiusSquared = CTR_MipsMulLo(radiusSquared, radiusSquared);
 	distSquared = CollFixed_GteReadMAC1();
 	CollFixed_WriteS32(spsBytes, 0x1b8, radiusSquared);
 	CollFixed_WriteS32(spsBytes, 0x1bc, distSquared);
@@ -548,7 +543,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	{
 		if (dotSegment != 0)
 		{
-			factor -= CollFixed_Sll32(remaining, 12) / dotSegment;
+			factor -= CTR_MipsSll(remaining, 12) / dotSegment;
 		}
 		CollFixed_WriteS32(spsBytes, 0x1c0, factor);
 	}
@@ -561,9 +556,9 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	hitZ = 0;
 	if (factor > 0)
 	{
-		hitX = CollFixed_MulLo(diffX, factor) >> 12;
-		hitY = CollFixed_MulLo(diffY, factor) >> 12;
-		hitZ = CollFixed_MulLo(diffZ, factor) >> 12;
+		hitX = CTR_MipsMulLo(diffX, factor) >> 12;
+		hitY = CTR_MipsMulLo(diffY, factor) >> 12;
+		hitZ = CTR_MipsMulLo(diffZ, factor) >> 12;
 	}
 
 	if (((nodeBytes[0] & 0x20) != 0) && (hitY < CollFixed_ReadS16(nodeBytes, 0x12)) &&
@@ -596,9 +591,9 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	len = SquareRoot0(CollFixed_GteReadMAC1());
 	invLen = 0x1000000 / len;
 
-	normalX = CollFixed_MulLo(normalX, invLen) >> 12;
-	normalY = CollFixed_MulLo(normalY, invLen) >> 12;
-	normalZ = CollFixed_MulLo(normalZ, invLen) >> 12;
+	normalX = CTR_MipsMulLo(normalX, invLen) >> 12;
+	normalY = CTR_MipsMulLo(normalY, invLen) >> 12;
+	normalZ = CTR_MipsMulLo(normalZ, invLen) >> 12;
 	CollFixed_WriteS32(spsBytes, 0x1f4, normalX);
 	CollFixed_WriteS32(spsBytes, 0x1f8, normalY);
 	CollFixed_WriteS32(spsBytes, 0x1fc, normalZ);
@@ -611,9 +606,9 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	CollFixed_WriteS16(spsBytes, 0x1e, CollFixed_ReadU16(spsBytes, 0x12) + hitY);
 	spsBytes[0x7e] = 6;
 
-	scaledX = CollFixed_MulLo(normalX, radius) >> 12;
-	scaledY = CollFixed_MulLo(normalY, radius) >> 12;
-	scaledZ = CollFixed_MulLo(normalZ, radius) >> 12;
+	scaledX = CTR_MipsMulLo(normalX, radius) >> 12;
+	scaledY = CTR_MipsMulLo(normalY, radius) >> 12;
+	scaledZ = CTR_MipsMulLo(normalZ, radius) >> 12;
 	CollFixed_WriteS32(spsBytes, 0x200, scaledX);
 	CollFixed_WriteS32(spsBytes, 0x204, scaledY);
 	CollFixed_WriteS32(spsBytes, 0x208, scaledZ);
@@ -695,7 +690,7 @@ void COLL_FIXED_BotsSearch(s16 *posCurr, s16 *posPrev, struct ScratchpadStruct *
 {
 	char i;
 	s16 radius = sps->Input1.hitRadius;
-	int sqrRadius = CollFixed_MulLo(radius, radius);
+	int sqrRadius = CTR_MipsMulLo(radius, radius);
 	s16 deltaCurr;
 	s16 deltaPrev;
 
@@ -784,7 +779,7 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(u8 *sps, u8 *v1, u8 *v2, u8 *v3, s
 	CollFixed_GteLoadVXY0(CollFixed_ReadU32(sps, 0x54));
 	CollFixed_GteLoadVZ0(normalZW);
 
-	normalZW = CollFixed_Sll32(normalZW >> 16, 13);
+	normalZW = CTR_MipsSll(normalZW >> 16, 13);
 
 	CollFixed_GteMVMVA();
 	lineDot = CollFixed_GteReadMAC2();
@@ -884,15 +879,15 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(u8 *sps, u8 *v1, u8 *v2, u8 *v3, s
 
 	if (firstA != 0)
 	{
-		denom = (CollFixed_MulLo(secondB, firstA) - CollFixed_MulLo(firstB, secondA)) >> 6;
+		denom = (CTR_MipsMulLo(secondB, firstA) - CTR_MipsMulLo(firstB, secondA)) >> 6;
 
 		if (denom != 0)
 		{
-			baryB = CollFixed_MulLo(CollFixed_MulLo(secondHit, firstA) - CollFixed_MulLo(firstHit, secondA), 0x40) / denom;
+			baryB = CTR_MipsMulLo(CTR_MipsMulLo(secondHit, firstA) - CTR_MipsMulLo(firstHit, secondA), 0x40) / denom;
 
 			if ((baryB >= 0) && (baryB <= 0x1000))
 			{
-				baryA = (CollFixed_Sll32(firstHit, 12) - CollFixed_MulLo(baryB, firstB)) / firstA;
+				baryA = (CTR_MipsSll(firstHit, 12) - CTR_MipsMulLo(baryB, firstB)) / firstA;
 			}
 		}
 	}
@@ -901,11 +896,11 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(u8 *sps, u8 *v1, u8 *v2, u8 *v3, s
 		if (firstB == 0)
 			return;
 
-		baryB = CollFixed_Sll32(firstHit, 12) / firstB;
+		baryB = CTR_MipsSll(firstHit, 12) / firstB;
 
 		if ((baryB >= 0) && (baryB <= 0x1000))
 		{
-			baryA = (CollFixed_Sll32(secondHit, 12) - CollFixed_MulLo(baryB, secondB)) / secondA;
+			baryA = (CTR_MipsSll(secondHit, 12) - CTR_MipsMulLo(baryB, secondB)) / secondA;
 		}
 	}
 
@@ -996,9 +991,9 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 	CollFixed_GteLoadR11R12(CollFixed_ReadU32(v1Bytes, 0));
 	CollFixed_GteLoadR13R21(CollFixed_ReadU16(v1Bytes, 4));
 
-	nx = CollFixed_MulLo(nx >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
-	ny = CollFixed_MulLo(ny >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
-	nz = CollFixed_MulLo(nz >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
+	nx = CTR_MipsMulLo(nx >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
+	ny = CTR_MipsMulLo(ny >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
+	nz = CTR_MipsMulLo(nz >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
 
 	CollFixed_GteLoadIR(nx, ny, nz);
 	CollFixed_WriteS16(v1Bytes, 0xc, nx);
@@ -1226,11 +1221,6 @@ struct CollFixedPlayerTrig
 	s32 z;
 };
 
-static int COLL_FIXED_PlayerSearch_Abs(int value)
-{
-	return (value < 0) ? (s32)(0u - (u32)value) : value;
-}
-
 static s32 COLL_FIXED_PlayerSearch_ClampByte(s32 value)
 {
 	if (value < 0)
@@ -1336,15 +1326,15 @@ static void COLL_FIXED_PlayerSearch_UpdateLighting(struct ScratchpadStruct *sps,
 	s32 r0 = v0->color_hi[0];
 	s32 g0 = v0->color_hi[1];
 	s32 b0 = v0->color_hi[2];
-	s32 r = (CollFixed_MulLo(baryA, v1->color_hi[0] - r0) >> 12) + (CollFixed_MulLo(baryB, v2->color_hi[0] - r0) >> 12) + r0;
-	s32 g = (CollFixed_MulLo(baryA, v1->color_hi[1] - g0) >> 12) + (CollFixed_MulLo(baryB, v2->color_hi[1] - g0) >> 12) + g0;
-	s32 b = (CollFixed_MulLo(baryA, v1->color_hi[2] - b0) >> 12) + (CollFixed_MulLo(baryB, v2->color_hi[2] - b0) >> 12) + b0;
+	s32 r = (CTR_MipsMulLo(baryA, v1->color_hi[0] - r0) >> 12) + (CTR_MipsMulLo(baryB, v2->color_hi[0] - r0) >> 12) + r0;
+	s32 g = (CTR_MipsMulLo(baryA, v1->color_hi[1] - g0) >> 12) + (CTR_MipsMulLo(baryB, v2->color_hi[1] - g0) >> 12) + g0;
+	s32 b = (CTR_MipsMulLo(baryA, v1->color_hi[2] - b0) >> 12) + (CTR_MipsMulLo(baryB, v2->color_hi[2] - b0) >> 12) + b0;
 
 	r = COLL_FIXED_PlayerSearch_ClampByte(r);
 	g = COLL_FIXED_PlayerSearch_ClampByte(g);
 	b = COLL_FIXED_PlayerSearch_ClampByte(b);
 
-	s32 light = CollFixed_MulLo(((CollFixed_MulLo(r, 0x4c) >> 8) + (CollFixed_MulLo(g, 0x96) >> 8) + (CollFixed_MulLo(b, 0x1e) >> 8)), -0x20) + 0xc00;
+	s32 light = CTR_MipsMulLo(((CTR_MipsMulLo(r, 0x4c) >> 8) + (CTR_MipsMulLo(g, 0x96) >> 8) + (CTR_MipsMulLo(b, 0x1e) >> 8)), -0x20) + 0xc00;
 	s32 scaledLight;
 
 	if (light < 0)
@@ -1360,33 +1350,33 @@ static void COLL_FIXED_PlayerSearch_UpdateLighting(struct ScratchpadStruct *sps,
 		scaledLight = 0x8000;
 	}
 
-	light = CollFixed_MulLo(scaledLight - light, 8);
+	light = CTR_MipsMulLo(scaledLight - light, 8);
 
-	d->alphaScaleBackup = (CollFixed_MulLo(d->alphaScaleBackup, 200) + light) >> 8;
-	inst->alphaScale = (CollFixed_MulLo(inst->alphaScale, 200) + light) >> 8;
+	d->alphaScaleBackup = (CTR_MipsMulLo(d->alphaScaleBackup, 200) + light) >> 8;
+	inst->alphaScale = (CTR_MipsMulLo(inst->alphaScale, 200) + light) >> 8;
 }
 
 static void COLL_FIXED_PlayerSearch_NormalizeAxis3(struct ScratchpadStruct *sps, struct Driver *d)
 {
-	s32 x = CollFixed_MulLo(d->AxisAngle3_normalVec[0], 5) + CollFixed_MulLo(sps->Set2.normalVec[0], 3);
-	s32 y = CollFixed_MulLo(d->AxisAngle3_normalVec[1], 5) + CollFixed_MulLo(sps->Set2.normalVec[1], 3);
-	s32 z = CollFixed_MulLo(d->AxisAngle3_normalVec[2], 5) + CollFixed_MulLo(sps->Set2.normalVec[2], 3);
-	u32 sum = (u32)CollFixed_MulLo(x, x) + (u32)CollFixed_MulLo(y, y) + (u32)CollFixed_MulLo(z, z);
+	s32 x = CTR_MipsMulLo(d->AxisAngle3_normalVec[0], 5) + CTR_MipsMulLo(sps->Set2.normalVec[0], 3);
+	s32 y = CTR_MipsMulLo(d->AxisAngle3_normalVec[1], 5) + CTR_MipsMulLo(sps->Set2.normalVec[1], 3);
+	s32 z = CTR_MipsMulLo(d->AxisAngle3_normalVec[2], 5) + CTR_MipsMulLo(sps->Set2.normalVec[2], 3);
+	u32 sum = (u32)CTR_MipsMulLo(x, x) + (u32)CTR_MipsMulLo(y, y) + (u32)CTR_MipsMulLo(z, z);
 	u32 len = VehCalc_FastSqrt(sum, 0x18) >> 12;
 
-	d->AxisAngle3_normalVec[0] = CollFixed_Sll32(x, 12) / (s32)len;
-	d->AxisAngle3_normalVec[1] = CollFixed_Sll32(y, 12) / (s32)len;
-	d->AxisAngle3_normalVec[2] = CollFixed_Sll32(z, 12) / (s32)len;
+	d->AxisAngle3_normalVec[0] = CTR_MipsSll(x, 12) / (s32)len;
+	d->AxisAngle3_normalVec[1] = CTR_MipsSll(y, 12) / (s32)len;
+	d->AxisAngle3_normalVec[2] = CTR_MipsSll(z, 12) / (s32)len;
 }
 
 static void COLL_FIXED_PlayerSearch_NormalizeAxis2(struct Driver *d, s32 x, s32 y, s32 z)
 {
-	u32 sum = (u32)CollFixed_MulLo(x, x) + (u32)CollFixed_MulLo(y, y) + (u32)CollFixed_MulLo(z, z);
+	u32 sum = (u32)CTR_MipsMulLo(x, x) + (u32)CTR_MipsMulLo(y, y) + (u32)CTR_MipsMulLo(z, z);
 	u32 len = VehCalc_FastSqrt(sum, 0x18) >> 12;
 
-	d->AxisAngle2_normalVec[0] = CollFixed_Sll32(x, 12) / (s32)len;
-	d->AxisAngle2_normalVec[1] = CollFixed_Sll32(y, 12) / (s32)len;
-	d->AxisAngle2_normalVec[2] = CollFixed_Sll32(z, 12) / (s32)len;
+	d->AxisAngle2_normalVec[0] = CTR_MipsSll(x, 12) / (s32)len;
+	d->AxisAngle2_normalVec[1] = CTR_MipsSll(y, 12) / (s32)len;
+	d->AxisAngle2_normalVec[2] = CTR_MipsSll(z, 12) / (s32)len;
 }
 
 static int COLL_FIXED_PlayerSearch_CheckMaskGrabProgress(struct Driver *d, struct QuadBlock *quad)
@@ -1412,7 +1402,7 @@ static int COLL_FIXED_PlayerSearch_CheckMaskGrabProgress(struct Driver *d, struc
 	struct CheckpointNode *node = &level->ptr_restart_points[quad->checkpointIndex];
 
 	if (((d->actionsFlagSet & 0x1000000) == 0) && (node->nextIndex_forward > 1) &&
-	    ((((level->ptr_restart_points[0].distToFinish >> 2) << 3) < (int)(d->distanceToFinish_checkpoint - CollFixed_MulLo(node->distToFinish, 8)))))
+	    ((((level->ptr_restart_points[0].distToFinish >> 2) << 3) < (int)(d->distanceToFinish_checkpoint - CTR_MipsMulLo(node->distToFinish, 8)))))
 	{
 		return 1;
 	}
@@ -1430,7 +1420,7 @@ static int COLL_FIXED_PlayerSearch_CheckMaskGrabProgress(struct Driver *d, struc
 	}
 #endif
 
-	if ((node->distToFinish < (CollFixed_MulLo(trackLength, 0xf) >> 4)) && (d->lastValid->checkpointIndex != 0xff) &&
+	if ((node->distToFinish < (CTR_MipsMulLo(trackLength, 0xf) >> 4)) && (d->lastValid->checkpointIndex != 0xff) &&
 	    ((level->ptr_restart_points[d->lastValid->checkpointIndex].distToFinish + (trackLength >> 2)) < node->distToFinish))
 	{
 		return 1;
@@ -1609,7 +1599,7 @@ void COLL_FIXED_PlayerSearch(struct Thread *t, struct Driver *d)
 
 		if ((d->actionsFlagSetPrevFrame & 1) == 0)
 		{
-			s32 absLanding = COLL_FIXED_PlayerSearch_Abs(landingDelta);
+			s32 absLanding = Coll_MipsAbsS32(landingDelta);
 			u32 volume;
 
 			d->actionsFlagSet = actions | 0x83;
@@ -1670,14 +1660,14 @@ DriverAirborne:
 BlendNormal:
 {
 	s32 invFrames = 8 - lerpFrames;
-	s32 normalX = (CollFixed_MulLo(lerpFrames, d->AxisAngle2_normalVec[0]) + CollFixed_MulLo(invFrames, d->normalVecUP.x)) >> 3;
-	s32 normalY = (CollFixed_MulLo(lerpFrames, d->AxisAngle2_normalVec[1]) + CollFixed_MulLo(invFrames, d->normalVecUP.y)) >> 3;
-	s32 normalZ = (CollFixed_MulLo(lerpFrames, d->AxisAngle2_normalVec[2]) + CollFixed_MulLo(invFrames, d->normalVecUP.z)) >> 3;
+	s32 normalX = (CTR_MipsMulLo(lerpFrames, d->AxisAngle2_normalVec[0]) + CTR_MipsMulLo(invFrames, d->normalVecUP.x)) >> 3;
+	s32 normalY = (CTR_MipsMulLo(lerpFrames, d->AxisAngle2_normalVec[1]) + CTR_MipsMulLo(invFrames, d->normalVecUP.y)) >> 3;
+	s32 normalZ = (CTR_MipsMulLo(lerpFrames, d->AxisAngle2_normalVec[2]) + CTR_MipsMulLo(invFrames, d->normalVecUP.z)) >> 3;
 
 	if (d->hazardTimer > 0)
 	{
-		struct CollFixedPlayerTrig trig = COLL_FIXED_PlayerSearch_Trig(CollFixed_MulLo(d->hazardTimer, 0xc));
-		s16 input[4] = {CollFixed_MulLo(trig.x, 0x19) >> 10, 0, CollFixed_MulLo(trig.z, 0x19) >> 10, 0};
+		struct CollFixedPlayerTrig trig = COLL_FIXED_PlayerSearch_Trig(CTR_MipsMulLo(d->hazardTimer, 0xc));
+		s16 input[4] = {CTR_MipsMulLo(trig.x, 0x19) >> 10, 0, CTR_MipsMulLo(trig.z, 0x19) >> 10, 0};
 		int output[3];
 
 		gte_ldv0(input);
@@ -1695,19 +1685,19 @@ BlendNormal:
 	{
 		struct CollFixedPlayerTrig trig = COLL_FIXED_PlayerSearch_Trig(d->angle);
 
-		d->rotCurr.z = ratan2((CollFixed_MulLo(-d->AxisAngle2_normalVec[0], trig.z) + CollFixed_MulLo(d->AxisAngle2_normalVec[2], trig.x)) >> 12,
-		                      d->AxisAngle2_normalVec[1]);
+		d->rotCurr.z =
+		    ratan2((CTR_MipsMulLo(-d->AxisAngle2_normalVec[0], trig.z) + CTR_MipsMulLo(d->AxisAngle2_normalVec[2], trig.x)) >> 12, d->AxisAngle2_normalVec[1]);
 	}
 
 	if (d->hazardTimer < 1)
 	{
 		if ((d->actionsFlagSet & 1) != 0)
 		{
-			s32 speed = COLL_FIXED_PlayerSearch_Abs(d->speed);
+			s32 speed = Coll_MipsAbsS32(d->speed);
 
 			if (speed > 0x1000)
 			{
-				s32 screenOffset = COLL_FIXED_PlayerSearch_Abs((s8)d->Screen_OffsetY);
+				s32 screenOffset = Coll_MipsAbsS32((s8)d->Screen_OffsetY);
 
 				if ((screenOffset < 4) && ((d->terrainMeta1->flags & 1) != 0))
 				{
@@ -1721,7 +1711,7 @@ BlendNormal:
 	}
 	else
 	{
-		s32 screenOffset = COLL_FIXED_PlayerSearch_Abs((s8)d->Screen_OffsetY);
+		s32 screenOffset = Coll_MipsAbsS32((s8)d->Screen_OffsetY);
 
 		if (screenOffset < 4)
 		{
@@ -1735,7 +1725,7 @@ BlendNormal:
 	}
 
 UpdateGroundOffset:
-	if (COLL_FIXED_PlayerSearch_Abs((s8)d->Screen_OffsetY) > 9)
+	if (Coll_MipsAbsS32((s8)d->Screen_OffsetY) > 9)
 	{
 		d->distanceFromGround = 0;
 	}
@@ -1900,19 +1890,19 @@ s32 COLL_MOVED_TRIANGL_ReorderNormals(void *set1, void *v1, void *v2, void *v3)
 		if (firstB == 0)
 			return -1;
 
-		baryB = CollFixed_Sll32(firstHit, 12) / firstB;
+		baryB = CTR_MipsSll(firstHit, 12) / firstB;
 
 		if (secondA != 0)
-			baryA = (CollFixed_Sll32(secondHit, 12) - CollFixed_MulLo(baryB, secondB)) / secondA;
+			baryA = (CTR_MipsSll(secondHit, 12) - CTR_MipsMulLo(baryB, secondB)) / secondA;
 	}
 	else
 	{
-		s32 denom = (CollFixed_MulLo(secondB, firstA) - CollFixed_MulLo(firstB, secondA)) >> 6;
+		s32 denom = (CTR_MipsMulLo(secondB, firstA) - CTR_MipsMulLo(firstB, secondA)) >> 6;
 
 		if (denom != 0)
 		{
-			baryB = CollFixed_MulLo(CollFixed_MulLo(secondHit, firstA) - CollFixed_MulLo(firstHit, secondA), 0x40) / denom;
-			baryA = (CollFixed_Sll32(firstHit, 12) - CollFixed_MulLo(baryB, firstB)) / firstA;
+			baryB = CTR_MipsMulLo(CTR_MipsMulLo(secondHit, firstA) - CTR_MipsMulLo(firstHit, secondA), 0x40) / denom;
+			baryA = (CTR_MipsSll(firstHit, 12) - CTR_MipsMulLo(baryB, firstB)) / firstA;
 		}
 	}
 
@@ -2038,7 +2028,7 @@ KeepNormal:
 		CollFixed_GteLoadIR(CollFixed_ReadS16(spsBytes, 0) - CollFixed_ReadS16(spsBytes, 0x10),
 		                    CollFixed_ReadS16(spsBytes, 2) - CollFixed_ReadS16(spsBytes, 0x12),
 		                    CollFixed_ReadS16(spsBytes, 4) - CollFixed_ReadS16(spsBytes, 0x14));
-		CollFixed_GteLoadIR0((CollFixed_MulLo(planeNear, -0x1000)) / (planeFar - planeNear));
+		CollFixed_GteLoadIR0((CTR_MipsMulLo(planeNear, -0x1000)) / (planeFar - planeNear));
 		projectedFromInput = 1;
 	}
 
@@ -2093,7 +2083,7 @@ KeepNormal:
 
 	distance = planeFar - planeNear;
 	if (distance != 0)
-		distance = 0x1000 - (CollFixed_MulLo(CollFixed_ReadS16(spsBytes, 6) - planeNear, 0x1000) / distance);
+		distance = 0x1000 - (CTR_MipsMulLo(CollFixed_ReadS16(spsBytes, 6) - planeNear, 0x1000) / distance);
 
 	if ((distance - CollFixed_ReadS32(spsBytes, 0x84)) >= 0)
 		return;
@@ -2289,25 +2279,19 @@ void COLL_MOVED_FindScrub(struct QuadBlock *qb, int triangleID, struct Scratchpa
 
 static s32 CollMoved_PlayerSearch_StepVelocity(s32 velocity, s32 elapsedTimeMS, s32 multiplier)
 {
-	return CollFixed_MulLo(CollFixed_MulLo(velocity, elapsedTimeMS) >> 5, multiplier) >> 12;
-}
-
-static s16 CollMoved_PlayerSearch_Min(s16 a, s16 b)
-{
-	return (b < a) ? b : a;
-}
-
-static s16 CollMoved_PlayerSearch_Max(s16 a, s16 b)
-{
-	return (a < b) ? b : a;
+	return CTR_MipsSra(CTR_MipsMulLo(CTR_MipsSra(CTR_MipsMulLo(velocity, elapsedTimeMS), 5), multiplier), 12);
 }
 
 static void CollMoved_PlayerSearch_SetBBoxAxis(struct ScratchpadStruct *sps, int axis, s16 current, s16 next)
 {
 	s16 radius = sps->Input1.hitRadius;
+	s16 minCurrent = current - radius;
+	s16 minNext = next - radius;
+	s16 maxCurrent = current + radius;
+	s16 maxNext = next + radius;
 
-	sps->bbox.min[axis] = CollMoved_PlayerSearch_Min(current - radius, next - radius);
-	sps->bbox.max[axis] = CollMoved_PlayerSearch_Max(current + radius, next + radius);
+	sps->bbox.min[axis] = (minNext < minCurrent) ? minNext : minCurrent;
+	sps->bbox.max[axis] = (maxCurrent < maxNext) ? maxNext : maxCurrent;
 }
 
 static int CollMoved_PlayerSearch_RunHitboxLInC(struct ScratchpadStruct *sps, struct Thread *t)
@@ -2489,9 +2473,9 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 
 		if (sps->countByOne_ForWhatReason > 0)
 		{
-			d->posCurr.x += CollFixed_MulLo(velocity[0], sps->countByOne_ForWhatReason) >> 12;
-			d->posCurr.y += CollFixed_MulLo(velocity[1], sps->countByOne_ForWhatReason) >> 12;
-			d->posCurr.z += CollFixed_MulLo(velocity[2], sps->countByOne_ForWhatReason) >> 12;
+			d->posCurr.x += CTR_MipsMulLo(velocity[0], sps->countByOne_ForWhatReason) >> 12;
+			d->posCurr.y += CTR_MipsMulLo(velocity[1], sps->countByOne_ForWhatReason) >> 12;
+			d->posCurr.z += CTR_MipsMulLo(velocity[2], sps->countByOne_ForWhatReason) >> 12;
 		}
 
 		if (sps->boolDidTouchHitbox != 0)
@@ -2581,7 +2565,7 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 
 			if (sps->countByOne_ForWhatReason > 0)
 			{
-				multiplier -= CollFixed_MulLo(multiplier, sps->countByOne_ForWhatReason) >> 12;
+				multiplier -= CTR_MipsMulLo(multiplier, sps->countByOne_ForWhatReason) >> 12;
 				if (multiplier < 100)
 				{
 					break;
@@ -2595,16 +2579,6 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 	d->stepFlagSet = *(u32 *)&sps->dataOutput[0];
 }
 
-
-static s32 CollMoved_ScrubImpact_Abs(s32 value)
-{
-	return (value < 0) ? (s32)(0u - (u32)value) : value;
-}
-
-static u32 CollMoved_ScrubImpact_PackXY(s32 x, s32 y)
-{
-	return ((u32)(u16)x) | ((u32)y << 16);
-}
 
 static s32 CollMoved_ScrubImpact_TrigX(s32 angle)
 {
@@ -2621,7 +2595,7 @@ static s32 CollMoved_ScrubImpact_TrigX(s32 angle)
 
 static void CollMoved_ScrubImpact_GteLLV0(s32 x, s32 y, s32 z, s32 *outX, s32 *outY, s32 *outZ)
 {
-	MTC2(CollMoved_ScrubImpact_PackXY(x, y), 0);
+	MTC2(CollFixed_PackS16Pair(x, y), 0);
 	MTC2(z, 1);
 	doCOP2(0x04a6012);
 	*outX = MFC2_S(25);
@@ -2687,7 +2661,7 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 	if ((d->unknownTraction != 0) && (sps->boolDidTouchQuadblock != 0) && ((sps->Set2.ptrQuadblock->quadFlags & 0x1000) != 0) && (((u8 *)sps)[0x7e] != 6) &&
 	    (sps->Set2.ptrQuadblock != d->underDriver))
 	{
-		if ((CollMoved_ScrubImpact_Abs(d->speedApprox) < 0x300) && (CollMoved_ScrubImpact_Abs(d->jumpHeightCurr) < 0x300) && (d->fireSpeed == 0))
+		if ((Coll_MipsAbsS32(d->speedApprox) < 0x300) && (Coll_MipsAbsS32(d->jumpHeightCurr) < 0x300) && (d->fireSpeed == 0))
 		{
 			s32 diffX = (d->posCurr.x >> 8) - sps->Set2.hitPos[0];
 			s32 diffZ = (d->posCurr.z >> 8) - sps->Set2.hitPos[2];
@@ -2695,11 +2669,11 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 
 			if ((diffX | diffY | diffZ) != 0)
 			{
-				s32 len = VehCalc_FastSqrt((u32)CollFixed_MulLo(diffX, diffX) + (u32)CollFixed_MulLo(diffY, diffY) + (u32)CollFixed_MulLo(diffZ, diffZ), 0);
+				s32 len = VehCalc_FastSqrt((u32)CTR_MipsMulLo(diffX, diffX) + (u32)CTR_MipsMulLo(diffY, diffY) + (u32)CTR_MipsMulLo(diffZ, diffZ), 0);
 
-				normalX = CollFixed_Sll32(diffX, 12) / len;
-				normalY = CollFixed_Sll32(diffY, 12) / len;
-				normalZ = CollFixed_Sll32(diffZ, 12) / len;
+				normalX = CTR_MipsSll(diffX, 12) / len;
+				normalY = CTR_MipsSll(diffY, 12) / len;
+				normalZ = CTR_MipsSll(diffZ, 12) / len;
 			}
 		}
 	}
@@ -2745,9 +2719,9 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 
 		if ((scrubFlags & 1) != 0)
 		{
-			s32 impactX = CTR_MipsSra(CollFixed_MulLo(dot, normalX), 12);
-			s32 impactY = CTR_MipsSra(CollFixed_MulLo(dot, normalY), 12);
-			s32 impactZ = CTR_MipsSra(CollFixed_MulLo(dot, normalZ), 12);
+			s32 impactX = CTR_MipsSra(CTR_MipsMulLo(dot, normalX), 12);
+			s32 impactY = CTR_MipsSra(CTR_MipsMulLo(dot, normalY), 12);
+			s32 impactZ = CTR_MipsSra(CTR_MipsMulLo(dot, normalZ), 12);
 			s32 speedSq = 0;
 			s32 oldVelX;
 			s32 oldVelZ;
@@ -2757,8 +2731,8 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 
 			if (scrub->unk_angle != 0)
 			{
-				speedSq = CTR_MipsSra(CTR_MipsAddLo(CTR_MipsAddLo(CollFixed_MulLo(velocity[0], velocity[0]), CollFixed_MulLo(velocity[1], velocity[1])),
-				                                    CollFixed_MulLo(velocity[2], velocity[2])),
+				speedSq = CTR_MipsSra(CTR_MipsAddLo(CTR_MipsAddLo(CTR_MipsMulLo(velocity[0], velocity[0]), CTR_MipsMulLo(velocity[1], velocity[1])),
+				                                    CTR_MipsMulLo(velocity[2], velocity[2])),
 				                      15);
 			}
 
@@ -2776,18 +2750,18 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 				CollMoved_ScrubImpact_ProjectWallVelocity(normalX, normalY, normalZ, oldVelX, oldVelZ, &wallVelX, &wallVelY, &wallVelZ);
 
 				{
-					u32 wallSpeed = VehCalc_FastSqrt((u32)CollFixed_MulLo(wallVelX, wallVelX) + (u32)CollFixed_MulLo(wallVelY, wallVelY) +
-					                                     (u32)CollFixed_MulLo(wallVelZ, wallVelZ),
-					                                 0x10) >>
-					                8;
+					u32 wallSpeed =
+					    VehCalc_FastSqrt(
+					        (u32)CTR_MipsMulLo(wallVelX, wallVelX) + (u32)CTR_MipsMulLo(wallVelY, wallVelY) + (u32)CTR_MipsMulLo(wallVelZ, wallVelZ), 0x10) >>
+					    8;
 					s32 speedApprox = d->speedApprox;
 
 					if ((wallSpeed != 0) && (speedApprox > 0))
 					{
 						sps->Union.QuadBlockColl.searchFlags |= 0x10;
-						velocity[0] = CollFixed_MulLo(wallVelX, speedApprox) / (s32)wallSpeed;
-						velocity[1] = CollFixed_MulLo(wallVelY, speedApprox) / (s32)wallSpeed;
-						velocity[2] = CollFixed_MulLo(wallVelZ, speedApprox) / (s32)wallSpeed;
+						velocity[0] = CTR_MipsMulLo(wallVelX, speedApprox) / (s32)wallSpeed;
+						velocity[1] = CTR_MipsMulLo(wallVelY, speedApprox) / (s32)wallSpeed;
+						velocity[2] = CTR_MipsMulLo(wallVelZ, speedApprox) / (s32)wallSpeed;
 						velocity[0] -= normalX >> 1;
 						velocity[1] -= normalY >> 1;
 						velocity[2] -= normalZ >> 1;
@@ -2795,7 +2769,7 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 				}
 			}
 
-			s32 transformedImpactXZ = CTR_MipsAddLo(CollFixed_MulLo(impactX, impactX), CollFixed_MulLo(impactZ, impactZ));
+			s32 transformedImpactXZ = CTR_MipsAddLo(CTR_MipsMulLo(impactX, impactX), CTR_MipsMulLo(impactZ, impactZ));
 
 			if (((scrubFlags & 2) != 0) && (dot < -0x13ff) && (transformedImpactXZ > 0x1900000))
 			{
@@ -2807,9 +2781,9 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 				if (scrub->unk_angle != 0)
 				{
 					s32 trig = CollMoved_ScrubImpact_TrigX(scrub->unk_angle);
-					s32 scaledSpeed = CTR_MipsSra(CollFixed_MulLo(speedSq, trig), 12);
-					s32 angleLimit = CTR_MipsSra(CollFixed_MulLo(scaledSpeed, trig), 12);
-					s32 dotSq = CTR_MipsSra(CollFixed_MulLo(dot, dot), 15);
+					s32 scaledSpeed = CTR_MipsSra(CTR_MipsMulLo(speedSq, trig), 12);
+					s32 angleLimit = CTR_MipsSra(CTR_MipsMulLo(scaledSpeed, trig), 12);
+					s32 dotSq = CTR_MipsSra(CTR_MipsMulLo(dot, dot), 15);
 
 					if (angleLimit >= dotSq)
 						return 1;
