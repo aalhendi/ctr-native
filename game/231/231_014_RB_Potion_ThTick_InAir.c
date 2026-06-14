@@ -44,13 +44,13 @@ void RB_Potion_ThTick_InAir(struct Thread *t)
 	posTop[1] = inst->matrix.t[1] + 0x100;
 	posTop[2] = inst->matrix.t[2];
 
-	SPS->Union.QuadBlockColl.searchFlags = 0x41;
+	SPS->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_FORCE_INSTANCE_HIT;
 	SPS->Union.QuadBlockColl.qbFlagsWanted = 0x1040;
 	SPS->Union.QuadBlockColl.qbFlagsIgnored = 0;
 
 	if (gGT->numPlyrCurrGame < 3)
 	{
-		SPS->Union.QuadBlockColl.searchFlags = 0x43;
+		SPS->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_HIGH_LOD | COLL_SEARCH_FORCE_INSTANCE_HIT;
 	}
 
 	SPS->ptr_mesh_info = gGT->level1->ptr_mesh_info;
@@ -72,7 +72,7 @@ void RB_Potion_ThTick_InAir(struct Thread *t)
 	{
 		if (SPS->boolDidTouchQuadblock != 0)
 		{
-			VehPhysForce_RotAxisAngle(&inst->matrix, &SPS->Set2.normalVec[0], 0);
+			VehPhysForce_RotAxisAngle(&inst->matrix, &SPS->hit.normalVec[0], 0);
 
 			iVar4 = SPS->Union.QuadBlockColl.hitPos[1];
 			iVar5 = inst->matrix.t[1];

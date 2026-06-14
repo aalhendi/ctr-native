@@ -15,7 +15,7 @@ void AH_Sign_LInB(struct Instance *inst)
 	normal[1] = inst->matrix.m[1][2] >> 6;
 	normal[2] = inst->matrix.m[2][2] >> 6;
 
-	sps->Union.QuadBlockColl.searchFlags = 2;
+	sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_HIGH_LOD;
 	sps->Union.QuadBlockColl.qbFlagsWanted = 0x3000;
 	sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
 	sps->ptr_mesh_info = sdata->gGT->level1->ptr_mesh_info;

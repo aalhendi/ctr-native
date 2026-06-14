@@ -13,12 +13,12 @@ void RB_MakeInstanceReflective(struct ScratchpadStruct *sps, struct Instance *in
 	else
 	{
 		inst->bitCompressed_NormalVector_AndDriverIndex =
-		    ((u32)(sps->Set2.normalVec[0] >> 6) & 0xff) | (((u32)sps->Set2.normalVec[1] & 0x3fc0) << 2) | (((u32)(sps->Set2.normalVec[2] >> 6) & 0xff) << 0x10);
+		    ((u32)(sps->hit.normalVec[0] >> 6) & 0xff) | (((u32)sps->hit.normalVec[1] & 0x3fc0) << 2) | (((u32)(sps->hit.normalVec[2] >> 6) & 0xff) << 0x10);
 
 		if (1 < gGT->numPlyrCurrGame)
 			return;
 
-		quadFlags = sps->Set2.ptrQuadblock->quadFlags;
+		quadFlags = sps->hit.ptrQuadblock->quadFlags;
 
 		if ((quadFlags & 0x2000) == 0)
 		{

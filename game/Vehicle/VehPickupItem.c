@@ -586,9 +586,9 @@ void VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 		sps->Union.QuadBlockColl.qbFlagsWanted = 0x1000;
 		sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
 
-		sps->Union.QuadBlockColl.searchFlags = 1;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES;
 		if (gGT->numPlyrCurrGame < 3)
-			sps->Union.QuadBlockColl.searchFlags = 3;
+			sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_HIGH_LOD;
 
 		sps->ptr_mesh_info = gGT->level1->ptr_mesh_info;
 

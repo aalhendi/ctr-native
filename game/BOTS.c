@@ -508,7 +508,7 @@ void BOTS_LevInstColl(struct Thread *botThread)
 
 	// scratchpad stuff
 	sps->ptr_mesh_info = sdata->gGT->level1->ptr_mesh_info;
-	sps->Union.QuadBlockColl.searchFlags = 1;
+	sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES;
 	sps->Input1.modelID = DYNAMIC_ROBOT_CAR;
 	sps->Union.QuadBlockColl.qbFlagsWanted = 0;
 	sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
@@ -526,7 +526,7 @@ void BOTS_LevInstColl(struct Thread *botThread)
 
 	if (sps->boolDidTouchHitbox)
 	{
-		sps->Union.QuadBlockColl.searchFlags &= 0xfff7;
+		sps->Union.QuadBlockColl.searchFlags &= ~COLL_SEARCH_REUSE_NORMALS;
 
 		if ((sps->bspHitbox->flag & 0x80) != 0)
 		{
@@ -1887,7 +1887,7 @@ give_this_label_a_better_name2:
 		sps->ptr_mesh_info = gGT->level1->ptr_mesh_info;
 		sps->Union.QuadBlockColl.qbFlagsWanted = 0x1000;
 		sps->Union.QuadBlockColl.qbFlagsIgnored = 0x10;
-		sps->Union.QuadBlockColl.searchFlags = 2;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_HIGH_LOD;
 
 		COLL_SearchBSP_CallbackQUADBLK((u_int *)&top[0], (u_int *)&bot[0], sps, 0);
 
@@ -1895,20 +1895,20 @@ give_this_label_a_better_name2:
 		{
 			botDriver->quadBlockHeight = CTR_MipsSll(sps->Union.QuadBlockColl.hitPos[1], 8);
 
-			botDriver->botData.ai_quadblock_checkpointIndex = sps->Set2.ptrQuadblock->checkpointIndex;
+			botDriver->botData.ai_quadblock_checkpointIndex = sps->hit.ptrQuadblock->checkpointIndex;
 
-			VehPhysForce_RotAxisAngle(&botInstance->matrix, &sps->Set2.normalVec[0], botDriver->botData.ai_rot4[1]);
+			VehPhysForce_RotAxisAngle(&botInstance->matrix, &sps->hit.normalVec[0], botDriver->botData.ai_rot4[1]);
 
-			botDriver->AxisAngle3_normalVec[0] = sps->Set2.normalVec[0];
-			botDriver->AxisAngle3_normalVec[1] = sps->Set2.normalVec[1];
-			botDriver->AxisAngle3_normalVec[2] = sps->Set2.normalVec[2];
+			botDriver->AxisAngle3_normalVec[0] = sps->hit.normalVec[0];
+			botDriver->AxisAngle3_normalVec[1] = sps->hit.normalVec[1];
+			botDriver->AxisAngle3_normalVec[2] = sps->hit.normalVec[2];
 
 			// this line is cringe.
-			botInstance->bitCompressed_NormalVector_AndDriverIndex =
-			    (((u16)sps->Set2.normalVec[0] >> 6) & 0xff) | (((u16)sps->Set2.normalVec[1] & 0x3fc0) << 2) |
-			    ((((u16)sps->Set2.normalVec[2] >> 6) & 0xff) << 0x10) | CTR_MipsSll(CTR_MipsAddLo(botDriver->driverID, 1), 0x18);
+			botInstance->bitCompressed_NormalVector_AndDriverIndex = (((u16)sps->hit.normalVec[0] >> 6) & 0xff) | (((u16)sps->hit.normalVec[1] & 0x3fc0) << 2) |
+			                                                         ((((u16)sps->hit.normalVec[2] >> 6) & 0xff) << 0x10) |
+			                                                         CTR_MipsSll(CTR_MipsAddLo(botDriver->driverID, 1), 0x18);
 
-			if ((sps->Set2.ptrQuadblock->quadFlags & 0x200) != 0)
+			if ((sps->hit.ptrQuadblock->quadFlags & 0x200) != 0)
 			{
 				BOTS_Killplane(botThread);
 			}
@@ -2668,13 +2668,13 @@ LAB_8001686c:
 		sps->ptr_mesh_info = gGT->level1->ptr_mesh_info;
 		sps->Union.QuadBlockColl.qbFlagsWanted = 0x1000;
 		sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
-		sps->Union.QuadBlockColl.searchFlags = 2;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_HIGH_LOD;
 
 		COLL_SearchBSP_CallbackQUADBLK((u_int *)&posTop[0], (u_int *)&posBot[0], sps, 0);
 
 		if (sps->boolDidTouchQuadblock != 0)
 		{
-			botDriver->underDriver = sps->Set2.ptrQuadblock;
+			botDriver->underDriver = sps->hit.ptrQuadblock;
 		}
 	}
 }

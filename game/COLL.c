@@ -33,11 +33,11 @@ void COLL_SearchBSP_CallbackQUADBLK(u32 *posTop, u32 *posBottom, struct Scratchp
 	sps->Input1.hitRadius = hitRadius;
 	sps->Union.QuadBlockColl.hitRadius = hitRadius;
 	sps->boolDidTouchHitbox = 0;
-	sps->unk3C = 0;
+	sps->numTrianglesTested = 0;
 	sps->boolDidTouchQuadblock = 0;
 	*(int *)&sps->dataOutput[0] = 0;
 	meshInfo = sps->ptr_mesh_info;
-	sps->numInstHitboxesHit = 0;
+	sps->numBspHitboxesHit = 0;
 
 	topXY = posTop[0];
 	topZ = *(s16 *)(posTop + 1);
@@ -56,7 +56,7 @@ void COLL_SearchBSP_CallbackQUADBLK(u32 *posTop, u32 *posBottom, struct Scratchp
 	sps->Union.QuadBlockColl.pos[1] = (s16)(bottomXY >> 16);
 	sps->Union.QuadBlockColl.pos[2] = bottomZ;
 
-	sps->countByOne_ForWhatReason = 0x1000;
+	sps->hitFraction = 0x1000;
 	sps->Input1.hitRadiusSquared = hitRadiusSquared;
 	sps->Union.QuadBlockColl.hitRadiusSquared = hitRadiusSquared;
 
@@ -430,12 +430,12 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 		CollFixed_WriteS16(spsBytes, 0x42, CollFixed_ReadU16(spsBytes, 0x42) + 1);
 	}
 
-	if ((CollFixed_ReadU16(spsBytes, 0x22) & 0x40) != 0)
+	if ((CollFixed_ReadU16(spsBytes, 0x22) & COLL_SEARCH_FORCE_INSTANCE_HIT) != 0)
 	{
 		CollFixed_WriteS16(spsBytes, 0x72, 0x1000);
 		CollFixed_WriteS16(spsBytes, 0x70, 0);
 		CollFixed_WriteS16(spsBytes, 0x74, 0);
-		spsBytes[0x7e] = 6;
+		sps->hit.reorderResult = 6;
 		CollFixed_WriteS32(spsBytes, 0x84, 0);
 		*(struct BSP **)(spsBytes + 0x48) = node;
 		CollFixed_WriteS16(spsBytes, 0x1c, CollFixed_ReadU16(spsBytes, 0x10));
@@ -604,7 +604,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	CollFixed_WriteS16(spsBytes, 0x74, normalZ);
 	CollFixed_WriteS16(spsBytes, 0x20, CollFixed_ReadU16(spsBytes, 0x14) + hitZ);
 	CollFixed_WriteS16(spsBytes, 0x1e, CollFixed_ReadU16(spsBytes, 0x12) + hitY);
-	spsBytes[0x7e] = 6;
+	sps->hit.reorderResult = 6;
 
 	scaledX = CTR_MipsMulLo(normalX, radius) >> 12;
 	scaledY = CTR_MipsMulLo(normalY, radius) >> 12;
@@ -641,10 +641,10 @@ void COLL_FIXED_BSPLEAF_TestInstance(struct BSP *node, struct ScratchpadStruct *
 		bbox = &bspArray->box;
 
 		// 1F8001CC
-		arraySize = sps->numInstHitboxesHit - 1;
+		arraySize = sps->numBspHitboxesHit - 1;
 		for (; arraySize >= 0; arraySize--)
 		{
-			if (bspArray == sps->bspInstHitboxArr[arraySize])
+			if (bspArray == sps->bspHitboxesHit[arraySize])
 				goto NextBSP;
 		}
 
@@ -713,11 +713,11 @@ void COLL_FIXED_BotsSearch(s16 *posCurr, s16 *posPrev, struct ScratchpadStruct *
 		sps->bbox.max[i] = (deltaCurr > deltaPrev) ? deltaCurr : deltaPrev;
 	}
 
-	sps->unk3C = 0;
+	sps->numTrianglesTested = 0;
 	sps->boolDidTouchHitbox = 0;
 
-	sps->countByOne_ForWhatReason = 0x1000;
-	sps->numInstHitboxesHit = 0;
+	sps->hitFraction = 0x1000;
+	sps->numBspHitboxesHit = 0;
 	*(u32 *)&sps->dataOutput[0] = 0;
 
 	COLL_SearchBSP_CallbackPARAM(sps->ptr_mesh_info->bspRoot, &sps->bbox, COLL_FIXED_BSPLEAF_TestInstance, sps);
@@ -1139,7 +1139,7 @@ void COLL_FIXED_QUADBLK_TestTriangles(struct QuadBlock *quad, struct ScratchpadS
 {
 	struct BspSearchVertex *bsv = &sps->bspSearchVert[0];
 
-	sps->Set1.ptrQuadblock = quad;
+	sps->candidate.ptrQuadblock = quad;
 
 	if (((sps->Union.QuadBlockColl.qbFlagsWanted & quad->quadFlags) == 0) || ((sps->Union.QuadBlockColl.qbFlagsIgnored & quad->quadFlags) != 0) ||
 	    (quad->bbox.min[0] > sps->bbox.max[0]) || (quad->bbox.min[1] > sps->bbox.max[1]) || (quad->bbox.min[2] > sps->bbox.max[2]) ||
@@ -1150,7 +1150,7 @@ void COLL_FIXED_QUADBLK_TestTriangles(struct QuadBlock *quad, struct ScratchpadS
 
 	// if 3P or 4P mode,
 	// then use low-LOD quadblock collision (two triangles)
-	if ((sps->Union.QuadBlockColl.searchFlags & 2) == 0)
+	if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_HIGH_LOD) == 0)
 	{
 		COLL_FIXED_QUADBLK_GetNormVecs_LoLOD(sps, quad);
 
@@ -1164,7 +1164,7 @@ void COLL_FIXED_QUADBLK_TestTriangles(struct QuadBlock *quad, struct ScratchpadS
 	}
 	else
 	{
-		if ((sps->Union.QuadBlockColl.searchFlags & 8) == 0)
+		if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_REUSE_NORMALS) == 0)
 		{
 			COLL_FIXED_QUADBLK_GetNormVecs_HiLOD(sps, quad);
 		}
@@ -1208,7 +1208,7 @@ void COLL_FIXED_BSPLEAF_TestQuadblocks(struct BSP *node, struct ScratchpadStruct
 		numQuads--;
 	} while (numQuads > 0);
 
-	if ((sps->Union.QuadBlockColl.searchFlags & 1) != 0)
+	if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_TEST_INSTANCES) != 0)
 	{
 		COLL_FIXED_BSPLEAF_TestInstance(node, sps);
 	}
@@ -1293,12 +1293,12 @@ static void COLL_FIXED_PlayerSearch_SetupSearch(struct ScratchpadStruct *sps, st
 	sps->Union.QuadBlockColl.searchFlags = 0;
 	if (gGT->numPlyrCurrGame < 3)
 	{
-		sps->Union.QuadBlockColl.searchFlags = 2;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_HIGH_LOD;
 	}
 
 	sps->boolDidTouchQuadblock = 0;
 	sps->boolDidTouchHitbox = 0;
-	sps->unk3C = 0;
+	sps->numTrianglesTested = 0;
 
 	sps->bbox.min[0] = topX;
 	sps->bbox.max[0] = topX;
@@ -1358,9 +1358,9 @@ static void COLL_FIXED_PlayerSearch_UpdateLighting(struct ScratchpadStruct *sps,
 
 static void COLL_FIXED_PlayerSearch_NormalizeAxis3(struct ScratchpadStruct *sps, struct Driver *d)
 {
-	s32 x = CTR_MipsMulLo(d->AxisAngle3_normalVec[0], 5) + CTR_MipsMulLo(sps->Set2.normalVec[0], 3);
-	s32 y = CTR_MipsMulLo(d->AxisAngle3_normalVec[1], 5) + CTR_MipsMulLo(sps->Set2.normalVec[1], 3);
-	s32 z = CTR_MipsMulLo(d->AxisAngle3_normalVec[2], 5) + CTR_MipsMulLo(sps->Set2.normalVec[2], 3);
+	s32 x = CTR_MipsMulLo(d->AxisAngle3_normalVec[0], 5) + CTR_MipsMulLo(sps->hit.normalVec[0], 3);
+	s32 y = CTR_MipsMulLo(d->AxisAngle3_normalVec[1], 5) + CTR_MipsMulLo(sps->hit.normalVec[1], 3);
+	s32 z = CTR_MipsMulLo(d->AxisAngle3_normalVec[2], 5) + CTR_MipsMulLo(sps->hit.normalVec[2], 3);
 	u32 sum = (u32)CTR_MipsMulLo(x, x) + (u32)CTR_MipsMulLo(y, y) + (u32)CTR_MipsMulLo(z, z);
 	u32 len = VehCalc_FastSqrt(sum, 0x18) >> 12;
 
@@ -1463,9 +1463,9 @@ void COLL_FIXED_PlayerSearch(struct Thread *t, struct Driver *d)
 	}
 	else
 	{
-		quad = sps->Set2.ptrQuadblock;
+		quad = sps->hit.ptrQuadblock;
 		inst->bitCompressed_NormalVector_AndDriverIndex =
-		    COLL_FIXED_PlayerSearch_CompressNormal(sps->Set2.normalVec[0], sps->Set2.normalVec[1], sps->Set2.normalVec[2], d->driverID);
+		    COLL_FIXED_PlayerSearch_CompressNormal(sps->hit.normalVec[0], sps->hit.normalVec[1], sps->hit.normalVec[2], d->driverID);
 		d->quadBlockHeight = sps->Union.QuadBlockColl.hitPos[1] << 8;
 		d->unkAA |= 4;
 
@@ -1511,18 +1511,18 @@ void COLL_FIXED_PlayerSearch(struct Thread *t, struct Driver *d)
 		{
 			if ((quad->quadFlags & 0x1000) != 0)
 			{
-				d->normalVecUP.x = sps->Set2.normalVec[0];
-				d->normalVecUP.y = sps->Set2.normalVec[1];
-				d->normalVecUP.z = sps->Set2.normalVec[2];
+				d->normalVecUP.x = sps->hit.normalVec[0];
+				d->normalVecUP.y = sps->hit.normalVec[1];
+				d->normalVecUP.z = sps->hit.normalVec[2];
 				d->unkAA |= 8;
 			}
 
 			if (d->currBlockTouching == NULL)
 			{
 				d->currBlockTouching = quad;
-				d->AxisAngle1_normalVec.x = sps->Set2.normalVec[0];
-				d->AxisAngle1_normalVec.y = sps->Set2.normalVec[1];
-				d->AxisAngle1_normalVec.z = sps->Set2.normalVec[2];
+				d->AxisAngle1_normalVec.x = sps->hit.normalVec[0];
+				d->AxisAngle1_normalVec.y = sps->hit.normalVec[1];
+				d->AxisAngle1_normalVec.z = sps->hit.normalVec[2];
 			}
 
 			COLL_FIXED_PlayerSearch_UpdateLighting(sps, d, inst);
@@ -2109,8 +2109,8 @@ KeepNormal:
 	CollFixed_WriteU32(spsBytes, 0x7c, CollFixed_ReadU32(spsBytes, 0x60));
 	*(struct QuadBlock **)(spsBytes + 0x80) = quad;
 
-	*(u8 *)(spsBytes + 0x7f) = *(u8 *)(spsBytes + 0x63);
-	*(s8 *)(spsBytes + 0x7e) = (s8)reorderResult;
+	sps->hit.triangleID = sps->candidate.triangleID;
+	sps->hit.reorderResult = (s8)reorderResult;
 
 	if (distance <= 0)
 	{
@@ -2139,7 +2139,7 @@ void COLL_MOVED_QUADBLK_TestTriangles(struct QuadBlock *quad, struct ScratchpadS
 {
 	struct BspSearchVertex *bsv = &sps->bspSearchVert[0];
 
-	sps->Set1.ptrQuadblock = quad;
+	sps->candidate.ptrQuadblock = quad;
 
 	if (((sps->Union.QuadBlockColl.qbFlagsWanted & quad->quadFlags) == 0) || ((sps->Union.QuadBlockColl.qbFlagsIgnored & quad->quadFlags) != 0) ||
 	    (quad->bbox.min[0] > sps->bbox.max[0]) || (quad->bbox.min[1] > sps->bbox.max[1]) || (quad->bbox.min[2] > sps->bbox.max[2]) ||
@@ -2150,14 +2150,14 @@ void COLL_MOVED_QUADBLK_TestTriangles(struct QuadBlock *quad, struct ScratchpadS
 
 	// if 3P or 4P mode,
 	// then use low-LOD quadblock collision (two triangles)
-	if ((sps->Union.QuadBlockColl.searchFlags & 2) == 0)
+	if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_HIGH_LOD) == 0)
 	{
 		COLL_FIXED_QUADBLK_GetNormVecs_LoLOD(sps, quad);
 
-		sps->Set1.unk63_someIndex = 0;
+		sps->candidate.triangleID = 0;
 		COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[0], &bsv[1], &bsv[2]); // 0, 1, 2
 
-		sps->Set1.unk63_someIndex = 1;
+		sps->candidate.triangleID = 1;
 
 		// If this is a quad instead of a triangle
 		if (quad->index[2] != quad->index[3])
@@ -2167,31 +2167,31 @@ void COLL_MOVED_QUADBLK_TestTriangles(struct QuadBlock *quad, struct ScratchpadS
 	}
 	else
 	{
-		if ((sps->Union.QuadBlockColl.searchFlags & 8) == 0)
+		if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_REUSE_NORMALS) == 0)
 		{
 			COLL_FIXED_QUADBLK_GetNormVecs_HiLOD(sps, quad);
 		}
 
-		sps->Set1.unk63_someIndex = 2;
+		sps->candidate.triangleID = 2;
 		COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[0], &bsv[4], &bsv[5]); // 0, 4, 5
-		sps->Set1.unk63_someIndex = 3;
+		sps->candidate.triangleID = 3;
 		COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[4], &bsv[6], &bsv[5]); // 4, 6, 5
-		sps->Set1.unk63_someIndex = 4;
+		sps->candidate.triangleID = 4;
 		COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[6], &bsv[4], &bsv[1]); // 6, 4, 1
-		sps->Set1.unk63_someIndex = 5;
+		sps->candidate.triangleID = 5;
 		COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[5], &bsv[6], &bsv[2]); // 5, 6, 2
 
-		sps->Set1.unk63_someIndex = 6;
+		sps->candidate.triangleID = 6;
 
 		// If this is a quad instead of a triangle
 		if (quad->index[2] != quad->index[3])
 		{
 			COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[8], &bsv[6], &bsv[7]); // 8, 6, 7
-			sps->Set1.unk63_someIndex = 7;
+			sps->candidate.triangleID = 7;
 			COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[7], &bsv[3], &bsv[8]); // 7, 3, 8
-			sps->Set1.unk63_someIndex = 8;
+			sps->candidate.triangleID = 8;
 			COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[1], &bsv[7], &bsv[6]); // 1, 7, 6
-			sps->Set1.unk63_someIndex = 9;
+			sps->candidate.triangleID = 9;
 			COLL_MOVED_TRIANGL_TestPoint(sps, &bsv[2], &bsv[6], &bsv[8]); // 2, 6, 8
 		}
 	}
@@ -2220,7 +2220,7 @@ void COLL_MOVED_BSPLEAF_TestQuadblocks(struct BSP *node, struct ScratchpadStruct
 		numQuads--;
 	} while (numQuads > 0);
 
-	if ((sps->Union.QuadBlockColl.searchFlags & 1) != 0)
+	if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_TEST_INSTANCES) != 0)
 	{
 		COLL_FIXED_BSPLEAF_TestInstance(node, sps);
 	}
@@ -2235,7 +2235,7 @@ void COLL_MOVED_FindScrub(struct QuadBlock *qb, int triangleID, struct Scratchpa
 
 	if (qb == NULL)
 	{
-		sps->Union.QuadBlockColl.searchFlags = searchFlags & 0xffdf;
+		sps->Union.QuadBlockColl.searchFlags = searchFlags & ~COLL_SEARCH_REPEAT_SCRUB;
 		CollFixed_WriteS16(sps, 0xe, 0);
 		ext->numTriangles = 0;
 		return;
@@ -2257,7 +2257,7 @@ void COLL_MOVED_FindScrub(struct QuadBlock *qb, int triangleID, struct Scratchpa
 				tri->numCollision = numCollision;
 			}
 
-			sps->Union.QuadBlockColl.searchFlags = searchFlags | 0x20;
+			sps->Union.QuadBlockColl.searchFlags = searchFlags | COLL_SEARCH_REPEAT_SCRUB;
 			CollFixed_WriteS16(sps, 0xe, scrub);
 			return;
 		}
@@ -2271,7 +2271,7 @@ void COLL_MOVED_FindScrub(struct QuadBlock *qb, int triangleID, struct Scratchpa
 		tri->numCollision = 0;
 	}
 
-	sps->Union.QuadBlockColl.searchFlags = searchFlags & 0xffdf;
+	sps->Union.QuadBlockColl.searchFlags = searchFlags & ~COLL_SEARCH_REPEAT_SCRUB;
 	CollFixed_WriteS16(sps, 0xe, 0);
 	ext->numTriangles++;
 }
@@ -2342,30 +2342,30 @@ static int CollMoved_PlayerSearch_RunHitboxLInC(struct ScratchpadStruct *sps, st
 
 static void CollMoved_PlayerSearch_StoreHitbox(struct ScratchpadStruct *sps)
 {
-	sps->bspInstHitboxArr[sps->numInstHitboxesHit] = sps->bspHitbox;
-	sps->numInstHitboxesHit++;
+	sps->bspHitboxesHit[sps->numBspHitboxesHit] = sps->bspHitbox;
+	sps->numBspHitboxesHit++;
 }
 
 static void CollMoved_PlayerSearch_CopyGroundNormal(struct ScratchpadStruct *sps, struct Driver *d)
 {
-	d->normalVecUP.x = sps->Set2.normalVec[0];
-	d->normalVecUP.y = sps->Set2.normalVec[1];
-	d->normalVecUP.z = sps->Set2.normalVec[2];
+	d->normalVecUP.x = sps->hit.normalVec[0];
+	d->normalVecUP.y = sps->hit.normalVec[1];
+	d->normalVecUP.z = sps->hit.normalVec[2];
 
-	d->AxisAngle1_normalVec.x = sps->Set2.normalVec[0];
-	d->AxisAngle1_normalVec.y = sps->Set2.normalVec[1];
-	d->AxisAngle1_normalVec.z = sps->Set2.normalVec[2];
+	d->AxisAngle1_normalVec.x = sps->hit.normalVec[0];
+	d->AxisAngle1_normalVec.y = sps->hit.normalVec[1];
+	d->AxisAngle1_normalVec.z = sps->hit.normalVec[2];
 }
 
 static void CollMoved_PlayerSearch_CopyHitOutput(struct ScratchpadStruct *sps, struct Driver *d)
 {
-	d->spsHitPos[0] = sps->Set2.hitPos[0];
-	d->spsHitPos[1] = sps->Set2.hitPos[1];
-	d->spsHitPos[2] = sps->Set2.hitPos[2];
+	d->spsHitPos[0] = sps->hit.hitPos[0];
+	d->spsHitPos[1] = sps->hit.hitPos[1];
+	d->spsHitPos[2] = sps->hit.hitPos[2];
 
-	d->spsNormalVec[0] = sps->Set2.normalVec[0];
-	d->spsNormalVec[1] = sps->Set2.normalVec[1];
-	d->spsNormalVec[2] = sps->Set2.normalVec[2];
+	d->spsNormalVec[0] = sps->hit.normalVec[0];
+	d->spsNormalVec[1] = sps->hit.normalVec[1];
+	d->spsNormalVec[2] = sps->hit.normalVec[2];
 }
 
 static void CollMoved_PlayerSearch_SetModelID(struct ScratchpadStruct *sps, s32 modelID)
@@ -2399,15 +2399,15 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 	sps->Union.QuadBlockColl.hitRadiusSquared = hitRadius * hitRadius;
 	sps->Union.QuadBlockColl.qbFlagsWanted = 0x3000;
 	sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
-	sps->Union.QuadBlockColl.searchFlags = 1;
+	sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES;
 	sps->ptr_mesh_info = gGT->level1->ptr_mesh_info;
 
 	if (gGT->numPlyrCurrGame < 3)
 	{
-		sps->Union.QuadBlockColl.searchFlags = 3;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_HIGH_LOD;
 	}
 
-	sps->numInstHitboxesHit = 0;
+	sps->numBspHitboxesHit = 0;
 	CollMoved_PlayerSearch_SetModelID(sps, DYNAMIC_PLAYER);
 	*(u32 *)&sps->dataOutput[0] = 0;
 
@@ -2424,11 +2424,11 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 		velocity[2] = CollMoved_PlayerSearch_StepVelocity(d->velocity.z, gGT->elapsedTimeMS, multiplier);
 
 		sps->boolDidTouchQuadblock = 0;
-		sps->unk3C = 0;
+		sps->numTrianglesTested = 0;
 		sps->boolDidTouchHitbox = 0;
 		sps->unk40 = 0;
-		sps->Union.QuadBlockColl.searchFlags |= 1;
-		sps->countByOne_ForWhatReason = 0x1000;
+		sps->Union.QuadBlockColl.searchFlags |= COLL_SEARCH_TEST_INSTANCES;
+		sps->hitFraction = 0x1000;
 
 		current[0] = (s16)d->originToCenter.x + (d->posCurr.x >> 8);
 		current[1] = (s16)d->originToCenter.y + (d->posCurr.y >> 8);
@@ -2459,7 +2459,7 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 		sps->Union.QuadBlockColl.hitPos[1] = sps->Input1.pos[1];
 		sps->Union.QuadBlockColl.hitPos[2] = sps->Input1.pos[2];
 
-		sps->Union.QuadBlockColl.searchFlags = (sps->Union.QuadBlockColl.searchFlags | 1) & 0xfff7;
+		sps->Union.QuadBlockColl.searchFlags = (sps->Union.QuadBlockColl.searchFlags | COLL_SEARCH_TEST_INSTANCES) & ~COLL_SEARCH_REUSE_NORMALS;
 
 		if ((gGT->level1 != NULL) && (gGT->level1->ptr_mesh_info != NULL) && (gGT->level1->ptr_mesh_info->bspRoot != NULL))
 		{
@@ -2471,11 +2471,11 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 			d->unkAA |= 4;
 		}
 
-		if (sps->countByOne_ForWhatReason > 0)
+		if (sps->hitFraction > 0)
 		{
-			d->posCurr.x += CTR_MipsMulLo(velocity[0], sps->countByOne_ForWhatReason) >> 12;
-			d->posCurr.y += CTR_MipsMulLo(velocity[1], sps->countByOne_ForWhatReason) >> 12;
-			d->posCurr.z += CTR_MipsMulLo(velocity[2], sps->countByOne_ForWhatReason) >> 12;
+			d->posCurr.x += CTR_MipsMulLo(velocity[0], sps->hitFraction) >> 12;
+			d->posCurr.y += CTR_MipsMulLo(velocity[1], sps->hitFraction) >> 12;
+			d->posCurr.z += CTR_MipsMulLo(velocity[2], sps->hitFraction) >> 12;
 		}
 
 		if (sps->boolDidTouchHitbox != 0)
@@ -2484,7 +2484,7 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 			u8 hitboxId;
 			int hitboxResult;
 
-			sps->Union.QuadBlockColl.searchFlags &= 0xfff7;
+			sps->Union.QuadBlockColl.searchFlags &= ~COLL_SEARCH_REUSE_NORMALS;
 			d->unkAA &= 0xfffd;
 
 			hitboxResult = CollMoved_PlayerSearch_RunHitboxLInC(sps, t);
@@ -2527,14 +2527,14 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 				break;
 			}
 
-			quad = sps->Set2.ptrQuadblock;
+			quad = sps->hit.ptrQuadblock;
 
 			if ((quad->quadFlags & 0x200) != 0)
 			{
 				d->unkAA |= 1;
 			}
 
-			COLL_MOVED_FindScrub(quad, ((u8 *)sps)[0x7f], sps);
+			COLL_MOVED_FindScrub(quad, sps->hit.triangleID, sps);
 
 			if ((quad->quadFlags & 0x1000) == 0)
 			{
@@ -2563,16 +2563,16 @@ void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d)
 				return;
 			}
 
-			if (sps->countByOne_ForWhatReason > 0)
+			if (sps->hitFraction > 0)
 			{
-				multiplier -= CTR_MipsMulLo(multiplier, sps->countByOne_ForWhatReason) >> 12;
+				multiplier -= CTR_MipsMulLo(multiplier, sps->hitFraction) >> 12;
 				if (multiplier < 100)
 				{
 					break;
 				}
 			}
 
-			sps->Union.QuadBlockColl.searchFlags |= 8;
+			sps->Union.QuadBlockColl.searchFlags |= COLL_SEARCH_REUSE_NORMALS;
 		}
 	}
 
@@ -2652,20 +2652,20 @@ static void CollMoved_ScrubImpact_ProjectWallVelocity(s16 normalX, s16 normalY, 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x80020c58-0x80021500; scrub depth is SPS+0x0e.
 u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct ScratchpadStruct *sps, struct Scrub *scrub, int *velocity)
 {
-	s16 normalX = sps->Set2.normalVec[0];
-	s16 normalY = sps->Set2.normalVec[1];
-	s16 normalZ = sps->Set2.normalVec[2];
+	s16 normalX = sps->hit.normalVec[0];
+	s16 normalY = sps->hit.normalVec[1];
+	s16 normalZ = sps->hit.normalVec[2];
 	s32 dot;
 	u32 ret;
 
-	if ((d->unknownTraction != 0) && (sps->boolDidTouchQuadblock != 0) && ((sps->Set2.ptrQuadblock->quadFlags & 0x1000) != 0) && (((u8 *)sps)[0x7e] != 6) &&
-	    (sps->Set2.ptrQuadblock != d->underDriver))
+	if ((d->unknownTraction != 0) && (sps->boolDidTouchQuadblock != 0) && ((sps->hit.ptrQuadblock->quadFlags & 0x1000) != 0) && (sps->hit.reorderResult != 6) &&
+	    (sps->hit.ptrQuadblock != d->underDriver))
 	{
 		if ((Coll_MipsAbsS32(d->speedApprox) < 0x300) && (Coll_MipsAbsS32(d->jumpHeightCurr) < 0x300) && (d->fireSpeed == 0))
 		{
-			s32 diffX = (d->posCurr.x >> 8) - sps->Set2.hitPos[0];
-			s32 diffZ = (d->posCurr.z >> 8) - sps->Set2.hitPos[2];
-			s32 diffY = (d->posCurr.y >> 8) - sps->Set2.hitPos[1];
+			s32 diffX = (d->posCurr.x >> 8) - sps->hit.hitPos[0];
+			s32 diffZ = (d->posCurr.z >> 8) - sps->hit.hitPos[2];
+			s32 diffY = (d->posCurr.y >> 8) - sps->hit.hitPos[1];
 
 			if ((diffX | diffY | diffZ) != 0)
 			{
@@ -2710,9 +2710,9 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 		{
 			d->set_0xF0_OnWallRub = 0xf0;
 			d->scrubMeta8 = scrubSpeed;
-			d->posWallColl[0] = sps->Set2.hitPos[0];
-			d->posWallColl[1] = sps->Set2.hitPos[1];
-			d->posWallColl[2] = sps->Set2.hitPos[2];
+			d->posWallColl[0] = sps->hit.hitPos[0];
+			d->posWallColl[1] = sps->hit.hitPos[1];
+			d->posWallColl[2] = sps->hit.hitPos[2];
 		}
 
 		ret = 0;
@@ -2744,8 +2744,8 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 
 			CollMoved_ScrubImpact_GteLLV0(impactX, impactY, impactZ, &impactX, &impactY, &impactZ);
 
-			if ((sps->boolDidTouchQuadblock != 0) && ((sps->Union.QuadBlockColl.searchFlags & 0x10) == 0) && ((d->actionsFlagSetPrevFrame & 1) == 0) &&
-			    ((sps->Set2.ptrQuadblock->quadFlags & 0x1000) != 0))
+			if ((sps->boolDidTouchQuadblock != 0) && ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_WALL_PROJECTION_DONE) == 0) &&
+			    ((d->actionsFlagSetPrevFrame & 1) == 0) && ((sps->hit.ptrQuadblock->quadFlags & 0x1000) != 0))
 			{
 				CollMoved_ScrubImpact_ProjectWallVelocity(normalX, normalY, normalZ, oldVelX, oldVelZ, &wallVelX, &wallVelY, &wallVelZ);
 
@@ -2758,7 +2758,7 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 
 					if ((wallSpeed != 0) && (speedApprox > 0))
 					{
-						sps->Union.QuadBlockColl.searchFlags |= 0x10;
+						sps->Union.QuadBlockColl.searchFlags |= COLL_SEARCH_WALL_PROJECTION_DONE;
 						velocity[0] = CTR_MipsMulLo(wallVelX, speedApprox) / (s32)wallSpeed;
 						velocity[1] = CTR_MipsMulLo(wallVelY, speedApprox) / (s32)wallSpeed;
 						velocity[2] = CTR_MipsMulLo(wallVelZ, speedApprox) / (s32)wallSpeed;

@@ -257,13 +257,13 @@ LAB_800adc08:;
 
 	struct ScratchpadStruct *sps = (struct ScratchpadStruct *)0x1f800108;
 
-	sps->Union.QuadBlockColl.searchFlags = 0x41;
+	sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_FORCE_INSTANCE_HIT;
 	sps->Union.QuadBlockColl.qbFlagsWanted = 0x1040;
 	sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
 
 	if (gGT->numPlyrCurrGame < 3)
 	{
-		sps->Union.QuadBlockColl.searchFlags = 0x43;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_HIGH_LOD | COLL_SEARCH_FORCE_INSTANCE_HIT;
 	}
 
 	sps->ptr_mesh_info = gGT->level1->ptr_mesh_info;
@@ -332,7 +332,7 @@ LAB_800adc08:;
 			// missile model
 			if (modelID == DYNAMIC_ROCKET)
 			{
-				VehPhysForce_RotAxisAngle(&inst->matrix, &sps->Set2.normalVec[0], tw->rotY);
+				VehPhysForce_RotAxisAngle(&inst->matrix, &sps->hit.normalVec[0], tw->rotY);
 			}
 
 			// position

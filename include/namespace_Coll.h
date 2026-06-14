@@ -4,6 +4,16 @@ struct BoundingBox
 	s16 max[3];
 };
 
+enum CollSearchFlags
+{
+	COLL_SEARCH_TEST_INSTANCES = 0x1,
+	COLL_SEARCH_HIGH_LOD = 0x2,
+	COLL_SEARCH_REUSE_NORMALS = 0x8,
+	COLL_SEARCH_WALL_PROJECTION_DONE = 0x10,
+	COLL_SEARCH_REPEAT_SCRUB = 0x20,
+	COLL_SEARCH_FORCE_INSTANCE_HIT = 0x40,
+};
+
 struct BspSearchVertex
 {
 	// 0x0
@@ -26,8 +36,30 @@ struct BspSearchVertex
 struct BspSearchTriangle
 {
 	struct QuadBlock *quadblock;
-	int triangleID;
-	int numCollision;
+	s32 triangleID;
+	s32 numCollision;
+};
+
+struct BspSearchResult
+{
+	// 0x0
+	s16 hitPos[3];
+
+	// 0x6
+	s16 normalAxis;
+
+	// 0x8
+	s16 normalVec[4];
+
+	// 0x10
+	s16 pushOut[3];
+
+	// 0x16
+	s8 reorderResult;
+	u8 triangleID;
+
+	// 0x18
+	struct QuadBlock *ptrQuadblock;
 };
 
 // can be stored in normal RAM,
@@ -44,10 +76,10 @@ struct ScratchpadStruct
 		s16 hitRadius;
 
 		// 0x8
-		int hitRadiusSquared;
+		s32 hitRadiusSquared;
 
 		// 0xC
-		int modelID;
+		s32 modelID;
 	} Input1;
 
 	// 0x10
@@ -64,19 +96,19 @@ struct ScratchpadStruct
 			s16 hitRadius;
 
 			// 0x18
-			int hitRadiusSquared;
+			s32 hitRadiusSquared;
 
 			// 0x1C
 			s16 hitPos[3];
 
 			// 0x22
-			s16 searchFlags;
+			u16 searchFlags;
 
 			// 0x24
-			int qbFlagsWanted;
+			u32 qbFlagsWanted;
 
 			// 0x28
-			int qbFlagsIgnored;
+			u32 qbFlagsIgnored;
 
 		} QuadBlockColl;
 
@@ -108,9 +140,8 @@ struct ScratchpadStruct
 	// 0x30
 	struct BoundingBox bbox;
 
-	// 0x3C...
-	// 1f800144, can be ptr_mesh_info, or search flags
-	s16 unk3C;
+	// 0x3C
+	s16 numTrianglesTested;
 
 	// 0x3e
 	s16 boolDidTouchQuadblock;
@@ -129,63 +160,22 @@ struct ScratchpadStruct
 	struct BSP *bspHitbox;
 
 	// 0x4c
-	struct
-	{
-		// 0x4c
-		s16 hitPos[3];
-
-		// 0x52
-		// which way does normal point
-		s16 BspSearchVertexFlags;
-
-		// 0x54
-		s16 normalVec[4];
-
-		// 0x5c
-		// distanceFromDriverToUNK
-		s16 unk[3];
-
-		// 0x62
-		char unk62;
-		char unk63_someIndex;
-
-		// 0x64
-		void *ptrQuadblock;
-
-	} Set1;
+	struct BspSearchResult candidate;
 
 	// 0x68
-	struct
-	{
-		// 0x68
-		s16 hitPos[3];
-
-		// 0x6e
-		// which way does normal point
-		s16 BspSearchVertexFlags;
-
-		// 0x70
-		s16 normalVec[4];
-
-		// 0x78
-		// distanceFromDriverToUNK
-		char unk[8];
-
-		// 0x80
-		struct QuadBlock *ptrQuadblock;
-
-	} Set2;
+	struct BspSearchResult hit;
 
 	// 0x84
-	int countByOne_ForWhatReason; // ??
+	// 0x1000 means the whole segment is clear; lower values are the first hit fraction.
+	s32 hitFraction;
 
 	// 0x88
 	// This can happen 15 times cause of FUN_80020410,
 	// so this prevents any duplicate collisions
-	struct BSP *bspInstHitboxArr[15];
+	struct BSP *bspHitboxesHit[15];
 
 	// 0xc4
-	int numInstHitboxesHit;
+	s32 numBspHitboxesHit;
 
 	// 0xc8, 0xca,
 	s16 barycentrics[2];
@@ -196,8 +186,8 @@ struct ScratchpadStruct
 	// 0xd8, 0xdc, 0xe0
 	struct BspSearchVertex *bspSearchVertHit[3];
 
-	// 0xe4
-	int unkE4;
+	// 0xe4, extra candidate hit delta slot
+	s32 unkE4;
 
 	// vec3, bsp->0x10 - position (FUN_8001d0c4)
 	// 0xe8, 0xea, 0xec, 0xee
@@ -228,10 +218,10 @@ struct ScratchpadStructExtended
 	struct BspSearchTriangle bspSearchTriangle[0xF];
 
 	// 0x2c0
-	int numTriangles;
+	s32 numTriangles;
 
 	// 0x2c4 - 1f8003cc
-	int unk1[2];
+	s32 unk1[2];
 
 
 	// --- the rest is for pushBuffer funcs ---
@@ -247,7 +237,7 @@ struct ScratchpadStructExtended
 	s16 unk2;
 
 	// 0x2f4 - 1f8003fc
-	int unk3;
+	s32 unk3;
 
 	// 1f800400 end of memory
 };
@@ -255,4 +245,25 @@ struct ScratchpadStructExtended
 _Static_assert(sizeof(struct BoundingBox) == 0xC);
 _Static_assert(sizeof(struct BspSearchVertex) == 0x14);
 _Static_assert(sizeof(struct BspSearchTriangle) == 0xC);
+_Static_assert(sizeof(struct BspSearchResult) == 0x1C);
+_Static_assert(offsetof(struct BspSearchResult, hitPos) == 0x0);
+_Static_assert(offsetof(struct BspSearchResult, normalAxis) == 0x6);
+_Static_assert(offsetof(struct BspSearchResult, normalVec) == 0x8);
+_Static_assert(offsetof(struct BspSearchResult, pushOut) == 0x10);
+_Static_assert(offsetof(struct BspSearchResult, reorderResult) == 0x16);
+_Static_assert(offsetof(struct BspSearchResult, triangleID) == 0x17);
+_Static_assert(offsetof(struct BspSearchResult, ptrQuadblock) == 0x18);
 _Static_assert(sizeof(struct ScratchpadStruct) == 0x20C);
+_Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.searchFlags) == 0x22);
+_Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsWanted) == 0x24);
+_Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsIgnored) == 0x28);
+_Static_assert(offsetof(struct ScratchpadStruct, numTrianglesTested) == 0x3C);
+_Static_assert(offsetof(struct ScratchpadStruct, candidate) == 0x4C);
+_Static_assert(offsetof(struct ScratchpadStruct, candidate.triangleID) == 0x63);
+_Static_assert(offsetof(struct ScratchpadStruct, hit) == 0x68);
+_Static_assert(offsetof(struct ScratchpadStruct, hit.reorderResult) == 0x7E);
+_Static_assert(offsetof(struct ScratchpadStruct, hit.triangleID) == 0x7F);
+_Static_assert(offsetof(struct ScratchpadStruct, hit.ptrQuadblock) == 0x80);
+_Static_assert(offsetof(struct ScratchpadStruct, hitFraction) == 0x84);
+_Static_assert(offsetof(struct ScratchpadStruct, bspHitboxesHit) == 0x88);
+_Static_assert(offsetof(struct ScratchpadStruct, numBspHitboxesHit) == 0xC4);

@@ -19,12 +19,12 @@ static void VehStuckProc_MaskGrab_SearchBsp(struct Driver *d, struct ScratchpadS
 	sps->Union.QuadBlockColl.searchFlags = 0;
 	if (gGT->numPlyrCurrGame < 3)
 	{
-		sps->Union.QuadBlockColl.searchFlags = 2;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_HIGH_LOD;
 	}
 
 	sps->boolDidTouchQuadblock = 0;
-	sps->unk3C = 0;
-	sps->countByOne_ForWhatReason = 0x1000;
+	sps->numTrianglesTested = 0;
+	sps->hitFraction = 0x1000;
 	sps->dataOutput[0] = 0;
 	sps->dataOutput[1] = 0;
 	sps->dataOutput[2] = 0;

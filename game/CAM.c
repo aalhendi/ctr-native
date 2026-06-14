@@ -737,7 +737,7 @@ void CAM_StartLine_FlyIn_FixY(s16 *posRot)
 
 	sps->Union.QuadBlockColl.qbFlagsWanted = 0x3000;
 	sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
-	sps->Union.QuadBlockColl.searchFlags = 2;
+	sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_HIGH_LOD;
 	sps->ptr_mesh_info = sdata->gGT->level1->ptr_mesh_info;
 
 	pos[0] = posRot[0];

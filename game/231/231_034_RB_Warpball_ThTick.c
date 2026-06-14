@@ -20,9 +20,9 @@ static int RB_Warpball_NodeDeltaLength(struct CheckpointNode *curr, struct Check
 
 static void RB_Warpball_SetQuadblockIndex(struct TrackerWeapon *tw, struct ScratchpadStruct *sps)
 {
-	if (sps->Set2.ptrQuadblock->checkpointIndex != 0xff)
+	if (sps->hit.ptrQuadblock->checkpointIndex != 0xff)
 	{
-		tw->nodeNextIndex = sps->Set2.ptrQuadblock->checkpointIndex;
+		tw->nodeNextIndex = sps->hit.ptrQuadblock->checkpointIndex;
 	}
 }
 
@@ -244,11 +244,11 @@ void RB_Warpball_ThTick(struct Thread *t)
 	sps = CTR_SCRATCHPAD_PTR(struct ScratchpadStruct, 0x108);
 	sps->Union.QuadBlockColl.qbFlagsWanted = 0x1040;
 	sps->Union.QuadBlockColl.qbFlagsIgnored = 0;
-	sps->Union.QuadBlockColl.searchFlags = 0x41;
+	sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_FORCE_INSTANCE_HIT;
 
 	if (gGT->numPlyrCurrGame < 3)
 	{
-		sps->Union.QuadBlockColl.searchFlags = 0x43;
+		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_HIGH_LOD | COLL_SEARCH_FORCE_INSTANCE_HIT;
 	}
 
 	sps->ptr_mesh_info = gGT->level1->ptr_mesh_info;
@@ -276,10 +276,10 @@ void RB_Warpball_ThTick(struct Thread *t)
 		RB_Warpball_SetQuadblockIndex(tw, sps);
 		tw->vel[1] = 0;
 
-		if (((tw->flags & 0xc) != 0) && (inst->matrix.t[1] < sps->Set2.hitPos[1]))
+		if (((tw->flags & 0xc) != 0) && (inst->matrix.t[1] < sps->hit.hitPos[1]))
 		{
-			inst->matrix.t[1] = sps->Set2.hitPos[1];
-			inst->unk50 = sps->Set2.ptrQuadblock->draw_order_low - 1;
+			inst->matrix.t[1] = sps->hit.hitPos[1];
+			inst->unk50 = sps->hit.ptrQuadblock->draw_order_low - 1;
 		}
 	}
 	else
