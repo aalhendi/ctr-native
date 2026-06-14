@@ -680,9 +680,8 @@ void COLL_FIXED_BSPLEAF_TestInstance(struct BSP *node, struct ScratchpadStruct *
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8001d77c-0x8001d944
 void COLL_FIXED_BotsSearch(s16 *posCurr, s16 *posPrev, struct ScratchpadStruct *sps)
 {
-	char i;
 	s16 radius = sps->Input1.hitRadius;
-	int sqrRadius = CTR_MipsMulLo(radius, radius);
+	s32 sqrRadius = CTR_MipsMulLo(radius, radius);
 	s16 deltaCurr;
 	s16 deltaPrev;
 
@@ -690,19 +689,19 @@ void COLL_FIXED_BotsSearch(s16 *posCurr, s16 *posPrev, struct ScratchpadStruct *
 	sps->Union.QuadBlockColl.hitRadiusSquared = sqrRadius;
 	sps->Union.QuadBlockColl.hitRadius = radius;
 
-	for (i = 0; i < 3; i++)
+	for (s32 axis = 0; axis < 3; axis++)
 	{
-		sps->Input1.pos.v[i] = posCurr[i];
-		sps->Union.QuadBlockColl.hitPos.v[i] = posCurr[i];
-		sps->Union.QuadBlockColl.pos.v[i] = posPrev[i];
+		sps->Input1.pos.v[axis] = posCurr[axis];
+		sps->Union.QuadBlockColl.hitPos.v[axis] = posCurr[axis];
+		sps->Union.QuadBlockColl.pos.v[axis] = posPrev[axis];
 
-		deltaCurr = posCurr[i] - radius;
-		deltaPrev = posPrev[i] - radius;
-		sps->bbox.min[i] = (deltaCurr < deltaPrev) ? deltaCurr : deltaPrev;
+		deltaCurr = posCurr[axis] - radius;
+		deltaPrev = posPrev[axis] - radius;
+		sps->bbox.min[axis] = (deltaCurr < deltaPrev) ? deltaCurr : deltaPrev;
 
-		deltaCurr = posCurr[i] + radius;
-		deltaPrev = posPrev[i] + radius;
-		sps->bbox.max[i] = (deltaCurr > deltaPrev) ? deltaCurr : deltaPrev;
+		deltaCurr = posCurr[axis] + radius;
+		deltaPrev = posPrev[axis] + radius;
+		sps->bbox.max[axis] = (deltaCurr > deltaPrev) ? deltaCurr : deltaPrev;
 	}
 
 	sps->numTrianglesTested = 0;
@@ -747,7 +746,7 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
 	s32 hitX;
 	s32 hitY;
 	s32 hitZ;
-	s32 normalAxis;
+	CollNormalAxis normalAxis;
 	s32 firstA;
 	s32 firstB;
 	s32 firstHit;
@@ -803,14 +802,14 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
 	baryV3 = v3;
 	normalAxis = sps->candidate.normalAxis;
 
-	if (normalAxis == 3)
+	if (normalAxis == COLL_NORMAL_AXIS_Y)
 	{
 		s32 origin = v1->pos.z;
 		firstA = v2->pos.z - origin;
 		firstB = v3->pos.z - origin;
 		firstHit = hitZ - origin;
 
-		if (abs(firstA) < abs(firstB))
+		if (Coll_MipsAbsS32(firstA) < Coll_MipsAbsS32(firstB))
 		{
 			s32 tmp = firstA;
 			firstA = firstB;
@@ -824,14 +823,14 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
 		secondB = baryV3->pos.x - origin;
 		secondHit = hitX - origin;
 	}
-	else if (normalAxis == 1)
+	else if (normalAxis == COLL_NORMAL_AXIS_Z)
 	{
 		s32 origin = v1->pos.x;
 		firstA = v2->pos.x - origin;
 		firstB = v3->pos.x - origin;
 		firstHit = hitX - origin;
 
-		if (abs(firstA) < abs(firstB))
+		if (Coll_MipsAbsS32(firstA) < Coll_MipsAbsS32(firstB))
 		{
 			s32 tmp = firstA;
 			firstA = firstB;
@@ -852,7 +851,7 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
 		firstB = v3->pos.y - origin;
 		firstHit = hitY - origin;
 
-		if (abs(firstA) < abs(firstB))
+		if (Coll_MipsAbsS32(firstA) < Coll_MipsAbsS32(firstB))
 		{
 			s32 tmp = firstA;
 			firstA = firstB;
@@ -928,7 +927,7 @@ void COLL_FIXED_TRIANGL_TestPoint(void *sps, void *v1, void *v2, void *v3)
 	s32 normalZW = (s32)CollFixed_PackS16Pair(vertex->plane.normal.z, vertex->plane.halfDistance);
 
 	scratchpad->numTrianglesTested = (s16)((u16)scratchpad->numTrianglesTested + 1);
-	scratchpad->candidate.normalAxis = (s16)vertex->flags;
+	scratchpad->candidate.normalAxis = (CollNormalAxis)vertex->flags;
 	scratchpad->candidate.plane = vertex->plane;
 
 	COLL_FIXED_TRIANGL_TestPoint_Body(scratchpad, vertex, (struct BspSearchVertex *)v2, (struct BspSearchVertex *)v3, normalZW);
@@ -960,7 +959,7 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 	s32 absX;
 	s32 absY;
 	s32 absZ;
-	s16 dominantAxis;
+	CollNormalAxis dominantAxis;
 
 	CollFixed_GteLoadR11R12((u16)edgeAX);
 	CollFixed_GteLoadR22R23((u16)edgeAY);
@@ -994,21 +993,21 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 	vertex->plane.normal.z = (s16)nz;
 	vertex->plane.halfDistance = (s16)(plane >> 1);
 
-	absX = nx < 0 ? -nx : nx;
-	absY = ny < 0 ? -ny : ny;
-	absZ = nz < 0 ? -nz : nz;
-	dominantAxis = 1;
+	absX = Coll_MipsAbsS32(nx);
+	absY = Coll_MipsAbsS32(ny);
+	absZ = Coll_MipsAbsS32(nz);
+	dominantAxis = COLL_NORMAL_AXIS_Z;
 
 	if ((absX - absY) < 0)
 	{
 		if ((absY - absZ) >= 0)
 		{
-			dominantAxis = 3;
+			dominantAxis = COLL_NORMAL_AXIS_Y;
 		}
 	}
 	else if ((absX - absZ) >= 0)
 	{
-		dominantAxis = 2;
+		dominantAxis = COLL_NORMAL_AXIS_X;
 	}
 
 	vertex->flags = (u16)dominantAxis;
@@ -1468,12 +1467,12 @@ void COLL_FIXED_PlayerSearch(struct Thread *t, struct Driver *d)
 				if ((quadFlags & 1) != 0)
 				{
 					inst->flags |= REFLECTIVE;
-					inst->vertSplit = *(s16 *)((u8 *)level + 0x186);
+					inst->vertSplit = level->splitLines[1];
 				}
 				else if ((quadFlags & 4) != 0)
 				{
 					inst->flags |= REFLECTIVE;
-					inst->vertSplit = *(s16 *)((u8 *)level + 0x184);
+					inst->vertSplit = level->splitLines[0];
 				}
 				else
 				{
@@ -1768,26 +1767,25 @@ static void CollMoved_GteGPF12(void)
 	doCOP2(0x0198003d);
 }
 
-static void CollMoved_CopyVertexPos(void *dst, const void *src)
+static void CollMoved_CopyVertexPos(SVec3 *dst, const SVec3 *src)
 {
-	CollFixed_WriteU32(dst, 0, CollFixed_ReadU32(src, 0));
-	CollFixed_WriteS16(dst, 4, CollFixed_ReadS16(src, 4));
+	CTR_COPY_VEC3(dst->v, src->v);
 }
 
-static void CollMoved_SelectProjection(s32 normalAxis, void *set1, void *v1, void **v2, void **v3, s32 *firstA, s32 *firstB, s32 *firstHit, s32 *secondA,
-                                       s32 *secondB, s32 *secondHit)
+static void CollMoved_SelectProjection(CollNormalAxis normalAxis, struct BspSearchResult *candidate, struct BspSearchVertex *v1, struct BspSearchVertex **v2,
+                                       struct BspSearchVertex **v3, s32 *firstA, s32 *firstB, s32 *firstHit, s32 *secondA, s32 *secondB, s32 *secondHit)
 {
 	s32 origin;
-	void *tmp;
+	struct BspSearchVertex *tmp;
 
-	if (normalAxis == 3)
+	if (normalAxis == COLL_NORMAL_AXIS_Y)
 	{
-		origin = CollFixed_ReadS16(v1, 4);
-		*firstA = CollFixed_ReadS16(*v2, 4) - origin;
-		*firstB = CollFixed_ReadS16(*v3, 4) - origin;
-		*firstHit = CollFixed_ReadS16(set1, 0x14) - origin;
+		origin = v1->pos.z;
+		*firstA = (*v2)->pos.z - origin;
+		*firstB = (*v3)->pos.z - origin;
+		*firstHit = candidate->pushOut.z - origin;
 
-		if (((*firstA < 0) ? -*firstA : *firstA) < ((*firstB < 0) ? -*firstB : *firstB))
+		if (Coll_MipsAbsS32(*firstA) < Coll_MipsAbsS32(*firstB))
 		{
 			s32 tmpValue = *firstA;
 			*firstA = *firstB;
@@ -1797,19 +1795,19 @@ static void CollMoved_SelectProjection(s32 normalAxis, void *set1, void *v1, voi
 			*v3 = tmp;
 		}
 
-		origin = CollFixed_ReadS16(v1, 0);
-		*secondA = CollFixed_ReadS16(*v2, 0) - origin;
-		*secondB = CollFixed_ReadS16(*v3, 0) - origin;
-		*secondHit = CollFixed_ReadS16(set1, 0x10) - origin;
+		origin = v1->pos.x;
+		*secondA = (*v2)->pos.x - origin;
+		*secondB = (*v3)->pos.x - origin;
+		*secondHit = candidate->pushOut.x - origin;
 	}
-	else if (normalAxis == 1)
+	else if (normalAxis == COLL_NORMAL_AXIS_Z)
 	{
-		origin = CollFixed_ReadS16(v1, 0);
-		*firstA = CollFixed_ReadS16(*v2, 0) - origin;
-		*firstB = CollFixed_ReadS16(*v3, 0) - origin;
-		*firstHit = CollFixed_ReadS16(set1, 0x10) - origin;
+		origin = v1->pos.x;
+		*firstA = (*v2)->pos.x - origin;
+		*firstB = (*v3)->pos.x - origin;
+		*firstHit = candidate->pushOut.x - origin;
 
-		if (((*firstA < 0) ? -*firstA : *firstA) < ((*firstB < 0) ? -*firstB : *firstB))
+		if (Coll_MipsAbsS32(*firstA) < Coll_MipsAbsS32(*firstB))
 		{
 			s32 tmpValue = *firstA;
 			*firstA = *firstB;
@@ -1819,19 +1817,19 @@ static void CollMoved_SelectProjection(s32 normalAxis, void *set1, void *v1, voi
 			*v3 = tmp;
 		}
 
-		origin = CollFixed_ReadS16(v1, 2);
-		*secondA = CollFixed_ReadS16(*v2, 2) - origin;
-		*secondB = CollFixed_ReadS16(*v3, 2) - origin;
-		*secondHit = CollFixed_ReadS16(set1, 0x12) - origin;
+		origin = v1->pos.y;
+		*secondA = (*v2)->pos.y - origin;
+		*secondB = (*v3)->pos.y - origin;
+		*secondHit = candidate->pushOut.y - origin;
 	}
 	else
 	{
-		origin = CollFixed_ReadS16(v1, 2);
-		*firstA = CollFixed_ReadS16(*v2, 2) - origin;
-		*firstB = CollFixed_ReadS16(*v3, 2) - origin;
-		*firstHit = CollFixed_ReadS16(set1, 0x12) - origin;
+		origin = v1->pos.y;
+		*firstA = (*v2)->pos.y - origin;
+		*firstB = (*v3)->pos.y - origin;
+		*firstHit = candidate->pushOut.y - origin;
 
-		if (((*firstA < 0) ? -*firstA : *firstA) < ((*firstB < 0) ? -*firstB : *firstB))
+		if (Coll_MipsAbsS32(*firstA) < Coll_MipsAbsS32(*firstB))
 		{
 			s32 tmpValue = *firstA;
 			*firstA = *firstB;
@@ -1841,18 +1839,18 @@ static void CollMoved_SelectProjection(s32 normalAxis, void *set1, void *v1, voi
 			*v3 = tmp;
 		}
 
-		origin = CollFixed_ReadS16(v1, 4);
-		*secondA = CollFixed_ReadS16(*v2, 4) - origin;
-		*secondB = CollFixed_ReadS16(*v3, 4) - origin;
-		*secondHit = CollFixed_ReadS16(set1, 0x14) - origin;
+		origin = v1->pos.z;
+		*secondA = (*v2)->pos.z - origin;
+		*secondB = (*v3)->pos.z - origin;
+		*secondHit = candidate->pushOut.z - origin;
 	}
 }
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8001f928-0x8001fc40
-s32 COLL_MOVED_TRIANGL_ReorderNormals(void *set1, void *v1, void *v2, void *v3)
+s32 COLL_MOVED_TRIANGL_ReorderNormals(struct BspSearchResult *candidate, struct BspSearchVertex *v1, struct BspSearchVertex *v2, struct BspSearchVertex *v3)
 {
-	void *baryV2 = v2;
-	void *baryV3 = v3;
+	struct BspSearchVertex *baryV2 = v2;
+	struct BspSearchVertex *baryV3 = v3;
 	s32 firstA;
 	s32 firstB;
 	s32 firstHit;
@@ -1863,7 +1861,7 @@ s32 COLL_MOVED_TRIANGL_ReorderNormals(void *set1, void *v1, void *v2, void *v3)
 	s32 baryB = -0x1000;
 	s32 sum;
 
-	CollMoved_SelectProjection(CollFixed_ReadS16(set1, 6), set1, v1, &baryV2, &baryV3, &firstA, &firstB, &firstHit, &secondA, &secondB, &secondHit);
+	CollMoved_SelectProjection(candidate->normalAxis, candidate, v1, &baryV2, &baryV3, &firstA, &firstB, &firstHit, &secondA, &secondB, &secondHit);
 
 	if (firstA == 0)
 	{
@@ -1895,17 +1893,17 @@ s32 COLL_MOVED_TRIANGL_ReorderNormals(void *set1, void *v1, void *v2, void *v3)
 	{
 		if (baryB < 0)
 		{
-			CollMoved_CopyVertexPos(set1, v1);
+			CollMoved_CopyVertexPos(&candidate->hitPos, &v1->pos);
 			return 0;
 		}
 
 		if (sum >= 0)
 		{
-			CollMoved_CopyVertexPos(set1, baryV3);
+			CollMoved_CopyVertexPos(&candidate->hitPos, &baryV3->pos);
 			return 4;
 		}
 
-		COLL_FIXED_TRIANGL_Barycentrics((s16 *)set1, (s16 *)v1, (s16 *)baryV3, (s16 *)((u8 *)set1 + 0x10));
+		COLL_FIXED_TRIANGL_Barycentrics(candidate->hitPos.v, v1->pos.v, baryV3->pos.v, candidate->pushOut.v);
 		return 5;
 	}
 
@@ -1913,21 +1911,21 @@ s32 COLL_MOVED_TRIANGL_ReorderNormals(void *set1, void *v1, void *v2, void *v3)
 	{
 		if (sum <= 0)
 		{
-			CollMoved_CopyVertexPos(set1, (u8 *)set1 + 0x10);
+			CollMoved_CopyVertexPos(&candidate->hitPos, &candidate->pushOut);
 			return 6;
 		}
 
-		COLL_FIXED_TRIANGL_Barycentrics((s16 *)set1, (s16 *)baryV2, (s16 *)baryV3, (s16 *)((u8 *)set1 + 0x10));
+		COLL_FIXED_TRIANGL_Barycentrics(candidate->hitPos.v, baryV2->pos.v, baryV3->pos.v, candidate->pushOut.v);
 		return 3;
 	}
 
 	if (sum >= 0)
 	{
-		CollMoved_CopyVertexPos(set1, baryV2);
+		CollMoved_CopyVertexPos(&candidate->hitPos, &baryV2->pos);
 		return 2;
 	}
 
-	COLL_FIXED_TRIANGL_Barycentrics((s16 *)set1, (s16 *)v1, (s16 *)baryV2, (s16 *)baryV3);
+	COLL_FIXED_TRIANGL_Barycentrics(candidate->hitPos.v, v1->pos.v, baryV2->pos.v, baryV3->pos.v);
 	return 1;
 }
 
@@ -1950,7 +1948,7 @@ void COLL_MOVED_TRIANGL_TestPoint(struct ScratchpadStruct *sps, struct BspSearch
 	s32 reorderResult;
 
 	sps->numTrianglesTested = (s16)((u16)sps->numTrianglesTested + 1);
-	sps->candidate.normalAxis = (s16)v1->flags;
+	sps->candidate.normalAxis = (CollNormalAxis)v1->flags;
 	sps->candidate.plane = v1->plane;
 
 	quad = sps->candidate.ptrQuadblock;
@@ -2021,7 +2019,7 @@ KeepNormal:
 	sps->bspSearchVertHit[1] = v2;
 	sps->bspSearchVertHit[2] = v3;
 
-	reorderResult = COLL_MOVED_TRIANGL_ReorderNormals((u8 *)&sps->candidate, v1, v2, v3);
+	reorderResult = COLL_MOVED_TRIANGL_ReorderNormals(&sps->candidate, v1, v2, v3);
 	if (reorderResult < 0)
 		return;
 

@@ -20,6 +20,16 @@ enum CollModelIDFlags
 	COLL_MODELID_BLOCKAGE_FLAG = 0x8000,
 };
 
+// NOTE(aalhendi): Fixed-underlying enums are a GCC/Clang extension in this
+// C99 build. Retail stores this scratchpad field as a signed halfword, so keep
+// the semantic enum backed by s16 instead of relying on default enum size.
+typedef enum CollNormalAxis : s16
+{
+	COLL_NORMAL_AXIS_Z = 1,
+	COLL_NORMAL_AXIS_X = 2,
+	COLL_NORMAL_AXIS_Y = 3,
+} CollNormalAxis;
+
 struct CollPlane
 {
 	SVec3 normal;
@@ -61,7 +71,7 @@ struct BspSearchResult
 	SVec3 hitPos;
 
 	// 0x6
-	s16 normalAxis;
+	CollNormalAxis normalAxis;
 
 	// 0x8
 	struct CollPlane plane;
@@ -287,6 +297,7 @@ _Static_assert(sizeof(struct CollPlane) == 0x8);
 _Static_assert(offsetof(struct CollPlane, normal) == 0x0);
 _Static_assert(offsetof(struct CollPlane, halfDistance) == 0x6);
 _Static_assert(sizeof(SVec3) == 0x6);
+_Static_assert(sizeof(CollNormalAxis) == 0x2);
 _Static_assert(sizeof(struct BspSearchVertex) == 0x14);
 _Static_assert(sizeof(struct BspSearchTriangle) == 0xC);
 _Static_assert(sizeof(struct BspSearchResult) == 0x1C);
