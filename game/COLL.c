@@ -2745,9 +2745,9 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 
 		if ((scrubFlags & 1) != 0)
 		{
-			s32 impactX = CollFixed_MulLo(dot, normalX) >> 12;
-			s32 impactY = CollFixed_MulLo(dot, normalY) >> 12;
-			s32 impactZ = CollFixed_MulLo(dot, normalZ) >> 12;
+			s32 impactX = CTR_MipsSra(CollFixed_MulLo(dot, normalX), 12);
+			s32 impactY = CTR_MipsSra(CollFixed_MulLo(dot, normalY), 12);
+			s32 impactZ = CTR_MipsSra(CollFixed_MulLo(dot, normalZ), 12);
 			s32 speedSq = 0;
 			s32 oldVelX;
 			s32 oldVelZ;
@@ -2757,9 +2757,9 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 
 			if (scrub->unk_angle != 0)
 			{
-				speedSq = ((u32)CollFixed_MulLo(velocity[0], velocity[0]) + (u32)CollFixed_MulLo(velocity[1], velocity[1]) +
-				           (u32)CollFixed_MulLo(velocity[2], velocity[2])) >>
-				          15;
+				speedSq = CTR_MipsSra(CTR_MipsAddLo(CTR_MipsAddLo(CollFixed_MulLo(velocity[0], velocity[0]), CollFixed_MulLo(velocity[1], velocity[1])),
+				                                    CollFixed_MulLo(velocity[2], velocity[2])),
+				                      15);
 			}
 
 			oldVelX = velocity[0];
@@ -2795,7 +2795,9 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 				}
 			}
 
-			if (((scrubFlags & 2) != 0) && (dot < -0x13ff) && ((u32)CollFixed_MulLo(impactY, impactY) + (u32)CollFixed_MulLo(impactZ, impactZ) > 0x1900000))
+			s32 transformedImpactXZ = CTR_MipsAddLo(CollFixed_MulLo(impactX, impactX), CollFixed_MulLo(impactZ, impactZ));
+
+			if (((scrubFlags & 2) != 0) && (dot < -0x13ff) && (transformedImpactXZ > 0x1900000))
 			{
 				if (d->kartState != KS_MASK_GRABBED)
 				{
@@ -2805,12 +2807,15 @@ u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct Scratchpad
 				if (scrub->unk_angle != 0)
 				{
 					s32 trig = CollMoved_ScrubImpact_TrigX(scrub->unk_angle);
+					s32 scaledSpeed = CTR_MipsSra(CollFixed_MulLo(speedSq, trig), 12);
+					s32 angleLimit = CTR_MipsSra(CollFixed_MulLo(scaledSpeed, trig), 12);
+					s32 dotSq = CTR_MipsSra(CollFixed_MulLo(dot, dot), 15);
 
-					if ((CollFixed_MulLo((CollFixed_MulLo(speedSq, trig) >> 12), trig) >> 12) >= (CollFixed_MulLo(dot, dot) >> 15))
+					if (angleLimit >= dotSq)
 						return 1;
 				}
 
-				if ((d->kartState != KS_MASK_GRABBED) && ((u32)CollFixed_MulLo(impactY, impactY) + (u32)CollFixed_MulLo(impactZ, impactZ) > 0x1900000))
+				if ((d->kartState != KS_MASK_GRABBED) && (transformedImpactXZ > 0x1900000))
 				{
 					u32 soundFlags = 0xff8080;
 
