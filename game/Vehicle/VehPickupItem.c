@@ -565,7 +565,7 @@ void VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 
 		RB_MinePool_Add(mw);
 		VehPickupItem_PotionThrow(mw, weaponInst, flags);
-		mineHitModel = weaponInst->model->id | 0x8000;
+		mineHitModel = weaponInst->model->id | COLL_MODELID_BLOCKAGE_FLAG;
 		mineShouldInitFollower = (flags == 0);
 
 	RunMineCOLL:

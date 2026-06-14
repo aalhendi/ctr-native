@@ -9,7 +9,7 @@ int RB_Armadillo_ThCollide(struct Thread *armadilloThread, struct Thread *driver
 	(void)driverTh;
 	(void)funcThCollide;
 
-	return (s16)sps->Input1.modelID == DYNAMIC_PLAYER;
+	return sps->Input1.modelID == DYNAMIC_PLAYER;
 }
 
 void RB_Armadillo_ThTick_TurnAround(struct Thread *t)

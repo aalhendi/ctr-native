@@ -86,7 +86,7 @@ int RB_Seal_ThCollide(struct Thread *sealThread, struct Thread *driverTh, void *
 	(void)driverTh;
 	(void)funcThCollide;
 
-	return (s16)sps->Input1.modelID == DYNAMIC_PLAYER;
+	return sps->Input1.modelID == DYNAMIC_PLAYER;
 }
 
 void RB_Seal_ThTick_TurnAround(struct Thread *t)

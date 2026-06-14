@@ -25,10 +25,7 @@ static void VehStuckProc_MaskGrab_SearchBsp(struct Driver *d, struct ScratchpadS
 	sps->boolDidTouchQuadblock = 0;
 	sps->numTrianglesTested = 0;
 	sps->hitFraction = 0x1000;
-	sps->dataOutput[0] = 0;
-	sps->dataOutput[1] = 0;
-	sps->dataOutput[2] = 0;
-	sps->dataOutput[3] = 0;
+	sps->collision.stepFlags = 0;
 
 	sps->bbox.min[0] = topX;
 	sps->bbox.max[0] = topX;
@@ -79,8 +76,6 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 
 		do
 		{
-			u32 dataOutputFlags;
-
 			do
 			{
 				nextRespawn = &level->ptr_restart_points[respawn->nextIndex_forward];
@@ -95,9 +90,7 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 
 				VehStuckProc_MaskGrab_SearchBsp(d, sps);
 				respawn = nextRespawn;
-				dataOutputFlags = ((u32)(u8)sps->dataOutput[0]) | ((u32)(u8)sps->dataOutput[1] << 8) | ((u32)(u8)sps->dataOutput[2] << 16) |
-				                  ((u32)(u8)sps->dataOutput[3] << 24);
-			} while ((sps->boolDidTouchQuadblock == 0) || ((dataOutputFlags & 0x4000) != 0));
+			} while ((sps->boolDidTouchQuadblock == 0) || ((sps->collision.stepFlags & 0x4000) != 0));
 
 			struct Thread *playerThread = gGT->threadBuckets[PLAYER].thread;
 			while (playerThread != NULL)

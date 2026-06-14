@@ -272,7 +272,7 @@ LAB_800adc08:;
 
 	RB_MakeInstanceReflective(sps, inst);
 
-	if ((*(int *)&sps->dataOutput[0] & 4) != 0)
+	if ((sps->collision.stepFlags & 4) != 0)
 	{
 		// move backward one frame
 		tw->vel[0] = -tw->vel[0];

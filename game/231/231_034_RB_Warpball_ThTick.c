@@ -255,7 +255,7 @@ void RB_Warpball_ThTick(struct Thread *t)
 	COLL_SearchBSP_CallbackQUADBLK((u32 *)&posTop[0], (u32 *)&posBottom[0], sps, 0);
 	RB_MakeInstanceReflective(sps, inst);
 
-	if ((*(int *)&sps->dataOutput[0] & 4) != 0)
+	if ((sps->collision.stepFlags & 4) != 0)
 	{
 		RB_Warpball_TurnAround(t);
 	}

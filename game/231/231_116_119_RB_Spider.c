@@ -305,7 +305,7 @@ int RB_Spider_ThCollide(struct Thread *spiderThread, struct Thread *driverTh, vo
 	(void)driverTh;
 	(void)funcThCollide;
 
-	return (s16)sps->Input1.modelID == DYNAMIC_PLAYER;
+	return sps->Input1.modelID == DYNAMIC_PLAYER;
 }
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x800b9bd4-0x800b9dd8.

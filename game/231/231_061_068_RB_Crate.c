@@ -4,7 +4,7 @@
 // RB_CrateAny_ThTick_Explode at 800b3d04,
 // and add new LinCs to zGlobalMetaModels.c
 
-void RB_CrateAny_CheckBlockage(struct Thread *crateTh, int hitModelID_cast, struct Thread *mineTh)
+void RB_CrateAny_CheckBlockage(struct Thread *crateTh, int hitModelIDValue, struct Thread *mineTh)
 {
 	struct Crate *crateObj;
 	struct MineWeapon *mw;
@@ -13,10 +13,10 @@ void RB_CrateAny_CheckBlockage(struct Thread *crateTh, int hitModelID_cast, stru
 	mw = mineTh->object;
 
 	// if model is on top of crate
-	if ((hitModelID_cast == PU_EXPLOSIVE_CRATE) || // nitro
-	    (hitModelID_cast == STATIC_CRATE_TNT) ||   // tnt
-	    (hitModelID_cast == STATIC_BEAKER_RED) ||  // red beaker
-	    (hitModelID_cast == STATIC_BEAKER_GREEN)   // green beaker
+	if ((hitModelIDValue == PU_EXPLOSIVE_CRATE) || // nitro
+	    (hitModelIDValue == STATIC_CRATE_TNT) ||   // tnt
+	    (hitModelIDValue == STATIC_BEAKER_RED) ||  // red beaker
+	    (hitModelIDValue == STATIC_BEAKER_GREEN)   // green beaker
 	)
 	{
 		// prevent crate from growing back
@@ -30,18 +30,18 @@ void RB_CrateAny_CheckBlockage(struct Thread *crateTh, int hitModelID_cast, stru
 struct Driver *RB_CrateAny_GetDriver(struct Thread *t, struct ScratchpadStruct *sps)
 {
 	int hitModelID;
-	int hitModelID_cast;
+	int hitModelIDValue;
 	struct Driver *driver;
 
 	// get what hit the box
 	hitModelID = sps->Input1.modelID;
-	hitModelID_cast = hitModelID & 0x7fff;
+	hitModelIDValue = hitModelID & COLL_MODELID_VALUE_MASK;
 
 	// if moving explosive
-	if ((hitModelID_cast == DYNAMIC_BOMB) ||      // bomb
-	    (hitModelID_cast == DYNAMIC_ROCKET) ||    // missile
-	    (hitModelID_cast == DYNAMIC_SHIELD) ||    // blue shield
-	    (hitModelID_cast == DYNAMIC_SHIELD_GREEN) // green shield
+	if ((hitModelIDValue == DYNAMIC_BOMB) ||      // bomb
+	    (hitModelIDValue == DYNAMIC_ROCKET) ||    // missile
+	    (hitModelIDValue == DYNAMIC_SHIELD) ||    // blue shield
+	    (hitModelIDValue == DYNAMIC_SHIELD_GREEN) // green shield
 	)
 	{
 		// get driver that used the weapon
@@ -57,7 +57,7 @@ struct Driver *RB_CrateAny_GetDriver(struct Thread *t, struct ScratchpadStruct *
 	}
 
 	// if driver itself
-	else if (hitModelID_cast == DYNAMIC_PLAYER) // //player model
+	else if (hitModelIDValue == DYNAMIC_PLAYER) // //player model
 	{
 		driver = (struct Driver *)t->object;
 
@@ -225,7 +225,7 @@ int RB_CrateWeapon_ThCollide(struct Thread *crateThread, struct Thread *collidin
 	struct Instance *crateInst;
 	struct Crate *crateObj;
 	int hitModelID;
-	int hitModelID_cast;
+	int hitModelIDValue;
 	struct Driver *driver;
 
 	crateInst = crateThread->inst;
@@ -291,13 +291,13 @@ int RB_CrateWeapon_ThCollide(struct Thread *crateThread, struct Thread *collidin
 	}
 
 	hitModelID = sps->Input1.modelID;
-	hitModelID_cast = hitModelID & 0x7fff;
+	hitModelIDValue = hitModelID & COLL_MODELID_VALUE_MASK;
 
-	if ((hitModelID & 0x8000) == 0)
+	if ((hitModelID & COLL_MODELID_BLOCKAGE_FLAG) == 0)
 		return 0;
 
-	sps->Input1.modelID = hitModelID_cast;
-	RB_CrateAny_CheckBlockage(crateThread, hitModelID_cast, collidingTh);
+	sps->Input1.modelID = hitModelIDValue;
+	RB_CrateAny_CheckBlockage(crateThread, hitModelIDValue, collidingTh);
 	return 0;
 }
 
@@ -328,7 +328,7 @@ int RB_CrateFruit_ThCollide(struct Thread *crateThread, struct Thread *colliding
 	struct Instance *crateInst;
 	struct Crate *crateObj;
 	int hitModelID;
-	int hitModelID_cast;
+	int hitModelIDValue;
 	struct Driver *driver;
 	int random;
 	int newWumpa;
@@ -371,13 +371,13 @@ int RB_CrateFruit_ThCollide(struct Thread *crateThread, struct Thread *colliding
 	}
 
 	hitModelID = sps->Input1.modelID;
-	hitModelID_cast = hitModelID & 0x7fff;
+	hitModelIDValue = hitModelID & COLL_MODELID_VALUE_MASK;
 
-	if ((hitModelID & 0x8000) == 0)
+	if ((hitModelID & COLL_MODELID_BLOCKAGE_FLAG) == 0)
 		return 0;
 
-	sps->Input1.modelID = hitModelID_cast;
-	RB_CrateAny_CheckBlockage(crateThread, hitModelID_cast, collidingTh);
+	sps->Input1.modelID = hitModelIDValue;
+	RB_CrateAny_CheckBlockage(crateThread, hitModelIDValue, collidingTh);
 	return 0;
 }
 
@@ -410,7 +410,7 @@ int RB_CrateTime_ThCollide(struct Thread *crateThread, struct Thread *driverTh, 
 	struct Driver *driver;
 	int modelID;
 	int hitModelID;
-	int hitModelID_cast;
+	int hitModelIDValue;
 	struct GameTracker *gGT;
 
 	crateInst = crateThread->inst;
@@ -473,13 +473,13 @@ int RB_CrateTime_ThCollide(struct Thread *crateThread, struct Thread *driverTh, 
 	}
 
 	hitModelID = sps->Input1.modelID;
-	hitModelID_cast = hitModelID & 0x7fff;
+	hitModelIDValue = hitModelID & COLL_MODELID_VALUE_MASK;
 
-	if ((hitModelID & 0x8000) == 0)
+	if ((hitModelID & COLL_MODELID_BLOCKAGE_FLAG) == 0)
 		return 0;
 
-	sps->Input1.modelID = hitModelID_cast;
-	RB_CrateAny_CheckBlockage(crateThread, hitModelID_cast, driverTh);
+	sps->Input1.modelID = hitModelIDValue;
+	RB_CrateAny_CheckBlockage(crateThread, hitModelIDValue, driverTh);
 	return 0;
 }
 

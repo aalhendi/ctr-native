@@ -14,6 +14,12 @@ enum CollSearchFlags
 	COLL_SEARCH_FORCE_INSTANCE_HIT = 0x40,
 };
 
+enum CollModelIDFlags
+{
+	COLL_MODELID_VALUE_MASK = 0x7fff,
+	COLL_MODELID_BLOCKAGE_FLAG = 0x8000,
+};
+
 struct BspSearchVertex
 {
 	// 0x0
@@ -62,6 +68,31 @@ struct BspSearchResult
 	struct QuadBlock *ptrQuadblock;
 };
 
+struct CollInstanceHitboxScratch
+{
+	s32 segmentDot;
+	s32 centerDot;
+	s32 lineFactor;
+	s32 radiusSquared;
+	s32 distanceSquared;
+	s32 adjustedFactor;
+	s32 segmentDelta[3];
+	s32 centerDelta[3];
+	s32 projectedDelta[3];
+	s32 hitDelta[3];
+	s32 normal[3];
+	s32 scaledNormal[3];
+};
+
+struct CollScratchWork
+{
+	u32 stepFlags;
+	s16 triNormalVecDividend;
+	u8 triNormalVecBitShift;
+	u8 triNormalLodShift;
+	struct CollInstanceHitboxScratch instanceHitbox;
+};
+
 // can be stored in normal RAM,
 // usually 1f800108
 struct ScratchpadStruct
@@ -79,7 +110,8 @@ struct ScratchpadStruct
 		s32 hitRadiusSquared;
 
 		// 0xC
-		s32 modelID;
+		s16 modelID;
+		s16 scrubDepth;
 	} Input1;
 
 	// 0x10
@@ -186,22 +218,21 @@ struct ScratchpadStruct
 	// 0xd8, 0xdc, 0xe0
 	struct BspSearchVertex *bspSearchVertHit[3];
 
-	// 0xe4, extra candidate hit delta slot
-	s32 unkE4;
+	// 0xe4, 0xe6, 0xe8
+	s16 candidateDelta[3];
 
-	// vec3, bsp->0x10 - position (FUN_8001d0c4)
-	// 0xe8, 0xea, 0xec, 0xee
-	s16 unkVecE8[4];
+	// 0xea
+	s16 unkEA;
+
+	// 0xec, 0xee
+	s16 quadIndex2;
+	s16 quadIndex3;
 
 	// 0xf0
 	struct BspSearchVertex bspSearchVert[9];
 
-	// 0x1a4 - quadblock action flags
-	// 0x1a8 - fastmath normalization
-	char dataOutput[0x68];
-
-	// offset 0x1c4
-	// FUN_8001d0c4
+	// 0x1a4
+	struct CollScratchWork collision;
 
 	// 0x20C -- size of struct
 };
@@ -246,6 +277,14 @@ _Static_assert(sizeof(struct BoundingBox) == 0xC);
 _Static_assert(sizeof(struct BspSearchVertex) == 0x14);
 _Static_assert(sizeof(struct BspSearchTriangle) == 0xC);
 _Static_assert(sizeof(struct BspSearchResult) == 0x1C);
+_Static_assert(sizeof(struct CollInstanceHitboxScratch) == 0x60);
+_Static_assert(offsetof(struct CollInstanceHitboxScratch, segmentDelta) == 0x18);
+_Static_assert(offsetof(struct CollInstanceHitboxScratch, centerDelta) == 0x24);
+_Static_assert(offsetof(struct CollInstanceHitboxScratch, projectedDelta) == 0x30);
+_Static_assert(offsetof(struct CollInstanceHitboxScratch, hitDelta) == 0x3C);
+_Static_assert(offsetof(struct CollInstanceHitboxScratch, normal) == 0x48);
+_Static_assert(offsetof(struct CollInstanceHitboxScratch, scaledNormal) == 0x54);
+_Static_assert(sizeof(struct CollScratchWork) == 0x68);
 _Static_assert(offsetof(struct BspSearchResult, hitPos) == 0x0);
 _Static_assert(offsetof(struct BspSearchResult, normalAxis) == 0x6);
 _Static_assert(offsetof(struct BspSearchResult, normalVec) == 0x8);
@@ -254,6 +293,8 @@ _Static_assert(offsetof(struct BspSearchResult, reorderResult) == 0x16);
 _Static_assert(offsetof(struct BspSearchResult, triangleID) == 0x17);
 _Static_assert(offsetof(struct BspSearchResult, ptrQuadblock) == 0x18);
 _Static_assert(sizeof(struct ScratchpadStruct) == 0x20C);
+_Static_assert(offsetof(struct ScratchpadStruct, Input1.modelID) == 0x0C);
+_Static_assert(offsetof(struct ScratchpadStruct, Input1.scrubDepth) == 0x0E);
 _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.searchFlags) == 0x22);
 _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsWanted) == 0x24);
 _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsIgnored) == 0x28);
@@ -267,3 +308,11 @@ _Static_assert(offsetof(struct ScratchpadStruct, hit.ptrQuadblock) == 0x80);
 _Static_assert(offsetof(struct ScratchpadStruct, hitFraction) == 0x84);
 _Static_assert(offsetof(struct ScratchpadStruct, bspHitboxesHit) == 0x88);
 _Static_assert(offsetof(struct ScratchpadStruct, numBspHitboxesHit) == 0xC4);
+_Static_assert(offsetof(struct ScratchpadStruct, candidateDelta) == 0xE4);
+_Static_assert(offsetof(struct ScratchpadStruct, quadIndex2) == 0xEC);
+_Static_assert(offsetof(struct ScratchpadStruct, quadIndex3) == 0xEE);
+_Static_assert(offsetof(struct ScratchpadStruct, collision.stepFlags) == 0x1A4);
+_Static_assert(offsetof(struct ScratchpadStruct, collision.triNormalVecDividend) == 0x1A8);
+_Static_assert(offsetof(struct ScratchpadStruct, collision.triNormalVecBitShift) == 0x1AA);
+_Static_assert(offsetof(struct ScratchpadStruct, collision.triNormalLodShift) == 0x1AB);
+_Static_assert(offsetof(struct ScratchpadStruct, collision.instanceHitbox) == 0x1AC);

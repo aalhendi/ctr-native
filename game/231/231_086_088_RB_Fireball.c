@@ -8,7 +8,7 @@ int RB_Fireball_ThCollide(struct Thread *fireballThread, struct Thread *driverTh
 	(void)driverTh;
 	(void)funcThCollide;
 
-	return (s16)sps->Input1.modelID == DYNAMIC_PLAYER;
+	return sps->Input1.modelID == DYNAMIC_PLAYER;
 }
 
 struct ParticleEmitter emSet_Fireball[10] = {[0] =

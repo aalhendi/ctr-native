@@ -59,7 +59,7 @@ void RB_Potion_ThTick_InAir(struct Thread *t)
 
 	RB_MakeInstanceReflective(SPS, inst);
 
-	if ((*(int *)&SPS->dataOutput[0] & 4) != 0)
+	if ((SPS->collision.stepFlags & 4) != 0)
 	{
 		RB_GenericMine_ThDestroy(t, inst, mw);
 	}

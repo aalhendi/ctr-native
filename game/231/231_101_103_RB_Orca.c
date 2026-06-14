@@ -182,7 +182,7 @@ int RB_Orca_ThCollide(struct Thread *orcaThread, struct Thread *driverTh, void *
 	(void)driverTh;
 	(void)funcThCollide;
 
-	return (s16)sps->Input1.modelID == DYNAMIC_PLAYER;
+	return sps->Input1.modelID == DYNAMIC_PLAYER;
 }
 
 void RB_Orca_LInB(struct Instance *inst)
