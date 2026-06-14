@@ -1893,7 +1893,7 @@ give_this_label_a_better_name2:
 
 		if (sps->boolDidTouchQuadblock != 0)
 		{
-			botDriver->quadBlockHeight = CTR_MipsSll(sps->Union.QuadBlockColl.hitPos[1], 8);
+			botDriver->quadBlockHeight = CTR_MipsSll(sps->Union.QuadBlockColl.hitPos.y, 8);
 
 			botDriver->botData.ai_quadblock_checkpointIndex = sps->hit.ptrQuadblock->checkpointIndex;
 

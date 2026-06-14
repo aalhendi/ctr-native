@@ -242,9 +242,9 @@ void VehBirth_TeleportSelf(struct Driver *d, u8 spawnFlag, int spawnPosY)
 		}
 
 		// player structure X, Y, Z
-		d->posCurr.x = (int)(sps->Union.QuadBlockColl.hitPos[0]) << 8;
-		d->posCurr.y = (int)(sps->Union.QuadBlockColl.hitPos[1] + spawnPosY) * 0x100;
-		d->posCurr.z = (int)(sps->Union.QuadBlockColl.hitPos[2]) << 8;
+		d->posCurr.x = (int)(sps->Union.QuadBlockColl.hitPos.x) << 8;
+		d->posCurr.y = (int)(sps->Union.QuadBlockColl.hitPos.y + spawnPosY) * 0x100;
+		d->posCurr.z = (int)(sps->Union.QuadBlockColl.hitPos.z) << 8;
 
 		// duplicate of coordinate variables
 		d->posPrev.x = d->posCurr.x;
@@ -252,7 +252,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u8 spawnFlag, int spawnPosY)
 		d->posPrev.z = d->posCurr.z;
 
 		// save quadblock height
-		d->quadBlockHeight = (int)sps->Union.QuadBlockColl.hitPos[1] << 8;
+		d->quadBlockHeight = (int)sps->Union.QuadBlockColl.hitPos.y << 8;
 	}
 
 	if ((spawnFlag & 1) != 0)

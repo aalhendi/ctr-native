@@ -377,9 +377,9 @@ void PROC_PerBspLeaf_CheckInstances(struct BSP *bspLeaf, struct ScratchpadStruct
 		if ((instDef != NULL) && ((instDef->ptrInstance->flags & 0xf) == 0))
 			continue;
 
-		distX = (int)sps->Input1.pos[0] - (int)bspHitbox->data.hitbox.center[0];
-		distY = (int)sps->Input1.pos[1] - (int)bspHitbox->data.hitbox.center[1];
-		distZ = (int)sps->Input1.pos[2] - (int)bspHitbox->data.hitbox.center[2];
+		distX = (int)sps->Input1.pos.x - (int)bspHitbox->data.hitbox.center.x;
+		distY = (int)sps->Input1.pos.y - (int)bspHitbox->data.hitbox.center.y;
+		distZ = (int)sps->Input1.pos.z - (int)bspHitbox->data.hitbox.center.z;
 
 		dist = PROC_PerBspLeaf_MipsSquare(distX);
 		if (dist > 0x0fffffff)
@@ -416,13 +416,13 @@ void PROC_StartSearch_Self(struct ScratchpadStruct *sps)
 
 	hitRadius = sps->Input1.hitRadius;
 
-	sps->Union.ThBuckColl.min[0] = (s16)((u16)sps->Input1.pos[0] - (u16)hitRadius);
-	sps->Union.ThBuckColl.min[1] = (s16)((u16)sps->Input1.pos[1] - (u16)hitRadius);
-	sps->Union.ThBuckColl.min[2] = (s16)((u16)sps->Input1.pos[2] - (u16)hitRadius);
+	sps->Union.ThBuckColl.min[0] = (s16)((u16)sps->Input1.pos.x - (u16)hitRadius);
+	sps->Union.ThBuckColl.min[1] = (s16)((u16)sps->Input1.pos.y - (u16)hitRadius);
+	sps->Union.ThBuckColl.min[2] = (s16)((u16)sps->Input1.pos.z - (u16)hitRadius);
 
-	sps->Union.ThBuckColl.max[0] = (s16)((u16)sps->Input1.pos[0] + (u16)hitRadius);
-	sps->Union.ThBuckColl.max[1] = (s16)((u16)sps->Input1.pos[1] + (u16)hitRadius);
-	sps->Union.ThBuckColl.max[2] = (s16)((u16)sps->Input1.pos[2] + (u16)hitRadius);
+	sps->Union.ThBuckColl.max[0] = (s16)((u16)sps->Input1.pos.x + (u16)hitRadius);
+	sps->Union.ThBuckColl.max[1] = (s16)((u16)sps->Input1.pos.y + (u16)hitRadius);
+	sps->Union.ThBuckColl.max[2] = (s16)((u16)sps->Input1.pos.z + (u16)hitRadius);
 
 	gGT = sdata->gGT;
 
@@ -458,9 +458,9 @@ void PROC_CollideHitboxWithBucket(struct Thread *collThread, struct ScratchpadSt
 
 		inst = collThread->inst;
 
-		distX = (int)sps->Input1.pos[0] - inst->matrix.t[0];
-		distY = (int)sps->Input1.pos[1] - inst->matrix.t[1];
-		distZ = (int)sps->Input1.pos[2] - inst->matrix.t[2];
+		distX = (int)sps->Input1.pos.x - inst->matrix.t[0];
+		distY = (int)sps->Input1.pos.y - inst->matrix.t[1];
+		distZ = (int)sps->Input1.pos.z - inst->matrix.t[2];
 
 		dist = PROC_CollideHitbox_MipsSquare(distX);
 		if (dist > 0x0fffffff)

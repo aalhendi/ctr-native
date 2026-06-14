@@ -124,9 +124,9 @@ void RB_Burst_Init(struct Instance *weaponInst)
 	struct ScratchpadStruct *sps = (struct ScratchpadStruct *)0x1f800108;
 
 	// put weapon position on scratchpad
-	sps->Input1.pos[0] = weaponInst->matrix.t[0];
-	sps->Input1.pos[1] = weaponInst->matrix.t[1];
-	sps->Input1.pos[2] = weaponInst->matrix.t[2];
+	sps->Input1.pos.x = weaponInst->matrix.t[0];
+	sps->Input1.pos.y = weaponInst->matrix.t[1];
+	sps->Input1.pos.z = weaponInst->matrix.t[2];
 
 	struct TrackerWeapon *tw = weaponInst->thread->object;
 

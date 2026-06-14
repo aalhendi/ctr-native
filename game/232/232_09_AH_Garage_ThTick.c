@@ -214,9 +214,9 @@ LAB_800aede8:
 
 #define SPS ((struct ScratchpadStruct *)0x1f800108)
 
-	SPS->Input1.pos[0] = inst->instDef->pos[0];
-	SPS->Input1.pos[1] = inst->instDef->pos[1];
-	SPS->Input1.pos[2] = inst->instDef->pos[2];
+	SPS->Input1.pos.x = inst->instDef->pos[0];
+	SPS->Input1.pos.y = inst->instDef->pos[1];
+	SPS->Input1.pos.z = inst->instDef->pos[2];
 	SPS->Input1.hitRadius = 0x300;
 	SPS->Input1.hitRadiusSquared = 0x90000;
 	SPS->Input1.modelID = STATIC_PINGARAGE;

@@ -286,7 +286,7 @@ struct BSP
 		struct
 		{
 			// 0x10
-			s16 center[3];
+			SVec3 center;
 
 			// 0x16
 			s16 radius;

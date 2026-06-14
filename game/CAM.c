@@ -755,9 +755,7 @@ void CAM_StartLine_FlyIn_FixY(s16 *posRot)
 
 		if (sps->boolDidTouchQuadblock != 0)
 		{
-			pos[0] = sps->Union.QuadBlockColl.hitPos[0];
-			pos[1] = sps->Union.QuadBlockColl.hitPos[1];
-			pos[2] = sps->Union.QuadBlockColl.hitPos[2];
+			CTR_COPY_VEC3(pos, sps->Union.QuadBlockColl.hitPos.v);
 			break;
 		}
 	}

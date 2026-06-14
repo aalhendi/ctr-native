@@ -276,9 +276,9 @@ void RB_Warpball_ThTick(struct Thread *t)
 		RB_Warpball_SetQuadblockIndex(tw, sps);
 		tw->vel[1] = 0;
 
-		if (((tw->flags & 0xc) != 0) && (inst->matrix.t[1] < sps->hit.hitPos[1]))
+		if (((tw->flags & 0xc) != 0) && (inst->matrix.t[1] < sps->hit.hitPos.y))
 		{
-			inst->matrix.t[1] = sps->hit.hitPos[1];
+			inst->matrix.t[1] = sps->hit.hitPos.y;
 			inst->unk50 = sps->hit.ptrQuadblock->draw_order_low - 1;
 		}
 	}

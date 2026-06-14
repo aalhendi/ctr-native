@@ -8,13 +8,13 @@ static void VehStuckProc_MaskGrab_SearchBsp(struct Driver *d, struct ScratchpadS
 	s16 topZ = (s16)CTR_MipsSra(d->posCurr.z, 8);
 	s16 bottomY = (s16)CTR_MipsSubLo(topY, 0x100);
 
-	sps->Input1.pos[0] = topX;
-	sps->Input1.pos[1] = bottomY;
-	sps->Input1.pos[2] = topZ;
+	sps->Input1.pos.x = topX;
+	sps->Input1.pos.y = bottomY;
+	sps->Input1.pos.z = topZ;
 
-	sps->Union.QuadBlockColl.pos[0] = topX;
-	sps->Union.QuadBlockColl.pos[1] = topY;
-	sps->Union.QuadBlockColl.pos[2] = topZ;
+	sps->Union.QuadBlockColl.pos.x = topX;
+	sps->Union.QuadBlockColl.pos.y = topY;
+	sps->Union.QuadBlockColl.pos.z = topZ;
 
 	sps->Union.QuadBlockColl.searchFlags = 0;
 	if (gGT->numPlyrCurrGame < 3)
@@ -34,9 +34,7 @@ static void VehStuckProc_MaskGrab_SearchBsp(struct Driver *d, struct ScratchpadS
 	sps->bbox.min[2] = topZ;
 	sps->bbox.max[2] = topZ;
 
-	sps->Union.QuadBlockColl.hitPos[0] = sps->Input1.pos[0];
-	sps->Union.QuadBlockColl.hitPos[1] = sps->Input1.pos[1];
-	sps->Union.QuadBlockColl.hitPos[2] = sps->Input1.pos[2];
+	sps->Union.QuadBlockColl.hitPos = sps->Input1.pos;
 
 	COLL_SearchBSP_CallbackPARAM(sps->ptr_mesh_info->bspRoot, &sps->bbox, COLL_FIXED_BSPLEAF_TestQuadblocks, sps);
 }
@@ -1292,7 +1290,7 @@ void VehStuckProc_Warp_AddDustPuff1(struct ScratchpadStruct *sps)
 
 	// position variables
 	for (char i = 0; i < 3; i++)
-		p->axis[i].startVal = CTR_MipsAddLo(p->axis[i].startVal, CTR_MipsSll(sps->Input1.pos[i], 8));
+		p->axis[i].startVal = CTR_MipsAddLo(p->axis[i].startVal, CTR_MipsSll(sps->Input1.pos.v[i], 8));
 }
 
 

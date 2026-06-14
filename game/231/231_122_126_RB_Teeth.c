@@ -58,8 +58,8 @@ void RB_Teeth_BSP_Callback(struct ScratchpadStruct *sps, struct Thread *weaponTh
 
 	if ((weaponInst != NULL) && (teethInst != NULL))
 	{
-		iVar5 = ((int)sps->Input1.pos[0] - weaponInst->matrix.t[0]) * (int)teethInst->matrix.m[0][2] +
-		        ((int)sps->Input1.pos[2] - weaponInst->matrix.t[2]) * (int)teethInst->matrix.m[2][2];
+		iVar5 = ((int)sps->Input1.pos.x - weaponInst->matrix.t[0]) * (int)teethInst->matrix.m[0][2] +
+		        ((int)sps->Input1.pos.z - weaponInst->matrix.t[2]) * (int)teethInst->matrix.m[2][2];
 
 		// catch negative value
 		if (iVar5 < 0)
@@ -173,9 +173,9 @@ void RB_Teeth_ThTick(struct Thread *t)
 	}
 
 	// Teeth instance position
-	SPS->Input1.pos[0] = inst->matrix.t[0];
-	SPS->Input1.pos[1] = inst->matrix.t[1];
-	SPS->Input1.pos[2] = inst->matrix.t[2];
+	SPS->Input1.pos.x = inst->matrix.t[0];
+	SPS->Input1.pos.y = inst->matrix.t[1];
+	SPS->Input1.pos.z = inst->matrix.t[2];
 
 	SPS->Input1.hitRadius = 0x300;
 	SPS->Input1.hitRadiusSquared = 0x90000;
@@ -278,8 +278,8 @@ int RB_Teeth_LInC(struct Instance *teethInst, struct Thread *t, struct Scratchpa
 	// time to close
 	if (teeth->timeOpen == 0)
 	{
-		iVar1 = ((int)sps->Input1.pos[0] - teethInst->matrix.t[0]) * (int)teethInst->matrix.m[0][2] +
-		        ((int)sps->Input1.pos[2] - teethInst->matrix.t[2]) * (int)teethInst->matrix.m[2][2];
+		iVar1 = ((int)sps->Input1.pos.x - teethInst->matrix.t[0]) * (int)teethInst->matrix.m[0][2] +
+		        ((int)sps->Input1.pos.z - teethInst->matrix.t[2]) * (int)teethInst->matrix.m[2][2];
 
 		if (iVar1 < 0)
 		{

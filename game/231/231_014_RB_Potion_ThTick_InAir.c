@@ -74,7 +74,7 @@ void RB_Potion_ThTick_InAir(struct Thread *t)
 		{
 			VehPhysForce_RotAxisAngle(&inst->matrix, SPS->hit.plane.normal.v, 0);
 
-			iVar4 = SPS->Union.QuadBlockColl.hitPos[1];
+			iVar4 = SPS->Union.QuadBlockColl.hitPos.y;
 			iVar5 = inst->matrix.t[1];
 
 			if (iVar4 + 0x30 < iVar5)

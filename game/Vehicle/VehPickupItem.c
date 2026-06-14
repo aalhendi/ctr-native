@@ -635,7 +635,7 @@ void VehPickupItem_ShootNow(struct Driver *d, int weaponID, int flags)
 
 		else
 		{
-			mw->stopFallAtY = sps->Union.QuadBlockColl.hitPos[1];
+			mw->stopFallAtY = sps->Union.QuadBlockColl.hitPos.y;
 		}
 
 		VehPhysForce_RotAxisAngle(&weaponInst->matrix, rotPtr, d->angle);

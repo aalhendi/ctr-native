@@ -336,9 +336,9 @@ LAB_800adc08:;
 			}
 
 			// position
-			inst->matrix.t[0] = sps->Union.QuadBlockColl.hitPos[0];
-			inst->matrix.t[1] = sps->Union.QuadBlockColl.hitPos[1] + 0x30;
-			inst->matrix.t[2] = sps->Union.QuadBlockColl.hitPos[2];
+			inst->matrix.t[0] = sps->Union.QuadBlockColl.hitPos.x;
+			inst->matrix.t[1] = sps->Union.QuadBlockColl.hitPos.y + 0x30;
+			inst->matrix.t[2] = sps->Union.QuadBlockColl.hitPos.z;
 		}
 	}
 	else

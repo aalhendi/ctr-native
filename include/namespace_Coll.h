@@ -32,7 +32,7 @@ struct CollPlane
 struct BspSearchVertex
 {
 	// 0x0
-	s16 pos[3];
+	SVec3 pos;
 
 	// 0x6
 	// FUN_8001f2dc - COLL_FIXED_TRIANGL_GetNormVec
@@ -58,7 +58,7 @@ struct BspSearchTriangle
 struct BspSearchResult
 {
 	// 0x0
-	s16 hitPos[3];
+	SVec3 hitPos;
 
 	// 0x6
 	s16 normalAxis;
@@ -67,7 +67,7 @@ struct BspSearchResult
 	struct CollPlane plane;
 
 	// 0x10
-	s16 pushOut[3];
+	SVec3 pushOut;
 
 	// 0x16
 	s8 reorderResult;
@@ -112,7 +112,7 @@ struct ScratchpadStruct
 		// this "pos" for quadblock: posMin of object
 
 		// 0x0
-		s16 pos[3];
+		SVec3 pos;
 		s16 hitRadius;
 
 		// 0x8
@@ -133,14 +133,14 @@ struct ScratchpadStruct
 			// hitRadius could just be a copy
 
 			// 0x10
-			s16 pos[3];
+			SVec3 pos;
 			s16 hitRadius;
 
 			// 0x18
 			s32 hitRadiusSquared;
 
 			// 0x1C
-			s16 hitPos[3];
+			SVec3 hitPos;
 
 			// 0x22
 			u16 searchFlags;
@@ -228,7 +228,7 @@ struct ScratchpadStruct
 	struct BspSearchVertex *bspSearchVertHit[3];
 
 	// 0xe4, 0xe6, 0xe8
-	s16 candidateDelta[3];
+	SVec3 candidateDelta;
 
 	// 0xea
 	s16 unkEA;
@@ -286,6 +286,7 @@ _Static_assert(sizeof(struct BoundingBox) == 0xC);
 _Static_assert(sizeof(struct CollPlane) == 0x8);
 _Static_assert(offsetof(struct CollPlane, normal) == 0x0);
 _Static_assert(offsetof(struct CollPlane, halfDistance) == 0x6);
+_Static_assert(sizeof(SVec3) == 0x6);
 _Static_assert(sizeof(struct BspSearchVertex) == 0x14);
 _Static_assert(sizeof(struct BspSearchTriangle) == 0xC);
 _Static_assert(sizeof(struct BspSearchResult) == 0x1C);
@@ -297,6 +298,8 @@ _Static_assert(offsetof(struct CollInstanceHitboxScratch, hitDelta) == 0x3C);
 _Static_assert(offsetof(struct CollInstanceHitboxScratch, normal) == 0x48);
 _Static_assert(offsetof(struct CollInstanceHitboxScratch, scaledNormal) == 0x54);
 _Static_assert(sizeof(struct CollScratchWork) == 0x68);
+_Static_assert(offsetof(struct BspSearchVertex, pos) == 0x0);
+_Static_assert(offsetof(struct BspSearchVertex, flags) == 0x6);
 _Static_assert(offsetof(struct BspSearchVertex, plane) == 0xC);
 _Static_assert(offsetof(struct BspSearchResult, hitPos) == 0x0);
 _Static_assert(offsetof(struct BspSearchResult, normalAxis) == 0x6);
@@ -306,17 +309,26 @@ _Static_assert(offsetof(struct BspSearchResult, reorderResult) == 0x16);
 _Static_assert(offsetof(struct BspSearchResult, triangleID) == 0x17);
 _Static_assert(offsetof(struct BspSearchResult, ptrQuadblock) == 0x18);
 _Static_assert(sizeof(struct ScratchpadStruct) == 0x20C);
+_Static_assert(offsetof(struct ScratchpadStruct, Input1.pos) == 0x00);
+_Static_assert(offsetof(struct ScratchpadStruct, Input1.hitRadius) == 0x06);
 _Static_assert(offsetof(struct ScratchpadStruct, Input1.modelID) == 0x0C);
 _Static_assert(offsetof(struct ScratchpadStruct, Input1.scrubDepth) == 0x0E);
+_Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.pos) == 0x10);
+_Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.hitRadius) == 0x16);
 _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.searchFlags) == 0x22);
+_Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.hitPos) == 0x1C);
 _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsWanted) == 0x24);
 _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsIgnored) == 0x28);
 _Static_assert(offsetof(struct ScratchpadStruct, numTrianglesTested) == 0x3C);
 _Static_assert(offsetof(struct ScratchpadStruct, candidate) == 0x4C);
+_Static_assert(offsetof(struct ScratchpadStruct, candidate) + offsetof(struct BspSearchResult, hitPos) == 0x4C);
 _Static_assert(offsetof(struct ScratchpadStruct, candidate) + offsetof(struct BspSearchResult, plane) == 0x54);
+_Static_assert(offsetof(struct ScratchpadStruct, candidate) + offsetof(struct BspSearchResult, pushOut) == 0x5C);
 _Static_assert(offsetof(struct ScratchpadStruct, candidate.triangleID) == 0x63);
 _Static_assert(offsetof(struct ScratchpadStruct, hit) == 0x68);
+_Static_assert(offsetof(struct ScratchpadStruct, hit) + offsetof(struct BspSearchResult, hitPos) == 0x68);
 _Static_assert(offsetof(struct ScratchpadStruct, hit) + offsetof(struct BspSearchResult, plane) == 0x70);
+_Static_assert(offsetof(struct ScratchpadStruct, hit) + offsetof(struct BspSearchResult, pushOut) == 0x78);
 _Static_assert(offsetof(struct ScratchpadStruct, hit.reorderResult) == 0x7E);
 _Static_assert(offsetof(struct ScratchpadStruct, hit.triangleID) == 0x7F);
 _Static_assert(offsetof(struct ScratchpadStruct, hit.ptrQuadblock) == 0x80);
