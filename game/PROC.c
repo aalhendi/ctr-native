@@ -370,16 +370,16 @@ void PROC_PerBspLeaf_CheckInstances(struct BSP *bspLeaf, struct ScratchpadStruct
 
 	for (/**/; *(int *)bspHitbox != 0; bspHitbox++)
 	{
-		if ((bspHitbox->flag & 0x80) == 0)
+		if ((bspHitbox->flag & BSP_HITBOX_COLLIDABLE) == 0)
 			continue;
 
 		instDef = bspHitbox->data.hitbox.instDef;
 		if ((instDef != NULL) && ((instDef->ptrInstance->flags & 0xf) == 0))
 			continue;
 
-		distX = (int)sps->Input1.pos[0] - (int)bspHitbox->data.hitbox.unkShort[0];
-		distY = (int)sps->Input1.pos[1] - (int)bspHitbox->data.hitbox.unkShort[1];
-		distZ = (int)sps->Input1.pos[2] - (int)bspHitbox->data.hitbox.unkShort[2];
+		distX = (int)sps->Input1.pos[0] - (int)bspHitbox->data.hitbox.center[0];
+		distY = (int)sps->Input1.pos[1] - (int)bspHitbox->data.hitbox.center[1];
+		distZ = (int)sps->Input1.pos[2] - (int)bspHitbox->data.hitbox.center[2];
 
 		dist = PROC_PerBspLeaf_MipsSquare(distX);
 		if (dist > 0x0fffffff)

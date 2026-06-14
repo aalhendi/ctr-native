@@ -390,7 +390,6 @@ void COLL_FIXED_TRIANGL_Barycentrics(s16 *out, s16 *v1, s16 *v2, s16 *point)
 u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 {
 	u8 *spsBytes = (u8 *)sps;
-	u8 *nodeBytes = (u8 *)node;
 	s32 diffX;
 	s32 diffY;
 	s32 diffZ;
@@ -424,47 +423,47 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	s32 scaledY;
 	s32 scaledZ;
 
-	if (nodeBytes[1] == 4)
+	if ((node->flag >> 8) == BSP_HITBOX_CLASS_TOUCH)
 	{
-		*(struct BSP **)(spsBytes + 0x48) = node;
-		CollFixed_WriteS16(spsBytes, 0x42, CollFixed_ReadU16(spsBytes, 0x42) + 1);
+		sps->bspHitbox = node;
+		sps->boolDidTouchHitbox = (s16)((u16)sps->boolDidTouchHitbox + 1);
 	}
 
-	if ((CollFixed_ReadU16(spsBytes, 0x22) & COLL_SEARCH_FORCE_INSTANCE_HIT) != 0)
+	if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_FORCE_INSTANCE_HIT) != 0)
 	{
-		CollFixed_WriteS16(spsBytes, 0x72, 0x1000);
-		CollFixed_WriteS16(spsBytes, 0x70, 0);
-		CollFixed_WriteS16(spsBytes, 0x74, 0);
+		sps->hit.normalVec[1] = 0x1000;
+		sps->hit.normalVec[0] = 0;
+		sps->hit.normalVec[2] = 0;
 		sps->hit.reorderResult = 6;
-		CollFixed_WriteS32(spsBytes, 0x84, 0);
-		*(struct BSP **)(spsBytes + 0x48) = node;
-		CollFixed_WriteS16(spsBytes, 0x1c, CollFixed_ReadU16(spsBytes, 0x10));
-		CollFixed_WriteS16(spsBytes, 0x1e, CollFixed_ReadU16(spsBytes, 0x12));
-		CollFixed_WriteS16(spsBytes, 0x20, CollFixed_ReadU16(spsBytes, 0x14));
-		CollFixed_WriteS16(spsBytes, 0x42, CollFixed_ReadU16(spsBytes, 0x42) + 1);
+		sps->hitFraction = 0;
+		sps->bspHitbox = node;
+		sps->Union.QuadBlockColl.hitPos[0] = sps->Union.QuadBlockColl.pos[0];
+		sps->Union.QuadBlockColl.hitPos[1] = sps->Union.QuadBlockColl.pos[1];
+		sps->Union.QuadBlockColl.hitPos[2] = sps->Union.QuadBlockColl.pos[2];
+		sps->boolDidTouchHitbox = (s16)((u16)sps->boolDidTouchHitbox + 1);
 		return 6;
 	}
 
 	CollFixed_WriteS32(spsBytes, 0x1c8, 0);
 
-	diffX = CollFixed_ReadS16(spsBytes, 0) - CollFixed_ReadS16(spsBytes, 0x10);
+	diffX = sps->Input1.pos[0] - sps->Union.QuadBlockColl.pos[0];
 	diffY = 0;
-	diffZ = CollFixed_ReadS16(spsBytes, 4) - CollFixed_ReadS16(spsBytes, 0x14);
+	diffZ = sps->Input1.pos[2] - sps->Union.QuadBlockColl.pos[2];
 	CollFixed_WriteS32(spsBytes, 0x1c4, diffX);
 	CollFixed_WriteS32(spsBytes, 0x1cc, diffZ);
 
-	centerDiffX = CollFixed_ReadS16(nodeBytes, 0x10) - CollFixed_ReadS16(spsBytes, 0x10);
+	centerDiffX = node->data.hitbox.center[0] - sps->Union.QuadBlockColl.pos[0];
 	centerDiffY = 0;
-	centerDiffZ = CollFixed_ReadS16(nodeBytes, 0x14) - CollFixed_ReadS16(spsBytes, 0x14);
+	centerDiffZ = node->data.hitbox.center[2] - sps->Union.QuadBlockColl.pos[2];
 	CollFixed_WriteS32(spsBytes, 0x1d4, 0);
 	CollFixed_WriteS32(spsBytes, 0x1d0, centerDiffX);
 	CollFixed_WriteS32(spsBytes, 0x1d8, centerDiffZ);
 
-	if ((nodeBytes[0] & 0x40) != 0)
+	if ((node->flag & BSP_HITBOX_USE_Y_AXIS) != 0)
 	{
-		diffY = CollFixed_ReadS16(spsBytes, 2) - CollFixed_ReadS16(spsBytes, 0x12);
+		diffY = sps->Input1.pos[1] - sps->Union.QuadBlockColl.pos[1];
 		CollFixed_WriteS32(spsBytes, 0x1c8, diffY);
-		centerDiffY = CollFixed_ReadS16(nodeBytes, 0x12) - CollFixed_ReadS16(spsBytes, 0x12);
+		centerDiffY = node->data.hitbox.center[1] - sps->Union.QuadBlockColl.pos[1];
 		CollFixed_WriteS32(spsBytes, 0x1d4, centerDiffY);
 	}
 
@@ -509,7 +508,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 
 	projX = CTR_MipsMulLo(factor, diffX) >> 12;
 	projY = 0;
-	if ((nodeBytes[0] & 0x40) != 0)
+	if ((node->flag & BSP_HITBOX_USE_Y_AXIS) != 0)
 	{
 		projY = CTR_MipsMulLo(factor, diffY) >> 12;
 	}
@@ -528,8 +527,8 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	CollFixed_GteLoadVZ0(relZ);
 	CollFixed_GteMVMVA();
 
-	radius = CollFixed_ReadS16(nodeBytes, 0x16);
-	radiusSquared = CollFixed_ReadS16(spsBytes, 6) + radius;
+	radius = node->data.hitbox.radius;
+	radiusSquared = sps->Input1.hitRadius + radius;
 	radiusSquared = CTR_MipsMulLo(radiusSquared, radiusSquared);
 	distSquared = CollFixed_GteReadMAC1();
 	CollFixed_WriteS32(spsBytes, 0x1b8, radiusSquared);
@@ -548,7 +547,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 		CollFixed_WriteS32(spsBytes, 0x1c0, factor);
 	}
 
-	if (CollFixed_ReadS32(spsBytes, 0x84) < factor)
+	if (sps->hitFraction < factor)
 		return 0;
 
 	hitX = 0;
@@ -561,22 +560,23 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 		hitZ = CTR_MipsMulLo(diffZ, factor) >> 12;
 	}
 
-	if (((nodeBytes[0] & 0x20) != 0) && (hitY < CollFixed_ReadS16(nodeBytes, 0x12)) &&
-	    ((CollFixed_ReadS16(nodeBytes, 0x12) + CollFixed_ReadS16(nodeBytes, 2)) < hitY))
+	if ((node->flag & BSP_HITBOX_CHECK_Y_RANGE) != 0)
 	{
-		return 0;
+		s32 centerY = node->data.hitbox.center[1];
+		if ((hitY < centerY) && ((centerY + node->id) < hitY))
+			return 0;
 	}
 
-	*(struct BSP **)(spsBytes + 0x48) = node;
-	CollFixed_WriteS32(spsBytes, 0x84, factor);
-	CollFixed_WriteS16(spsBytes, 0x42, CollFixed_ReadU16(spsBytes, 0x42) + 1);
+	sps->bspHitbox = node;
+	sps->hitFraction = factor;
+	sps->boolDidTouchHitbox = (s16)((u16)sps->boolDidTouchHitbox + 1);
 	CollFixed_WriteS32(spsBytes, 0x1e8, hitX);
 	CollFixed_WriteS32(spsBytes, 0x1ec, hitY);
 	CollFixed_WriteS32(spsBytes, 0x1f0, hitZ);
 
 	normalX = hitX - centerDiffX;
 	normalY = 0;
-	if ((nodeBytes[0] & 0x40) != 0)
+	if ((node->flag & BSP_HITBOX_USE_Y_AXIS) != 0)
 	{
 		normalY = hitY - centerDiffY;
 	}
@@ -598,12 +598,12 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	CollFixed_WriteS32(spsBytes, 0x1f8, normalY);
 	CollFixed_WriteS32(spsBytes, 0x1fc, normalZ);
 
-	CollFixed_WriteS16(spsBytes, 0x1c, CollFixed_ReadU16(spsBytes, 0x10) + hitX);
-	CollFixed_WriteS16(spsBytes, 0x70, normalX);
-	CollFixed_WriteS16(spsBytes, 0x72, normalY);
-	CollFixed_WriteS16(spsBytes, 0x74, normalZ);
-	CollFixed_WriteS16(spsBytes, 0x20, CollFixed_ReadU16(spsBytes, 0x14) + hitZ);
-	CollFixed_WriteS16(spsBytes, 0x1e, CollFixed_ReadU16(spsBytes, 0x12) + hitY);
+	sps->Union.QuadBlockColl.hitPos[0] = (s16)((u16)sps->Union.QuadBlockColl.pos[0] + hitX);
+	sps->hit.normalVec[0] = (s16)normalX;
+	sps->hit.normalVec[1] = (s16)normalY;
+	sps->hit.normalVec[2] = (s16)normalZ;
+	sps->Union.QuadBlockColl.hitPos[2] = (s16)((u16)sps->Union.QuadBlockColl.pos[2] + hitZ);
+	sps->Union.QuadBlockColl.hitPos[1] = (s16)((u16)sps->Union.QuadBlockColl.pos[1] + hitY);
 	sps->hit.reorderResult = 6;
 
 	scaledX = CTR_MipsMulLo(normalX, radius) >> 12;
@@ -613,12 +613,12 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	CollFixed_WriteS32(spsBytes, 0x204, scaledY);
 	CollFixed_WriteS32(spsBytes, 0x208, scaledZ);
 
-	CollFixed_WriteS16(spsBytes, 0x78, CollFixed_ReadU16(nodeBytes, 0x10) + scaledX);
-	CollFixed_WriteS16(spsBytes, 0x68, CollFixed_ReadU16(nodeBytes, 0x10) + scaledX);
-	CollFixed_WriteS16(spsBytes, 0x7a, CollFixed_ReadU16(nodeBytes, 0x12) + scaledY);
-	CollFixed_WriteS16(spsBytes, 0x6a, CollFixed_ReadU16(nodeBytes, 0x12) + scaledY);
-	CollFixed_WriteS16(spsBytes, 0x7c, CollFixed_ReadU16(nodeBytes, 0x14) + scaledZ);
-	CollFixed_WriteS16(spsBytes, 0x6c, CollFixed_ReadU16(nodeBytes, 0x14) + scaledZ);
+	sps->hit.pushOut[0] = (s16)((u16)node->data.hitbox.center[0] + scaledX);
+	sps->hit.hitPos[0] = (s16)((u16)node->data.hitbox.center[0] + scaledX);
+	sps->hit.pushOut[1] = (s16)((u16)node->data.hitbox.center[1] + scaledY);
+	sps->hit.hitPos[1] = (s16)((u16)node->data.hitbox.center[1] + scaledY);
+	sps->hit.pushOut[2] = (s16)((u16)node->data.hitbox.center[2] + scaledZ);
+	sps->hit.hitPos[2] = (s16)((u16)node->data.hitbox.center[2] + scaledZ);
 
 	return 0;
 }
@@ -652,7 +652,7 @@ void COLL_FIXED_BSPLEAF_TestInstance(struct BSP *node, struct ScratchpadStruct *
 		        // if data is invalid (what?)
 		        (
 		            // if collision for instance is disabled
-		            ((bspArray->flag & 0x80) == 0) ||
+		            ((bspArray->flag & BSP_HITBOX_COLLIDABLE) == 0) ||
 		            // if bspHitbox.InstDef doesn't exist
 		            (bspArray->data.hitbox.instDef == NULL))
 
@@ -2302,7 +2302,7 @@ static int CollMoved_PlayerSearch_RunHitboxLInC(struct ScratchpadStruct *sps, st
 	s16 modelID;
 	struct MetaDataMODEL *meta;
 
-	if ((bsp->flag & 0x80) != 0)
+	if ((bsp->flag & BSP_HITBOX_COLLIDABLE) != 0)
 	{
 		instDef = bsp->data.hitbox.instDef;
 		if (instDef == NULL)

@@ -286,8 +286,16 @@ struct BSP
 		struct
 		{
 			// 0x10
-			s16 unkShort[6];
-			// see FUN_8001d0c4
+			s16 center[3];
+
+			// 0x16
+			s16 radius;
+
+			// 0x18
+			s16 unk18;
+
+			// 0x1A
+			s16 unk1A;
 
 			// 0x1C
 			// These are always InstDef, not converted to Instance
@@ -298,6 +306,23 @@ struct BSP
 
 	// 0x20 bytes large
 };
+
+enum BspHitboxFlag
+{
+	BSP_HITBOX_CHECK_Y_RANGE = 0x20,
+	BSP_HITBOX_USE_Y_AXIS = 0x40,
+	BSP_HITBOX_COLLIDABLE = 0x80,
+};
+
+enum BspHitboxClass
+{
+	BSP_HITBOX_CLASS_TOUCH = 4,
+};
+
+_Static_assert(sizeof(struct BSP) == 0x20);
+_Static_assert(offsetof(struct BSP, data.hitbox.center) == 0x10);
+_Static_assert(offsetof(struct BSP, data.hitbox.radius) == 0x16);
+_Static_assert(offsetof(struct BSP, data.hitbox.instDef) == 0x1C);
 
 struct VisMemBspListNode
 {
