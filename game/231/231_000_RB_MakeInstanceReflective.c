@@ -12,8 +12,8 @@ void RB_MakeInstanceReflective(struct ScratchpadStruct *sps, struct Instance *in
 	}
 	else
 	{
-		inst->bitCompressed_NormalVector_AndDriverIndex =
-		    ((u32)(sps->hit.normalVec[0] >> 6) & 0xff) | (((u32)sps->hit.normalVec[1] & 0x3fc0) << 2) | (((u32)(sps->hit.normalVec[2] >> 6) & 0xff) << 0x10);
+		inst->bitCompressed_NormalVector_AndDriverIndex = ((u32)(sps->hit.plane.normal.x >> 6) & 0xff) | (((u32)sps->hit.plane.normal.y & 0x3fc0) << 2) |
+		                                                  (((u32)(sps->hit.plane.normal.z >> 6) & 0xff) << 0x10);
 
 		if (1 < gGT->numPlyrCurrGame)
 			return;

@@ -20,6 +20,15 @@ enum CollModelIDFlags
 	COLL_MODELID_BLOCKAGE_FLAG = 0x8000,
 };
 
+struct CollPlane
+{
+	SVec3 normal;
+
+	// NOTE(aalhendi): Retail stores the plane constant shifted right by one;
+	// plane-side tests recover it with -2 * halfDistance.
+	s16 halfDistance;
+};
+
 struct BspSearchVertex
 {
 	// 0x0
@@ -34,7 +43,7 @@ struct BspSearchVertex
 	struct LevVertex *pLevelVertex;
 
 	// 0xC
-	s16 normalVec[4];
+	struct CollPlane plane;
 
 	// 0x14 large
 };
@@ -55,7 +64,7 @@ struct BspSearchResult
 	s16 normalAxis;
 
 	// 0x8
-	s16 normalVec[4];
+	struct CollPlane plane;
 
 	// 0x10
 	s16 pushOut[3];
@@ -274,6 +283,9 @@ struct ScratchpadStructExtended
 };
 
 _Static_assert(sizeof(struct BoundingBox) == 0xC);
+_Static_assert(sizeof(struct CollPlane) == 0x8);
+_Static_assert(offsetof(struct CollPlane, normal) == 0x0);
+_Static_assert(offsetof(struct CollPlane, halfDistance) == 0x6);
 _Static_assert(sizeof(struct BspSearchVertex) == 0x14);
 _Static_assert(sizeof(struct BspSearchTriangle) == 0xC);
 _Static_assert(sizeof(struct BspSearchResult) == 0x1C);
@@ -285,9 +297,10 @@ _Static_assert(offsetof(struct CollInstanceHitboxScratch, hitDelta) == 0x3C);
 _Static_assert(offsetof(struct CollInstanceHitboxScratch, normal) == 0x48);
 _Static_assert(offsetof(struct CollInstanceHitboxScratch, scaledNormal) == 0x54);
 _Static_assert(sizeof(struct CollScratchWork) == 0x68);
+_Static_assert(offsetof(struct BspSearchVertex, plane) == 0xC);
 _Static_assert(offsetof(struct BspSearchResult, hitPos) == 0x0);
 _Static_assert(offsetof(struct BspSearchResult, normalAxis) == 0x6);
-_Static_assert(offsetof(struct BspSearchResult, normalVec) == 0x8);
+_Static_assert(offsetof(struct BspSearchResult, plane) == 0x8);
 _Static_assert(offsetof(struct BspSearchResult, pushOut) == 0x10);
 _Static_assert(offsetof(struct BspSearchResult, reorderResult) == 0x16);
 _Static_assert(offsetof(struct BspSearchResult, triangleID) == 0x17);
@@ -300,8 +313,10 @@ _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsWant
 _Static_assert(offsetof(struct ScratchpadStruct, Union.QuadBlockColl.qbFlagsIgnored) == 0x28);
 _Static_assert(offsetof(struct ScratchpadStruct, numTrianglesTested) == 0x3C);
 _Static_assert(offsetof(struct ScratchpadStruct, candidate) == 0x4C);
+_Static_assert(offsetof(struct ScratchpadStruct, candidate) + offsetof(struct BspSearchResult, plane) == 0x54);
 _Static_assert(offsetof(struct ScratchpadStruct, candidate.triangleID) == 0x63);
 _Static_assert(offsetof(struct ScratchpadStruct, hit) == 0x68);
+_Static_assert(offsetof(struct ScratchpadStruct, hit) + offsetof(struct BspSearchResult, plane) == 0x70);
 _Static_assert(offsetof(struct ScratchpadStruct, hit.reorderResult) == 0x7E);
 _Static_assert(offsetof(struct ScratchpadStruct, hit.triangleID) == 0x7F);
 _Static_assert(offsetof(struct ScratchpadStruct, hit.ptrQuadblock) == 0x80);

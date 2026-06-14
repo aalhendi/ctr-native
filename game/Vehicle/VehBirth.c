@@ -220,9 +220,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u8 spawnFlag, int spawnPosY)
 		// if it was found
 		else
 		{
-			d->AxisAngle3_normalVec[0] = sps->hit.normalVec[0];
-			d->AxisAngle3_normalVec[1] = sps->hit.normalVec[1];
-			d->AxisAngle3_normalVec[2] = sps->hit.normalVec[2];
+			CTR_COPY_VEC3(d->AxisAngle3_normalVec, sps->hit.plane.normal.v);
 			d->lastValid = sps->hit.ptrQuadblock;
 		}
 

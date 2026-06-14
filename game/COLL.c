@@ -431,9 +431,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 
 	if ((sps->Union.QuadBlockColl.searchFlags & COLL_SEARCH_FORCE_INSTANCE_HIT) != 0)
 	{
-		sps->hit.normalVec[1] = 0x1000;
-		sps->hit.normalVec[0] = 0;
-		sps->hit.normalVec[2] = 0;
+		CTR_SET_VEC3(sps->hit.plane.normal.v, 0, 0x1000, 0);
 		sps->hit.reorderResult = 6;
 		sps->hitFraction = 0;
 		sps->bspHitbox = node;
@@ -599,9 +597,7 @@ u32 COLL_FIXED_INSTANC_TestPoint(struct ScratchpadStruct *sps, struct BSP *node)
 	scratch->normal[2] = normalZ;
 
 	sps->Union.QuadBlockColl.hitPos[0] = (s16)((u16)sps->Union.QuadBlockColl.pos[0] + hitX);
-	sps->hit.normalVec[0] = (s16)normalX;
-	sps->hit.normalVec[1] = (s16)normalY;
-	sps->hit.normalVec[2] = (s16)normalZ;
+	CTR_SET_VEC3(sps->hit.plane.normal.v, (s16)normalX, (s16)normalY, (s16)normalZ);
 	sps->Union.QuadBlockColl.hitPos[2] = (s16)((u16)sps->Union.QuadBlockColl.pos[2] + hitZ);
 	sps->Union.QuadBlockColl.hitPos[1] = (s16)((u16)sps->Union.QuadBlockColl.pos[1] + hitY);
 	sps->hit.reorderResult = 6;
@@ -736,7 +732,7 @@ void COLL_FIXED_TRIANGL_UNUSED(void *sps, void *v1, void *v2, void *v3)
 	// shared body with t2 preloaded from sps+0x58. Native makes a0-a3 and t2
 	// explicit.
 	COLL_FIXED_TRIANGL_TestPoint_Body(scratchpad, (struct BspSearchVertex *)v1, (struct BspSearchVertex *)v2, (struct BspSearchVertex *)v3,
-	                                  (s32)CollFixed_PackS16Pair(scratchpad->candidate.normalVec[2], scratchpad->candidate.normalVec[3]));
+	                                  (s32)CollFixed_PackS16Pair(scratchpad->candidate.plane.normal.z, scratchpad->candidate.plane.halfDistance));
 }
 
 
@@ -779,7 +775,7 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
 	CollFixed_GteLoadR11R12(CollFixed_PackS16Pair(startX, startY));
 	CollFixed_GteLoadR13R21(CollFixed_PackS16Pair(startZ, deltaX));
 	CollFixed_GteLoadR22R23(CollFixed_PackS16Pair(deltaY, deltaZ));
-	CollFixed_GteLoadVXY0(CollFixed_PackS16Pair(sps->candidate.normalVec[0], sps->candidate.normalVec[1]));
+	CollFixed_GteLoadVXY0(CollFixed_PackS16Pair(sps->candidate.plane.normal.x, sps->candidate.plane.normal.y));
 	CollFixed_GteLoadVZ0(normalZW);
 
 	normalZW = CTR_MipsSll(normalZW >> 16, 13);
@@ -931,10 +927,7 @@ static void COLL_FIXED_TRIANGL_TestPoint_Body(struct ScratchpadStruct *sps, stru
 	sps->Union.QuadBlockColl.hitPos[0] = sps->candidate.hitPos[0];
 	sps->Union.QuadBlockColl.hitPos[1] = sps->candidate.hitPos[1];
 	sps->Union.QuadBlockColl.hitPos[2] = sps->candidate.hitPos[2];
-	sps->hit.normalVec[0] = sps->candidate.normalVec[0];
-	sps->hit.normalVec[1] = sps->candidate.normalVec[1];
-	sps->hit.normalVec[2] = sps->candidate.normalVec[2];
-	sps->hit.normalVec[3] = sps->candidate.normalVec[3];
+	sps->hit.plane = sps->candidate.plane;
 }
 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x8001ef50-0x8001f2dc
@@ -942,14 +935,11 @@ void COLL_FIXED_TRIANGL_TestPoint(void *sps, void *v1, void *v2, void *v3)
 {
 	struct ScratchpadStruct *scratchpad = (struct ScratchpadStruct *)sps;
 	struct BspSearchVertex *vertex = (struct BspSearchVertex *)v1;
-	s32 normalZW = (s32)CollFixed_PackS16Pair(vertex->normalVec[2], vertex->normalVec[3]);
+	s32 normalZW = (s32)CollFixed_PackS16Pair(vertex->plane.normal.z, vertex->plane.halfDistance);
 
 	scratchpad->numTrianglesTested = (s16)((u16)scratchpad->numTrianglesTested + 1);
 	scratchpad->candidate.normalAxis = (s16)vertex->flags;
-	scratchpad->candidate.normalVec[0] = vertex->normalVec[0];
-	scratchpad->candidate.normalVec[1] = vertex->normalVec[1];
-	scratchpad->candidate.normalVec[2] = vertex->normalVec[2];
-	scratchpad->candidate.normalVec[3] = vertex->normalVec[3];
+	scratchpad->candidate.plane = vertex->plane;
 
 	COLL_FIXED_TRIANGL_TestPoint_Body(scratchpad, vertex, (struct BspSearchVertex *)v2, (struct BspSearchVertex *)v3, normalZW);
 }
@@ -959,6 +949,7 @@ void COLL_FIXED_TRIANGL_TestPoint(void *sps, void *v1, void *v2, void *v3)
 void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 {
 	struct ScratchpadStruct *scratchpad = (struct ScratchpadStruct *)sps;
+	struct BspSearchVertex *vertex = (struct BspSearchVertex *)v1;
 	u8 *v1Bytes = (u8 *)v1;
 	s32 v1x = CollFixed_ReadS16(v1Bytes, 0);
 	s32 v1y = CollFixed_ReadS16(v1Bytes, 2);
@@ -1004,14 +995,14 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 	nz = CTR_MipsMulLo(nz >> (lodShift & 0x1f), scale) >> (normalShift & 0x1f);
 
 	CollFixed_GteLoadIR(nx, ny, nz);
-	CollFixed_WriteS16(v1Bytes, 0xc, nx);
-	CollFixed_WriteS16(v1Bytes, 0xe, ny);
+	vertex->plane.normal.x = (s16)nx;
+	vertex->plane.normal.y = (s16)ny;
 
 	CollFixed_GteRTIR();
 	plane = CollFixed_GteReadMAC1();
 
-	CollFixed_WriteS16(v1Bytes, 0x10, nz);
-	CollFixed_WriteS16(v1Bytes, 0x12, plane >> 1);
+	vertex->plane.normal.z = (s16)nz;
+	vertex->plane.halfDistance = (s16)(plane >> 1);
 
 	absX = nx < 0 ? -nx : nx;
 	absY = ny < 0 ? -ny : ny;
@@ -1030,7 +1021,7 @@ void COLL_FIXED_TRIANGL_GetNormVec(void *sps, void *v1, void *v2, void *v3)
 		dominantAxis = 2;
 	}
 
-	CollFixed_WriteS16(v1Bytes, 6, dominantAxis);
+	vertex->flags = (u16)dominantAxis;
 }
 
 
@@ -1363,9 +1354,9 @@ static void COLL_FIXED_PlayerSearch_UpdateLighting(struct ScratchpadStruct *sps,
 
 static void COLL_FIXED_PlayerSearch_NormalizeAxis3(struct ScratchpadStruct *sps, struct Driver *d)
 {
-	s32 x = CTR_MipsMulLo(d->AxisAngle3_normalVec[0], 5) + CTR_MipsMulLo(sps->hit.normalVec[0], 3);
-	s32 y = CTR_MipsMulLo(d->AxisAngle3_normalVec[1], 5) + CTR_MipsMulLo(sps->hit.normalVec[1], 3);
-	s32 z = CTR_MipsMulLo(d->AxisAngle3_normalVec[2], 5) + CTR_MipsMulLo(sps->hit.normalVec[2], 3);
+	s32 x = CTR_MipsMulLo(d->AxisAngle3_normalVec[0], 5) + CTR_MipsMulLo(sps->hit.plane.normal.x, 3);
+	s32 y = CTR_MipsMulLo(d->AxisAngle3_normalVec[1], 5) + CTR_MipsMulLo(sps->hit.plane.normal.y, 3);
+	s32 z = CTR_MipsMulLo(d->AxisAngle3_normalVec[2], 5) + CTR_MipsMulLo(sps->hit.plane.normal.z, 3);
 	u32 sum = (u32)CTR_MipsMulLo(x, x) + (u32)CTR_MipsMulLo(y, y) + (u32)CTR_MipsMulLo(z, z);
 	u32 len = VehCalc_FastSqrt(sum, 0x18) >> 12;
 
@@ -1470,7 +1461,7 @@ void COLL_FIXED_PlayerSearch(struct Thread *t, struct Driver *d)
 	{
 		quad = sps->hit.ptrQuadblock;
 		inst->bitCompressed_NormalVector_AndDriverIndex =
-		    COLL_FIXED_PlayerSearch_CompressNormal(sps->hit.normalVec[0], sps->hit.normalVec[1], sps->hit.normalVec[2], d->driverID);
+		    COLL_FIXED_PlayerSearch_CompressNormal(sps->hit.plane.normal.x, sps->hit.plane.normal.y, sps->hit.plane.normal.z, d->driverID);
 		d->quadBlockHeight = sps->Union.QuadBlockColl.hitPos[1] << 8;
 		d->unkAA |= 4;
 
@@ -1516,18 +1507,14 @@ void COLL_FIXED_PlayerSearch(struct Thread *t, struct Driver *d)
 		{
 			if ((quad->quadFlags & 0x1000) != 0)
 			{
-				d->normalVecUP.x = sps->hit.normalVec[0];
-				d->normalVecUP.y = sps->hit.normalVec[1];
-				d->normalVecUP.z = sps->hit.normalVec[2];
+				d->normalVecUP = sps->hit.plane.normal;
 				d->unkAA |= 8;
 			}
 
 			if (d->currBlockTouching == NULL)
 			{
 				d->currBlockTouching = quad;
-				d->AxisAngle1_normalVec.x = sps->hit.normalVec[0];
-				d->AxisAngle1_normalVec.y = sps->hit.normalVec[1];
-				d->AxisAngle1_normalVec.z = sps->hit.normalVec[2];
+				d->AxisAngle1_normalVec = sps->hit.plane.normal;
 			}
 
 			COLL_FIXED_PlayerSearch_UpdateLighting(sps, d, inst);
@@ -1964,7 +1951,7 @@ void COLL_MOVED_TRIANGL_TestPoint(struct ScratchpadStruct *sps, struct BspSearch
 	u16 quadFlags;
 	s32 planeNear;
 	s32 planeFar;
-	s32 normalW;
+	s32 halfDistance;
 	s32 normalZW;
 	s32 projectedFromInput;
 	s32 distanceSq;
@@ -1976,13 +1963,10 @@ void COLL_MOVED_TRIANGL_TestPoint(struct ScratchpadStruct *sps, struct BspSearch
 
 	sps->numTrianglesTested = (s16)((u16)sps->numTrianglesTested + 1);
 	sps->candidate.normalAxis = (s16)v1->flags;
-	sps->candidate.normalVec[0] = v1->normalVec[0];
-	sps->candidate.normalVec[1] = v1->normalVec[1];
-	sps->candidate.normalVec[2] = v1->normalVec[2];
-	sps->candidate.normalVec[3] = v1->normalVec[3];
+	sps->candidate.plane = v1->plane;
 
 	quad = sps->candidate.ptrQuadblock;
-	normalZW = (s32)CollFixed_PackS16Pair(sps->candidate.normalVec[2], sps->candidate.normalVec[3]);
+	normalZW = (s32)CollFixed_PackS16Pair(sps->candidate.plane.normal.z, sps->candidate.plane.halfDistance);
 
 	if (((quad->quadFlags & 0x400) != 0) && (((s32)(s8)quad->terrain_type & sdata->doorAccessFlags) != 0))
 		return;
@@ -1990,13 +1974,13 @@ void COLL_MOVED_TRIANGL_TestPoint(struct ScratchpadStruct *sps, struct BspSearch
 	CollFixed_GteLoadR11R12(CollFixed_PackS16Pair(sps->Input1.pos[0], sps->Input1.pos[1]));
 	CollFixed_GteLoadR13R21(CollFixed_PackS16Pair(sps->Input1.pos[2], sps->Union.QuadBlockColl.pos[0]));
 	CollFixed_GteLoadR22R23(CollFixed_PackS16Pair(sps->Union.QuadBlockColl.pos[1], sps->Union.QuadBlockColl.pos[2]));
-	CollFixed_GteLoadVXY0(CollFixed_PackS16Pair(sps->candidate.normalVec[0], sps->candidate.normalVec[1]));
+	CollFixed_GteLoadVXY0(CollFixed_PackS16Pair(sps->candidate.plane.normal.x, sps->candidate.plane.normal.y));
 	CollFixed_GteLoadVZ0(normalZW);
 	CollMoved_GteRTV0();
 
-	normalW = sps->candidate.normalVec[3];
-	planeNear = CollFixed_GteReadMAC1() + normalW * -2;
-	planeFar = CollFixed_GteReadMAC2() + normalW * -2;
+	halfDistance = sps->candidate.plane.halfDistance;
+	planeNear = CollFixed_GteReadMAC1() + halfDistance * -2;
+	planeFar = CollFixed_GteReadMAC2() + halfDistance * -2;
 
 	if (planeFar < 0)
 	{
@@ -2005,10 +1989,10 @@ void COLL_MOVED_TRIANGL_TestPoint(struct ScratchpadStruct *sps, struct BspSearch
 
 		planeNear = -planeNear;
 		planeFar = -planeFar;
-		sps->candidate.normalVec[0] = (s16)-sps->candidate.normalVec[0];
-		sps->candidate.normalVec[1] = (s16)-sps->candidate.normalVec[1];
-		sps->candidate.normalVec[2] = (s16)-sps->candidate.normalVec[2];
-		sps->candidate.normalVec[3] = (s16)-sps->candidate.normalVec[3];
+		sps->candidate.plane.normal.x = (s16)-sps->candidate.plane.normal.x;
+		sps->candidate.plane.normal.y = (s16)-sps->candidate.plane.normal.y;
+		sps->candidate.plane.normal.z = (s16)-sps->candidate.plane.normal.z;
+		sps->candidate.plane.halfDistance = (s16)-sps->candidate.plane.halfDistance;
 	}
 
 KeepNormal:
@@ -2027,7 +2011,7 @@ KeepNormal:
 	if (planeNear >= 0)
 	{
 		CollFixed_GteLoadIR0(planeNear);
-		CollFixed_GteLoadIR(sps->candidate.normalVec[0], sps->candidate.normalVec[1], sps->candidate.normalVec[2]);
+		CollFixed_GteLoadIR(sps->candidate.plane.normal.x, sps->candidate.plane.normal.y, sps->candidate.plane.normal.z);
 		projectedFromInput = 0;
 	}
 	else
@@ -2111,10 +2095,7 @@ KeepNormal:
 	sps->hit.hitPos[1] = sps->candidate.hitPos[1];
 	sps->hit.hitPos[2] = sps->candidate.hitPos[2];
 	sps->hit.normalAxis = sps->candidate.normalAxis;
-	sps->hit.normalVec[0] = sps->candidate.normalVec[0];
-	sps->hit.normalVec[1] = sps->candidate.normalVec[1];
-	sps->hit.normalVec[2] = sps->candidate.normalVec[2];
-	sps->hit.normalVec[3] = sps->candidate.normalVec[3];
+	sps->hit.plane = sps->candidate.plane;
 	sps->hit.pushOut[0] = sps->candidate.pushOut[0];
 	sps->hit.pushOut[1] = sps->candidate.pushOut[1];
 	sps->hit.pushOut[2] = sps->candidate.pushOut[2];
@@ -2359,24 +2340,14 @@ static void CollMoved_PlayerSearch_StoreHitbox(struct ScratchpadStruct *sps)
 
 static void CollMoved_PlayerSearch_CopyGroundNormal(struct ScratchpadStruct *sps, struct Driver *d)
 {
-	d->normalVecUP.x = sps->hit.normalVec[0];
-	d->normalVecUP.y = sps->hit.normalVec[1];
-	d->normalVecUP.z = sps->hit.normalVec[2];
-
-	d->AxisAngle1_normalVec.x = sps->hit.normalVec[0];
-	d->AxisAngle1_normalVec.y = sps->hit.normalVec[1];
-	d->AxisAngle1_normalVec.z = sps->hit.normalVec[2];
+	d->normalVecUP = sps->hit.plane.normal;
+	d->AxisAngle1_normalVec = sps->hit.plane.normal;
 }
 
 static void CollMoved_PlayerSearch_CopyHitOutput(struct ScratchpadStruct *sps, struct Driver *d)
 {
-	d->spsHitPos[0] = sps->hit.hitPos[0];
-	d->spsHitPos[1] = sps->hit.hitPos[1];
-	d->spsHitPos[2] = sps->hit.hitPos[2];
-
-	d->spsNormalVec[0] = sps->hit.normalVec[0];
-	d->spsNormalVec[1] = sps->hit.normalVec[1];
-	d->spsNormalVec[2] = sps->hit.normalVec[2];
+	CTR_COPY_VEC3(d->spsHitPos, sps->hit.hitPos);
+	CTR_COPY_VEC3(d->spsNormalVec, sps->hit.plane.normal.v);
 }
 
 static void CollMoved_PlayerSearch_BoostHitboxScrub(struct ScratchpadStruct *sps)
@@ -2657,9 +2628,9 @@ static void CollMoved_ScrubImpact_ProjectWallVelocity(s16 normalX, s16 normalY, 
 // NOTE(aalhendi): ASM-verified NTSC-U 926 0x80020c58-0x80021500
 u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct ScratchpadStruct *sps, struct Scrub *scrub, int *velocity)
 {
-	s16 normalX = sps->hit.normalVec[0];
-	s16 normalY = sps->hit.normalVec[1];
-	s16 normalZ = sps->hit.normalVec[2];
+	s16 normalX = sps->hit.plane.normal.x;
+	s16 normalY = sps->hit.plane.normal.y;
+	s16 normalZ = sps->hit.plane.normal.z;
 	s32 dot;
 	u32 ret;
 

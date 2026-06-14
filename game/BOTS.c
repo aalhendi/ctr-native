@@ -1897,16 +1897,14 @@ give_this_label_a_better_name2:
 
 			botDriver->botData.ai_quadblock_checkpointIndex = sps->hit.ptrQuadblock->checkpointIndex;
 
-			VehPhysForce_RotAxisAngle(&botInstance->matrix, &sps->hit.normalVec[0], botDriver->botData.ai_rot4[1]);
+			VehPhysForce_RotAxisAngle(&botInstance->matrix, sps->hit.plane.normal.v, botDriver->botData.ai_rot4[1]);
 
-			botDriver->AxisAngle3_normalVec[0] = sps->hit.normalVec[0];
-			botDriver->AxisAngle3_normalVec[1] = sps->hit.normalVec[1];
-			botDriver->AxisAngle3_normalVec[2] = sps->hit.normalVec[2];
+			CTR_COPY_VEC3(botDriver->AxisAngle3_normalVec, sps->hit.plane.normal.v);
 
 			// this line is cringe.
-			botInstance->bitCompressed_NormalVector_AndDriverIndex = (((u16)sps->hit.normalVec[0] >> 6) & 0xff) | (((u16)sps->hit.normalVec[1] & 0x3fc0) << 2) |
-			                                                         ((((u16)sps->hit.normalVec[2] >> 6) & 0xff) << 0x10) |
-			                                                         CTR_MipsSll(CTR_MipsAddLo(botDriver->driverID, 1), 0x18);
+			botInstance->bitCompressed_NormalVector_AndDriverIndex =
+			    (((u16)sps->hit.plane.normal.x >> 6) & 0xff) | (((u16)sps->hit.plane.normal.y & 0x3fc0) << 2) |
+			    ((((u16)sps->hit.plane.normal.z >> 6) & 0xff) << 0x10) | CTR_MipsSll(CTR_MipsAddLo(botDriver->driverID, 1), 0x18);
 
 			if ((sps->hit.ptrQuadblock->quadFlags & 0x200) != 0)
 			{
