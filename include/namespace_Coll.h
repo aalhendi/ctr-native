@@ -45,8 +45,8 @@ struct BspSearchVertex
 	SVec3 pos;
 
 	// 0x6
-	// FUN_8001f2dc - COLL_FIXED_TRIANGL_GetNormVec
-	// FUN_8001ef50 - COLL_FIXED_TRIANGL_TestPoint
+	// COLL_FIXED_TRIANGL_GetNormVec writes the dominant normal axis here;
+	// COLL_FIXED_TRIANGL_TestPoint reads it during triangle projection.
 	u16 flags;
 
 	// 0x8
@@ -221,8 +221,8 @@ struct ScratchpadStruct
 	s32 hitFraction;
 
 	// 0x88
-	// This can happen 15 times cause of FUN_80020410,
-	// so this prevents any duplicate collisions
+	// COLL_MOVED_PlayerSearch can test up to 15 hitboxes, so this prevents
+	// duplicate collision handling within one search.
 	struct BSP *bspHitboxesHit[15];
 
 	// 0xc4
@@ -256,8 +256,7 @@ struct ScratchpadStruct
 	// 0x20C -- size of struct
 };
 
-// only stored in Scratchpad
-// FUN_80020334
+// only stored in scratchpad by COLL_MOVED_FindScrub
 struct ScratchpadStructExtended
 {
 	// --- top half is for COLL ---

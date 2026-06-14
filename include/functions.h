@@ -51,7 +51,7 @@ void CDSYS_XAPauseForce(void);
 void CDSYS_XAPauseAtEnd(void);
 
 struct MetaDataMODEL *COLL_LevModelMeta(u32 id);
-void COLL_SearchBSP_CallbackQUADBLK(u32 *posTop, u32 *posBottom, struct ScratchpadStruct *sps, int hitRadius);
+void COLL_SearchBSP_CallbackQUADBLK(u32 *posTop, u32 *posBottom, struct ScratchpadStruct *sps, s32 hitRadius);
 void COLL_SearchBSP_CallbackPARAM(struct BSP *root, struct BoundingBox *bbox, void (*callback)(struct BSP *, struct ScratchpadStruct *),
                                   struct ScratchpadStruct *sps);
 
@@ -1265,9 +1265,9 @@ s32 COLL_MOVED_TRIANGL_ReorderNormals(struct BspSearchResult *candidate, struct 
 void COLL_MOVED_TRIANGL_TestPoint(struct ScratchpadStruct *sps, struct BspSearchVertex *v1, struct BspSearchVertex *v2, struct BspSearchVertex *v3);
 void COLL_MOVED_QUADBLK_TestTriangles(struct QuadBlock *quad, struct ScratchpadStruct *sps);
 void COLL_MOVED_BSPLEAF_TestQuadblocks(struct BSP *node, struct ScratchpadStruct *sps);
-void COLL_MOVED_FindScrub(struct QuadBlock *qb, int triangleID, struct ScratchpadStruct *sps);
+void COLL_MOVED_FindScrub(struct QuadBlock *qb, s32 triangleID, struct ScratchpadStruct *sps);
 void COLL_MOVED_PlayerSearch(struct Thread *t, struct Driver *d);
-u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct ScratchpadStruct *sps, struct Scrub *scrub, int *velocity);
+u32 COLL_MOVED_ScrubImpact(struct Driver *d, struct Thread *t, struct ScratchpadStruct *sps, struct Scrub *scrub, s32 *velocity);
 struct Scrub *VehAfterColl_GetSurface(u32 scrubId);
 void BOTS_CollideWithOtherAI(struct Driver *robot_1, struct Driver *robot_2);
 void OtherFX_DriverCrashing(u32 boolEcho, u32 volume);
